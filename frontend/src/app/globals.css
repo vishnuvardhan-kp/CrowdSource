@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Warm, light-first canvas (#FAF9F6) */
+    --background: 40 20% 98%;
+    --foreground: 240 10% 10%;
+
+    /* Crisp white card surfaces */
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 10%;
+
+    /* Earthy Civic Green (#15803D) */
+    --primary: 142 71% 29%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Muted Warm Neutral */
+    --secondary: 40 10% 94%;
+    --secondary-foreground: 240 10% 10%;
+
+    --muted: 40 10% 94%;
+    --muted-foreground: 240 4% 46%;
+
+    /* Warm Amber / Saffron Accent (#D97706) */
+    --accent: 38 92% 44%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Warm subtle borders (#E8E5DF) */
+    --border: 40 14% 89%;
+    --input: 40 14% 89%;
+    --ring: 142 71% 29%;
+
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-[#FAF9F6] text-stone-900 antialiased selection:bg-emerald-100 selection:text-emerald-900;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Civic Utility Components */
+.civic-card {
+  background-color: #ffffff;
+  border: 1px solid #E8E5DF;
+  box-shadow: 0 1px 3px 0 rgba(24, 24, 27, 0.04), 0 1px 2px -1px rgba(24, 24, 27, 0.04);
+  border-radius: 1rem;
+}
+
+.civic-card-hover {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.civic-card-hover:hover {
+  border-color: #D5D1C7;
+  box-shadow: 0 4px 12px 0 rgba(24, 24, 27, 0.06), 0 2px 4px -2px rgba(24, 24, 27, 0.04);
+  transform: translateY(-1px);
+}
+
+/* Warm subtle civic banner gradient (inspired by Indian Positive Citizen reference) */
+.civic-hero-gradient {
+  background: linear-gradient(180deg, #FFF8EC 0%, #FAF9F6 100%);
+}
+
+.civic-badge-emerald {
+  background-color: #F0FDF4;
+  color: #166534;
+  border: 1px solid #BBF7D0;
+}
+
+.civic-badge-amber {
+  background-color: #FFFBEB;
+  color: #92400E;
+  border: 1px solid #FDE68A;
+}
+
+.civic-badge-blue {
+  background-color: #EFF6FF;
+  color: #1E40AF;
+  border: 1px solid #BFDBFE;
+}
