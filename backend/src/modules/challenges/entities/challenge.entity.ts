@@ -10,9 +10,11 @@ import {
   OneToOne,
   JoinColumn,
 } from 'typeorm';
-import { ChallengeStatus, ChallengePriority, CitizenSeverity, ClusteringStatus } from '../../../common/enums';
+import { ChallengeStatus, ChallengePriority, CitizenSeverity, ClusteringStatus, ReporterType } from '../../../common/enums';
 import { User } from '../../users/entities/user.entity';
 import { Organization } from '../../organizations/entities/organization.entity';
+import { Institution } from '../../institutions/entities/institution.entity';
+import { InstitutionMembership } from '../../institutions/entities/institution-membership.entity';
 import { ChallengeEvidence } from './challenge-evidence.entity';
 import { ChallengeConfirmation } from './challenge-confirmation.entity';
 import { District } from '../../locations/entities/district.entity';
@@ -52,6 +54,24 @@ export class Challenge {
   @Column({ type: 'jsonb', nullable: true, default: () => "'{}'::jsonb" })
   translation_metadata: Record<string, any>;
 
+  @Column({ type: 'varchar', length: 300, nullable: true })
+  professional_title: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  professional_problem_statement: string | null;
+
+  @Column({ type: 'varchar', length: 50, default: 'PENDING' })
+  refinement_status: string;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  refined_at: Date | null;
+
+  @Column({ type: 'jsonb', nullable: true, default: () => "'[]'::jsonb" })
+  citizen_facts: string[];
+
+  @Column({ type: 'jsonb', nullable: true, default: () => "'{}'::jsonb" })
+  platform_metadata: Record<string, any>;
+
   @Index()
   @Column({ type: 'uuid', nullable: true })
   submitted_by: string;
@@ -67,6 +87,33 @@ export class Challenge {
   @ManyToOne(() => Organization, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'organization_id' })
   organization: Organization;
+
+  @Index()
+  @Column({
+    type: 'enum',
+    enum: ReporterType,
+    default: ReporterType.INDIVIDUAL,
+  })
+  reporter_type: ReporterType;
+
+  @Index()
+  @Column({ type: 'uuid', nullable: true })
+  institution_id: string | null;
+
+  @ManyToOne(() => Institution, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'institution_id' })
+  institution: Institution | null;
+
+  @Index()
+  @Column({ type: 'uuid', nullable: true })
+  institution_membership_id: string | null;
+
+  @ManyToOne(() => InstitutionMembership, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'institution_membership_id' })
+  institutionMembership: InstitutionMembership | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  verification_snapshot: Record<string, any> | null;
 
   @Index()
   @Column({ type: 'uuid', nullable: true })
@@ -164,6 +211,9 @@ export class Challenge {
 
   @OneToMany(() => ExpressionOfInterest, (eoi) => eoi.challenge)
   eois: ExpressionOfInterest[];
+
+  @OneToMany('ProposedSolution', (sol: any) => sol.challenge)
+  proposedSolutions: any[];
 
   @Index()
   @Column({ type: 'uuid', nullable: true })

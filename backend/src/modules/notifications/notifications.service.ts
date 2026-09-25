@@ -209,10 +209,19 @@ export class NotificationsService {
       .andWhere('mem.membership_status = :status', { status: MembershipStatus.ACTIVE })
       .getMany();
 
-    const userIds = Array.from(new Set(memberships.map((m) => m.user_id)));
+    const userIds = new Set(memberships.map((m) => m.user_id));
+
+    // Also include active users directly bound via user.organization_id
+    const directUsers = await this.userRepo
+      .createQueryBuilder('user')
+      .where('user.organization_id IN (:...orgIds)', { orgIds })
+      .andWhere('user.is_active = true')
+      .getMany();
+    directUsers.forEach((u) => userIds.add(u.id));
+
     const notifs: Notification[] = [];
 
-    for (const uId of userIds) {
+    for (const uId of Array.from(userIds)) {
       const n = await this.notifyUser(uId, type, title, message, referenceType, referenceId);
       notifs.push(n);
     }
@@ -302,8 +311,18 @@ export class NotificationsService {
         actionUrl = `/challenges/${n.reference_id}`;
       } else if (n.reference_type === 'PROJECT' && n.reference_id) {
         actionUrl = `/projects/${n.reference_id}`;
+      } else if (n.reference_type === 'MILESTONE' && n.reference_id) {
+        actionUrl = `/projects/${n.reference_id}`;
+      } else if (n.reference_type === 'IMPACT' && n.reference_id) {
+        actionUrl = `/projects/${n.reference_id}`;
+      } else if (n.reference_type === 'EOI') {
+        actionUrl = `/my-eois`;
+      } else if (n.reference_type === 'PROBLEM_CLUSTER' && n.reference_id) {
+        actionUrl = `/reviewer-queue?cluster=${n.reference_id}`;
       } else if (n.reference_type === 'VERIFICATION' && n.reference_id) {
         actionUrl = `/reviewer-queue?item=${n.reference_id}`;
+      } else if (n.reference_type === 'REVIEW') {
+        actionUrl = `/reviewer-queue`;
       }
       return {
         ...n,

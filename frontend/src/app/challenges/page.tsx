@@ -14,12 +14,17 @@ import {
   ArrowRight,
   Filter,
   CheckCircle2,
+  Sparkles,
 } from "lucide-react";
 
 interface ChallengeItem {
   id: string;
   title: string;
   description: string;
+  professional_title?: string | null;
+  professional_problem_statement?: string | null;
+  refinement_status?: string | null;
+  refined_at?: string | null;
   district: string;
   districtName: string;
   blockName: string | null;
@@ -314,33 +319,40 @@ export default function ChallengesPage() {
                 </div>
 
                 {/* Title */}
-                <Link href={`/challenges/${challenge.id}`}>
-                  <h3 className="text-base font-bold text-stone-900 group-hover:text-emerald-700 transition-colors line-clamp-2 leading-snug">
-                    {challenge.title}
-                  </h3>
-                </Link>
+                <div>
+                  {challenge.professional_title && challenge.professional_title !== challenge.title && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded mb-1.5">
+                      <Sparkles className="h-2.5 w-2.5 text-indigo-600" /> Refined Problem
+                    </span>
+                  )}
+                  <Link href={`/challenges/${challenge.id}`}>
+                    <h3 className="text-base font-bold text-stone-900 group-hover:text-emerald-700 transition-colors line-clamp-2 leading-snug break-words">
+                      {challenge.professional_title || challenge.title}
+                    </h3>
+                  </Link>
+                </div>
 
                 {/* Description snippet */}
-                <p className="text-xs text-stone-600 line-clamp-3 leading-relaxed">
-                  {challenge.description}
+                <p className="text-xs text-stone-600 line-clamp-3 leading-relaxed break-words">
+                  {challenge.professional_problem_statement || challenge.description}
                 </p>
 
                 {/* Location Badges */}
-                <div className="flex items-center gap-1.5 text-[11px] text-stone-500 pt-1">
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-stone-500 pt-1 min-w-0">
                   <MapPin className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
-                  <span className="font-semibold text-stone-800">
+                  <span className="font-semibold text-stone-800 break-words">
                     {challenge.districtName}
                   </span>
                   {challenge.blockName && (
                     <>
                       <span>·</span>
-                      <span>{challenge.blockName} Block</span>
+                      <span className="break-words">{challenge.blockName} Block</span>
                     </>
                   )}
                   {challenge.village_locality && (
                     <>
                       <span>·</span>
-                      <span className="truncate max-w-[120px]">
+                      <span className="truncate max-w-[160px]">
                         {challenge.village_locality}
                       </span>
                     </>
@@ -349,8 +361,8 @@ export default function ChallengesPage() {
               </div>
 
               {/* Footer: Evidence, Confirmations & Details */}
-              <div className="border-t border-stone-100 pt-4 mt-5 flex items-center justify-between">
-                <div className="flex items-center gap-2">
+              <div className="border-t border-stone-100 pt-4 mt-5 flex items-center justify-between gap-2 min-w-0">
+                <div className="flex items-center gap-2 shrink-0">
                   {/* Community Confirmation Button */}
                   <button
                     onClick={() => handleToggleConfirm(challenge)}
@@ -378,7 +390,7 @@ export default function ChallengesPage() {
                 {/* View Details Link */}
                 <Link
                   href={`/challenges/${challenge.id}`}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 group/link"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 group/link shrink-0"
                 >
                   <span>Details</span>
                   <ArrowRight className="h-3.5 w-3.5 group-hover/link:translate-x-0.5 transition-transform" />

@@ -40,6 +40,12 @@ export class Department {
   @Column({ type: 'varchar', length: 255, nullable: true })
   contact_email: string;
 
+  @Column({ type: 'text', nullable: true })
+  description: string;
+
+  @Column({ type: 'varchar', length: 50, default: 'ACTIVE' })
+  status: string;
+
   @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;
 

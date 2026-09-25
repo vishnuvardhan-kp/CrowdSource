@@ -29,11 +29,11 @@ export const DATABASE_CONNECTION = 'DATABASE_CONNECTION';
           entities: ALL_ENTITIES,
           synchronize: false, // Migrations manage database schema
           logging: isDev ? ['error', 'warn'] : false,
-          retryAttempts: 1,
-          retryDelay: 500,
           extra: {
             client_encoding: 'UTF8',
           },
+          retryAttempts: 1,
+          retryDelay: 0,
         };
       },
       dataSourceFactory: async (options) => {
@@ -42,22 +42,39 @@ export const DATABASE_CONNECTION = 'DATABASE_CONNECTION';
           throw new Error('Invalid TypeORM options passed to dataSourceFactory');
         }
         const dataSource = new DataSource(options);
-        try {
-          await dataSource.initialize();
-          logger.log(
-            `✅ Connected to PostgreSQL database: ${options.database} at ${(options as any).host}:${(options as any).port}`
-          );
-          return dataSource;
-        } catch (error) {
-          logger.warn(
-            `⚠️ Could not establish initial PostgreSQL connection (${(options as any).host}:${(options as any).port}): ${error.message}. App starting in standalone mode.`
-          );
+
+        const maxAttempts = 10;
+        let attempt = 0;
+        let delayMs = 500;
+        let lastError: Error | null = null;
+
+        while (attempt < maxAttempts) {
+          attempt++;
           try {
-            (dataSource as any).buildMetadatas();
-          } catch {}
-          (dataSource as any).isInitialized = true;
-          return dataSource;
+            await dataSource.initialize();
+            logger.log(
+              `✅ Connected to PostgreSQL database: ${options.database} at ${(options as any).host}:${(options as any).port} (attempt ${attempt}/${maxAttempts})`,
+            );
+            return dataSource;
+          } catch (error: any) {
+            lastError = error;
+            if (attempt < maxAttempts) {
+              logger.warn(
+                `⏳ PostgreSQL not ready at ${(options as any).host}:${(options as any).port} (attempt ${attempt}/${maxAttempts}: ${error.message}). Retrying in ${delayMs}ms...`,
+              );
+              await new Promise((res) => setTimeout(res, delayMs));
+              delayMs = Math.min(delayMs * 1.5, 2000);
+            }
+          }
         }
+
+        // FAIL CLOSED: Never fake isInitialized or boot into a corrupt uninitialized state
+        logger.error(
+          `❌ Failed to establish PostgreSQL connection after ${maxAttempts} attempts at ${(options as any).host}:${(options as any).port}: ${lastError?.message}. Halting application bootstrap (FAIL CLOSED).`,
+        );
+        throw new Error(
+          `Database connection could not be established. Halting bootstrap: ${lastError?.message}`,
+        );
       },
     }),
   ],

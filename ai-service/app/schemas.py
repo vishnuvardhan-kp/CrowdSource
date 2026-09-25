@@ -37,6 +37,12 @@ class ChallengeAiAnalysisResult(BaseModel):
     model_version: str
     prompt_version: str
     taxonomy_version: str
+    professional_title: Optional[str] = None
+    professional_problem_statement: Optional[str] = None
+    citizen_facts: Optional[List[str]] = None
+    platform_metadata: Optional[Dict[str, Any]] = None
+    key_facts: Optional[List[str]] = None
+    refinement_status: Optional[str] = "REFINED"
     raw_analysis: Dict[str, Any]
 
 # --- Taxonomy Normalization Schemas ---
@@ -170,3 +176,19 @@ class SupportedLanguage(BaseModel):
 
 class SupportedLanguagesResponse(BaseModel):
     languages: List[SupportedLanguage]
+
+# --- Visual Evidence Relevance Check Schemas ---
+
+class AnalyzeImageRelevanceRequest(BaseModel):
+    challenge_id: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    image_base64: Optional[str] = None
+    image_url: Optional[str] = None
+
+class ImageRelevanceResult(BaseModel):
+    is_relevant: bool
+    confidence: float
+    visual_summary: str
+    detected_features: List[str]
+    disclaimer: str = "Advisory lightweight visual check for civic triage only. Not a legally binding or exhaustive forensic determination."

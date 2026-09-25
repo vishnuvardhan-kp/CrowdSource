@@ -34,9 +34,13 @@ import {
   Users,
   Globe,
   Languages,
+  Volume2,
+  MessageSquare,
 } from "lucide-react";
 import { formatDateSafe } from "../../../lib/utils";
 import { useTranslation, SUPPORTED_LANGUAGES } from "../../../lib/i18n";
+import { ResearchIntelligenceCard } from "../../components/research/ResearchIntelligenceCard";
+import { evaluateForumAccess } from "../../../lib/forum-access";
 
 interface AiAnalysisData {
   category: string;
@@ -54,6 +58,13 @@ interface AiAnalysisData {
   keywords?: string[];
   required_technologies?: string[];
   ai_processing_status?: "SUCCESS" | "FALLBACK";
+  professional_title?: string | null;
+  professional_problem_statement?: string | null;
+  citizen_facts?: string[];
+  platform_metadata?: Record<string, any> | null;
+  key_facts?: string[];
+  refinement_status?: string;
+  refined_at?: string | null;
   raw_analysis?: {
     problem_factors?: string[];
     solution_domains?: string[];
@@ -78,7 +89,7 @@ interface EvidenceItem {
   id: string;
   title: string;
   description: string | null;
-  evidence_type: "IMAGE" | "VIDEO" | "DOCUMENT" | "OTHER";
+  evidence_type: "IMAGE" | "VIDEO" | "DOCUMENT" | "AUDIO" | "OTHER";
   url: string;
   mime_type: string;
   created_at: string;
@@ -92,11 +103,12 @@ interface ChallengeDetail {
   districtName: string;
   blockName: string | null;
   village_locality: string | null;
+  state?: string;
   latitude: number | null;
   longitude: number | null;
   citizen_severity: "NOT_SURE" | "MODERATE" | "SERIOUS" | null;
   affected_population: string | null;
-  status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "VALIDATED" | "REJECTED" | "PROJECT_INITIATED";
+  status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "VALIDATED" | "REJECTED" | "PROJECT_INITIATED" | "MATCHING" | "MATCHED";
   created_at: string;
   submitted_at: string | null;
   validated_at: string | null;
@@ -108,12 +120,32 @@ interface ChallengeDetail {
   submitter: { name: string };
   aiAnalysis?: AiAnalysisData | null;
   verification_display_status?: string;
+  verification_snapshot?: Record<string, any> | null;
   original_text?: string;
   original_language?: string;
   normalized_text?: string;
   processing_language?: string;
   translation_status?: string;
   translation_metadata?: any;
+  professional_title?: string | null;
+  professional_problem_statement?: string | null;
+  citizen_facts?: string[];
+  platform_metadata?: Record<string, any> | null;
+  refinement_status?: string | null;
+  refined_at?: string | null;
+  cluster_id?: string | null;
+  clustering_status?: string | null;
+  potential_cluster_id?: string | null;
+  cluster?: {
+    id: string;
+    title: string;
+    description: string;
+    category: string;
+    district: string;
+    status: string;
+    report_count: number;
+    ai_processing_status?: string;
+  } | null;
 }
 
 export default function ChallengeDetailPage() {
@@ -134,8 +166,13 @@ export default function ChallengeDetailPage() {
     user?.role === "UNIVERSITY_ADMIN" ||
     user?.role === "FACULTY" ||
     user?.role === "STUDENT" ||
+    user?.role === "INDUSTRY_RND" ||
+    user?.role === "STARTUP_INNOVATOR" ||
     user?.primaryOrganization?.organization_type === "INSTITUTION" ||
-    user?.memberships?.some((m) => m.organization_type === "INSTITUTION");
+    user?.primaryOrganization?.organization_type === "ACADEMIC_INSTITUTION" ||
+    user?.primaryOrganization?.organization_type === "INDUSTRY" ||
+    user?.memberships?.some((m) => m.organization_type === "INSTITUTION") ||
+    Boolean(userOrgId);
 
   const [challenge, setChallenge] = useState<ChallengeDetail | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -217,18 +254,30 @@ export default function ChallengeDetailPage() {
     }
   }, [apiUrl, challengeId, token]);
 
-  const [myEoi, setMyEoi] = useState<any>(null);
+  const [solutions, setSolutions] = useState<any[]>([]);
+  const [mySolution, setMySolution] = useState<any | null>(null);
 
-  const fetchMyEoi = useCallback(async () => {
-    if (!challengeId || !token) return;
+  const fetchChallengeSolutions = useCallback(async () => {
+    if (!challengeId) return;
     try {
-      const res = await fetch(`${apiUrl}/eois/my`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // 1. Fetch public published solutions for this challenge
+      const res = await fetch(`${apiUrl}/solutions?challenge_id=${challengeId}`);
       if (res.ok) {
         const data = await res.json();
-        const match = data.find((e: any) => e.challenge_id === challengeId);
-        setMyEoi(match || null);
+        const items = data.items || (Array.isArray(data) ? data : []);
+        setSolutions(items);
+      }
+
+      // 2. If authenticated, check if user's org has a draft/submitted solution
+      if (token) {
+        const myRes = await fetch(`${apiUrl}/solutions/my`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (myRes.ok) {
+          const myData = await myRes.json();
+          const match = Array.isArray(myData) ? myData.find((s: any) => s.challenge_id === challengeId) : null;
+          setMySolution(match || null);
+        }
       }
     } catch {
       // Silently handle
@@ -297,11 +346,11 @@ export default function ChallengeDetailPage() {
   useEffect(() => {
     fetchChallenge();
     fetchAiAnalysis();
+    fetchChallengeSolutions();
     if (token) {
       fetchRecommendations();
-      fetchMyEoi();
     }
-  }, [fetchChallenge, fetchAiAnalysis, fetchRecommendations, fetchMyEoi, token]);
+  }, [fetchChallenge, fetchAiAnalysis, fetchRecommendations, fetchChallengeSolutions, token]);
 
   const handleToggleConfirm = async () => {
     if (!token) {
@@ -357,8 +406,15 @@ export default function ChallengeDetailPage() {
       case "UNDER_REVIEW":
       case "SUBMITTED":
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-800">
-            <Clock className="h-4 w-4 text-amber-700" /> Pending Government Verification
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-semibold text-blue-800">
+            <CheckCircle2 className="h-4 w-4 text-blue-700" /> Open for University Solutions
+          </span>
+        );
+      case "MATCHING":
+      case "MATCHED":
+        return (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-200 px-3 py-1 text-xs font-semibold text-indigo-800">
+            <CheckCircle2 className="h-4 w-4 text-indigo-700" /> University Matched
           </span>
         );
       case "REJECTED":
@@ -375,8 +431,8 @@ export default function ChallengeDetailPage() {
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-800">
-            <Clock className="h-4 w-4 text-amber-700" /> Pending Government Verification
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-semibold text-blue-800">
+            <CheckCircle2 className="h-4 w-4 text-blue-700" /> Open for University Solutions
           </span>
         );
     }
@@ -408,6 +464,7 @@ export default function ChallengeDetailPage() {
   }
 
   const backendHost = apiUrl.replace("/api", "");
+  const forumAccess = evaluateForumAccess(challenge, solutions, [], user);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 space-y-6">
@@ -441,27 +498,47 @@ export default function ChallengeDetailPage() {
       <div className="civic-card p-6 sm:p-8 space-y-6">
         {/* Status Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-4">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {getStatusBadge(challenge.status)}
             {challenge.citizen_severity && (
               <span className="rounded-md bg-stone-100 border border-stone-200 px-2.5 py-0.5 text-[11px] font-medium text-stone-700">
                 Severity: {challenge.citizen_severity.replace("_", " ").toLowerCase()}
               </span>
             )}
+            {forumAccess.canAccess && (
+              <Link
+                href={`/challenges/${challenge.id}/forum`}
+                className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-200 px-3 py-1 text-xs font-semibold text-indigo-800 hover:bg-indigo-100 transition shadow-2xs"
+              >
+                <MessageSquare className="h-3.5 w-3.5 text-indigo-600" />
+                Communication Forum
+              </Link>
+            )}
           </div>
 
-          <div className="text-right text-[11px] text-stone-500">
-            {challenge.submitted_at ? (
-              <span>Submitted on {formatDateSafe(challenge.submitted_at)}</span>
-            ) : (
-              <span>Created on {formatDateSafe(challenge.created_at)}</span>
+          <div className="flex items-center gap-3">
+            {forumAccess.canAccess && (
+              <Link
+                href={`/challenges/${challenge.id}/forum`}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-700 hover:bg-indigo-800 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs transition"
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
+                Stakeholder Forum
+              </Link>
             )}
+            <div className="text-right text-[11px] text-stone-500">
+              {challenge.submitted_at ? (
+                <span>Submitted on {formatDateSafe(challenge.submitted_at)}</span>
+              ) : (
+                <span>Created on {formatDateSafe(challenge.created_at)}</span>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Multilingual Header & Controls */}
-        <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-stone-50 border border-stone-200">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-stone-50 border border-stone-200">
+          <div className="flex flex-wrap items-center gap-2">
             <Globe className="h-4 w-4 text-emerald-700 shrink-0" />
             <span className="text-xs text-stone-600 font-medium">Original Language:</span>
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
@@ -472,13 +549,13 @@ export default function ChallengeDetailPage() {
           </div>
 
           {/* On-Demand Translation Buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {challenge.original_language !== "hi" && (
               <button
                 type="button"
                 disabled={isTranslating}
                 onClick={() => handleOnDemandTranslate("hi")}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
                   onDemandTranslation?.target_language === "hi"
                     ? "bg-emerald-700 text-white shadow-xs"
                     : "bg-white border border-stone-300 text-stone-700 hover:bg-stone-100"
@@ -494,7 +571,7 @@ export default function ChallengeDetailPage() {
                 type="button"
                 disabled={isTranslating}
                 onClick={() => handleOnDemandTranslate("en")}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
                   onDemandTranslation?.target_language === "en"
                     ? "bg-emerald-700 text-white shadow-xs"
                     : "bg-white border border-stone-300 text-stone-700 hover:bg-stone-100"
@@ -524,91 +601,376 @@ export default function ChallengeDetailPage() {
               Viewing {SUPPORTED_LANGUAGES[onDemandTranslation.target_language]?.name || onDemandTranslation.target_language} Translation
             </div>
           )}
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900 tracking-tight leading-tight">
-            {onDemandTranslation ? onDemandTranslation.translated_title : challenge.title}
+          {challenge.professional_title && challenge.professional_title !== challenge.title && !onDemandTranslation && (
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 mb-2">
+              <Sparkles className="h-3 w-3 text-indigo-600" />
+              AI-Refined Civic Problem Statement
+            </div>
+          )}
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900 tracking-tight leading-tight break-words">
+            {onDemandTranslation
+              ? onDemandTranslation.translated_title
+              : (challenge.professional_title || challenge.title)}
           </h1>
-          <p className="text-xs text-stone-500 mt-2 flex items-center gap-1.5">
-            <UserIcon className="h-3.5 w-3.5 text-stone-400" />
-            Reported by: <span className="text-stone-800 font-semibold">{challenge.submitter.name}</span>
-          </p>
+          {challenge.professional_title && challenge.professional_title !== challenge.title && !onDemandTranslation && (
+            <p className="text-xs text-stone-500 mt-1">
+              Original Citizen Title: &ldquo;{challenge.title}&rdquo;
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500 mt-2">
+            <span className="flex items-center gap-1.5">
+              <UserIcon className="h-3.5 w-3.5 text-stone-400" />
+              Reported by: <span className="text-stone-800 font-semibold break-words">{challenge.submitter?.name || "Citizen"}</span>
+            </span>
+            {challenge.verification_snapshot?.community_group_name && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-900 border border-blue-200 px-2.5 py-0.5 font-semibold text-[11px]">
+                <Users className="w-3 h-3 text-blue-700" />
+                {challenge.verification_snapshot.community_group_name}
+              </span>
+            )}
+            {challenge.verification_snapshot?.institution_name && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-200 px-2.5 py-0.5 font-semibold text-[11px]">
+                <ShieldCheck className="w-3 h-3 text-emerald-700" />
+                {challenge.verification_snapshot.institution_name} ({challenge.verification_snapshot.designation})
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Rejection notice if applicable */}
         {challenge.status === "REJECTED" && challenge.rejection_reason && (
           <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-xs text-red-900 space-y-1">
             <span className="font-semibold text-red-700">Reviewer Rejection Reason:</span>
-            <p className="text-stone-700 leading-relaxed">{challenge.rejection_reason}</p>
+            <p className="text-stone-700 leading-relaxed break-words">{challenge.rejection_reason}</p>
+          </div>
+        )}
+
+        {/* Community Problem Consolidation Notice */}
+        {((challenge.clustering_status === "CLUSTERED" && (challenge.cluster?.report_count ? challenge.cluster.report_count > 1 : false)) ||
+          challenge.clustering_status === "POTENTIAL_MATCH") && (
+          <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900 space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                <Layers className="h-3.5 w-3.5 text-blue-700" />
+              </div>
+              <span className="font-bold text-blue-950">
+                {challenge.clustering_status === "POTENTIAL_MATCH"
+                  ? "Potential Community Match"
+                  : "Community Problem Consolidation"}
+              </span>
+            </div>
+            <p className="text-stone-700 leading-relaxed">
+              {challenge.clustering_status === "POTENTIAL_MATCH"
+                ? `A potential match with existing community reports in ${challenge.districtName || challenge.district || "your area"} has been identified and is queued for Government reviewer verification.`
+                : `Your report has been consolidated with ${challenge.cluster?.report_count || 2} community reports in ${challenge.districtName || challenge.district || "your area"} to amplify civic attention.`}
+            </p>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                <Sparkles className="h-2.5 w-2.5" /> AI-assisted consolidation
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-200">
+                <Shield className="h-2.5 w-2.5" /> Awaiting Administrative Review
+              </span>
+            </div>
           </div>
         )}
 
         {/* Location Box */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 p-4 rounded-xl bg-stone-50 border border-stone-200 text-xs">
-          <div>
+          <div className="min-w-0">
             <span className="text-[11px] text-stone-500 block">District</span>
-            <span className="font-semibold text-stone-900">{challenge.districtName}</span>
+            <span className="font-semibold text-stone-900 break-words">{challenge.districtName}</span>
           </div>
-          <div>
+          <div className="min-w-0">
             <span className="text-[11px] text-stone-500 block">Block</span>
-            <span className="font-semibold text-stone-900">{challenge.blockName || "Not specified"}</span>
+            <span className="font-semibold text-stone-900 break-words">{challenge.blockName || "Not specified"}</span>
           </div>
-          <div>
+          <div className="min-w-0">
             <span className="text-[11px] text-stone-500 block">Village / Locality</span>
-            <span className="font-semibold text-stone-900">{challenge.village_locality || "Not specified"}</span>
+            <span className="font-semibold text-stone-900 break-words">{challenge.village_locality || "Not specified"}</span>
           </div>
-          <div>
+          <div className="min-w-0">
             <span className="text-[11px] text-stone-500 block">Affected Population</span>
-            <span className="font-semibold text-stone-900">{challenge.affected_population || "Unspecified"}</span>
+            <span className="font-semibold text-stone-900 break-words">{challenge.affected_population || "Unspecified"}</span>
           </div>
         </div>
 
-        {/* Problem Description */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-stone-500">
-              {onDemandTranslation ? "Translated Problem Description" : "Citizen's Original Problem Description"}
-            </h3>
-            {challenge.original_language && (
-              <span className="text-[11px] text-stone-500 font-mono">
-                Script: {SUPPORTED_LANGUAGES[challenge.original_language]?.script || "Native"}
-              </span>
-            )}
-          </div>
-          <p className="text-sm sm:text-base text-stone-800 whitespace-pre-wrap leading-relaxed bg-stone-50/50 p-4 rounded-xl border border-stone-200">
-            {onDemandTranslation
-              ? onDemandTranslation.translated_description
-              : (challenge.original_text || challenge.description)}
-          </p>
-        </div>
+        {/* Citizen Problem Journey Lifecycle Tracker */}
+        {(() => {
+          const isSubmitted = challenge.status !== "DRAFT";
+          const isAiStructured = Boolean(aiAnalysis || challenge.aiAnalysis);
+          const isClustered = Boolean(challenge.cluster_id || challenge.clustering_status === "CLUSTERED");
+          const isGovVerified =
+            challenge.status === "VALIDATED" ||
+            challenge.status === "PROJECT_INITIATED" ||
+            Boolean(challenge.verification_display_status?.toLowerCase().includes("verified")) ||
+            challenge.cluster?.status === "VERIFIED";
+          const isMatched = (recommendations && recommendations.length > 0) || isGovVerified;
+          const isEoiOrProject = challenge.status === "PROJECT_INITIATED" || Boolean(mySolution);
+          const isCompleted = challenge.status === "PROJECT_INITIATED";
 
-        {/* Normalized English Translation Box (if different from original) */}
-        {!onDemandTranslation && challenge.normalized_text && challenge.normalized_text !== (challenge.original_text || challenge.description) && (
-          <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-200 space-y-2 text-xs">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-bold text-emerald-950 flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
-                English Normalized Translation (AI Derived for District Review)
-              </span>
-              {challenge.translation_status === "VERIFIED" && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                  Automated Verified Translation
+          const steps = [
+            {
+              id: "reported",
+              title: "Reported",
+              desc: "Submitted by citizen",
+              date: formatDateSafe(challenge.submitted_at || challenge.created_at),
+              state: isSubmitted ? "completed" : "active",
+            },
+            {
+              id: "ai",
+              title: "AI Structured",
+              desc: "Normalized & analyzed",
+              state: isAiStructured ? "completed" : isSubmitted ? "active" : "pending",
+            },
+            {
+              id: "clustered",
+              title: "Triage & Cluster",
+              desc: isClustered ? "Aggregated with local needs" : "District deduplication",
+              state: isClustered ? "completed" : isAiStructured ? "active" : "pending",
+            },
+            {
+              id: "verified",
+              title: "Gov Verified",
+              desc: isGovVerified ? "Validated by District Officer" : "Pending officer review",
+              date: challenge.validated_at ? formatDateSafe(challenge.validated_at) : undefined,
+              state: isGovVerified ? "completed" : isClustered || isAiStructured ? "active" : "pending",
+            },
+            {
+              id: "matched",
+              title: "University Match",
+              desc: isMatched ? "Matched with HEI expertise" : "Matching engine evaluation",
+              state: isMatched ? "completed" : isGovVerified ? "active" : "pending",
+            },
+            {
+              id: "eoi",
+              title: "Consortium EOI",
+              desc: isEoiOrProject ? "Proposal accepted" : "Open for university EOI",
+              state: isEoiOrProject ? "completed" : isGovVerified ? "active" : "pending",
+            },
+            {
+              id: "project",
+              title: "Collaborative Pilot",
+              desc: isCompleted ? "Active project & milestones" : "Awaiting kickoff",
+              state: isCompleted ? "completed" : isEoiOrProject ? "active" : "pending",
+            },
+          ];
+
+          return (
+            <div className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6 space-y-4 shadow-2xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800">
+                    <Sparkles className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-stone-900">Problem Resolution Journey</h3>
+                    <p className="text-[11px] text-stone-500">Live operational lifecycle from citizen report to verified community impact.</p>
+                  </div>
+                </div>
+                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 self-start sm:self-auto">
+                  {isGovVerified ? "Government Verified Need" : "Community Review Stage"}
                 </span>
+              </div>
+
+              {/* Progress Steps Timeline */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 pt-2">
+                {steps.map((step, idx) => (
+                  <div
+                    key={step.id}
+                    className={`relative p-3 rounded-xl border flex flex-col justify-between space-y-2 transition ${
+                      step.state === "completed"
+                        ? "bg-emerald-50/60 border-emerald-200 text-stone-900"
+                        : step.state === "active"
+                        ? "bg-amber-50/60 border-amber-300 text-stone-900 ring-2 ring-amber-400/20"
+                        : "bg-stone-50 border-stone-200 text-stone-400"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500">
+                        Step {idx + 1}
+                      </span>
+                      {step.state === "completed" ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0" />
+                      ) : step.state === "active" ? (
+                        <Clock className="h-4 w-4 text-amber-700 shrink-0 animate-pulse" />
+                      ) : (
+                        <div className="h-3 w-3 rounded-full border border-stone-300 shrink-0" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold leading-tight">{step.title}</p>
+                      <p className="text-[10px] text-stone-500 leading-snug mt-0.5">{step.desc}</p>
+                    </div>
+                    {step.date && (
+                      <span className="text-[9px] font-mono text-stone-400 pt-1 border-t border-stone-200/40">
+                        {step.date}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Problem Statements: Dual Presentation (Refined Civic Problem + Preserved Original Submission) */}
+        <div className="space-y-4">
+          {/* 1. Refined Platform Problem Statement (Primary View) */}
+          {(challenge.professional_problem_statement || challenge.aiAnalysis?.professional_problem_statement) && !onDemandTranslation ? (
+            <div className="rounded-2xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50/70 via-white to-blue-50/40 p-5 sm:p-6 space-y-3 shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white">
+                    <Sparkles className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-indigo-950">Platform-Formatted Problem Statement</h3>
+                    <p className="text-[11px] text-stone-500">Professional civic & engineering formulation for Government, Academic, and Industry collaboration.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                    <CheckCircle2 className="h-3 w-3 text-indigo-700" />
+                    Civic Standard
+                  </span>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-white text-stone-600 border border-stone-200">
+                    Zero Fabrication
+                  </span>
+                </div>
+              </div>
+
+              {/* Tier 1: Professional Civic Formulation */}
+              <div className="text-sm sm:text-base text-stone-900 leading-relaxed font-sans pt-1">
+                {challenge.professional_problem_statement || challenge.aiAnalysis?.professional_problem_statement}
+              </div>
+
+              {/* Tier 2: Verified Platform Metadata (Distinctly Separated from Citizen Text) */}
+              {(challenge.districtName || challenge.village_locality || challenge.platform_metadata) && (
+                <div className="mt-3 pt-3 border-t border-indigo-100/70">
+                  <div className="flex flex-wrap items-center justify-between gap-1 mb-2">
+                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
+                      Platform-Verified Administrative Context
+                    </h4>
+                    <span className="text-[10px] font-medium text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
+                      Authoritative platform records (not extracted from citizen text)
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="inline-flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-slate-800 font-medium">
+                      <MapPin className="h-3 w-3 text-slate-500" />
+                      District: <strong className="text-slate-900">{challenge.districtName || challenge.district}</strong>
+                    </span>
+                    {challenge.blockName && (
+                      <span className="inline-flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-slate-800 font-medium">
+                        Block: <strong className="text-slate-900">{challenge.blockName}</strong>
+                      </span>
+                    )}
+                    {challenge.village_locality && (
+                      <span className="inline-flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-slate-800 font-medium">
+                        Locality: <strong className="text-slate-900">{challenge.village_locality}</strong>
+                      </span>
+                    )}
+                    <span className="inline-flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-slate-800 font-medium">
+                      State: <strong className="text-slate-900">{challenge.state || "Jharkhand"}</strong>
+                    </span>
+                  </div>
+                </div>
               )}
-              {challenge.translation_status === "REQUIRES_HUMAN_REVIEW" && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                  Requires Human Review (Low-resource / Uncertain Dialect)
+
+              {/* Tier 3: Citizen-Reported Facts (Extracted Strictly from Citizen Text) */}
+              {(() => {
+                const citizenFactsList =
+                  challenge.citizen_facts?.length
+                    ? challenge.citizen_facts
+                    : challenge.aiAnalysis?.citizen_facts?.length
+                    ? challenge.aiAnalysis.citizen_facts
+                    : challenge.aiAnalysis?.key_facts || [];
+
+                return citizenFactsList.length > 0 ? (
+                  <div className="mt-3 pt-3 border-t border-indigo-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                        Facts Extracted from Citizen Statement
+                      </h4>
+                      <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                        Strict Zero Fabrication
+                      </span>
+                    </div>
+                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      {citizenFactsList.map((fact: string, idx: number) => (
+                        <li key={idx} className="flex items-start gap-2 bg-white/90 border border-emerald-100 rounded-lg p-2.5 text-stone-800 shadow-2xs">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 mt-1.5 shrink-0" />
+                          <span className="leading-snug">{fact}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null;
+              })()}
+            </div>
+          ) : null}
+
+          {/* 2. Original Citizen Submission (Preserved Verbatim) */}
+          <div className="rounded-2xl border border-stone-200 bg-stone-50/60 p-5 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-200 pb-2.5">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-stone-500" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-stone-700">
+                  {onDemandTranslation ? "Translated Problem Description" : "Original Citizen Submission (Unedited)"}
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                {challenge.original_language && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-white border border-stone-300 text-stone-700">
+                    <Globe className="h-3 w-3 text-stone-500" />
+                    Language: <span className="font-bold text-stone-900">{SUPPORTED_LANGUAGES[challenge.original_language]?.name || challenge.original_language}</span>
+                  </span>
+                )}
+                <span className="text-[10px] text-stone-500">
+                  Immutable Record
                 </span>
+              </div>
+            </div>
+            <p className="text-sm text-stone-800 whitespace-pre-wrap leading-relaxed bg-white p-4 rounded-xl border border-stone-200/80 break-words">
+              {onDemandTranslation
+                ? onDemandTranslation.translated_description
+                : (challenge.original_text || challenge.description)}
+            </p>
+          </div>
+
+          {/* 3. Normalized English Translation Box (if different from original and not on-demand) */}
+          {!onDemandTranslation && challenge.normalized_text && challenge.normalized_text !== (challenge.original_text || challenge.description) && (
+            <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-200 space-y-2 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-bold text-emerald-950 flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-emerald-700" />
+                  English Normalized Translation (AI Derived for District Review)
+                </span>
+                {challenge.translation_status === "VERIFIED" && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    Automated Verified Translation
+                  </span>
+                )}
+                {challenge.translation_status === "REQUIRES_HUMAN_REVIEW" && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                    Requires Human Review (Low-resource / Uncertain Dialect)
+                  </span>
+                )}
+              </div>
+              <p className="text-stone-800 whitespace-pre-wrap leading-relaxed font-sans bg-white p-3 rounded-lg border border-emerald-100">
+                {challenge.normalized_text}
+              </p>
+              {challenge.translation_status === "REQUIRES_HUMAN_REVIEW" && (
+                <p className="text-[11px] text-amber-800 font-medium">
+                  ⚠️ Note: This problem statement was submitted in a regional/tribal language with low-resource machine translation confidence. District reviewers should corroborate key details with the citizen.
+                </p>
               )}
             </div>
-            <p className="text-stone-800 whitespace-pre-wrap leading-relaxed font-sans bg-white p-3 rounded-lg border border-emerald-100">
-              {challenge.normalized_text}
-            </p>
-            {challenge.translation_status === "REQUIRES_HUMAN_REVIEW" && (
-              <p className="text-[11px] text-amber-800 font-medium">
-                ⚠️ Note: This problem statement was submitted in a regional/tribal language with low-resource machine translation confidence. District reviewers should corroborate key details with the citizen.
-              </p>
-            )}
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Evidence Section */}
         {challenge.evidence && challenge.evidence.length > 0 && (
@@ -619,8 +981,9 @@ export default function ChallengeDetailPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {challenge.evidence.map((ev) => {
                 const fullUrl = `${backendHost}${ev.url}`;
-                const isImage = ev.mime_type.startsWith("image/");
-                const isVideo = ev.mime_type.startsWith("video/");
+                const isImage = ev.mime_type.startsWith("image/") || ev.evidence_type === "IMAGE";
+                const isVideo = ev.mime_type.startsWith("video/") || ev.evidence_type === "VIDEO";
+                const isAudio = ev.mime_type.startsWith("audio/") || ev.evidence_type === "AUDIO";
                 return (
                   <div
                     key={ev.id}
@@ -632,6 +995,8 @@ export default function ChallengeDetailPage() {
                           <ImageIcon className="h-4 w-4 text-emerald-700 shrink-0" />
                         ) : isVideo ? (
                           <Video className="h-4 w-4 text-purple-700 shrink-0" />
+                        ) : isAudio ? (
+                          <Volume2 className="h-4 w-4 text-amber-700 shrink-0" />
                         ) : (
                           <FileText className="h-4 w-4 text-blue-700 shrink-0" />
                         )}
@@ -644,6 +1009,11 @@ export default function ChallengeDetailPage() {
                         {isImage && (
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 shrink-0">
                             PHOTO
+                          </span>
+                        )}
+                        {isAudio && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 shrink-0">
+                            AUDIO EVIDENCE
                           </span>
                         )}
                       </div>
@@ -675,6 +1045,14 @@ export default function ChallengeDetailPage() {
                         <source src={fullUrl} type={ev.mime_type} />
                       </video>
                     )}
+
+                    {isAudio && (
+                      <div className="pt-1">
+                        <audio controls className="w-full h-8 rounded" src={fullUrl}>
+                          Your browser does not support audio playback.
+                        </audio>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -683,7 +1061,11 @@ export default function ChallengeDetailPage() {
         )}
 
         {/* Dedicated Educational Institution Recommendation View (Institutional Portal) */}
-        {(challenge.status === "VALIDATED" || challenge.status === "PROJECT_INITIATED") && isInstitutionUser && (
+        {(challenge.status === "VALIDATED" ||
+          challenge.status === "PROJECT_INITIATED" ||
+          Boolean(challenge.verification_display_status?.toLowerCase().includes("verified")) ||
+          challenge.cluster?.status === "VERIFIED") &&
+          isInstitutionUser && (
           <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50/40 via-white to-teal-50/30 p-6 space-y-5 shadow-xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-100 pb-4">
               <div className="space-y-1">
@@ -765,31 +1147,31 @@ export default function ChallengeDetailPage() {
                   </div>
                 )}
 
-                {/* Direct Action: Submit EOI */}
+                {/* Direct Action: Propose a Solution */}
                 <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-emerald-100">
                   <div className="text-xs text-stone-600">
-                    {myEoi ? (
-                      <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-800">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-700" />
-                        Expression of Interest submitted (Status: {myEoi.status})
+                    {mySolution ? (
+                      <span className="inline-flex items-center gap-1.5 font-semibold text-teal-800">
+                        <CheckCircle2 className="h-4 w-4 text-teal-700" />
+                        Proposed Solution submitted (Status: {mySolution.status?.replace(/_/g, " ")})
                       </span>
                     ) : (
                       <span>Your institution has the research &amp; engineering capabilities to solve this problem.</span>
                     )}
                   </div>
-                  {myEoi ? (
+                  {mySolution ? (
                     <Link
-                      href="/my-eois"
+                      href="/university-dashboard"
                       className="inline-flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-xs font-semibold text-white hover:bg-stone-800 transition-colors shadow-xs shrink-0"
                     >
-                      View My EOIs <ArrowRight className="h-3.5 w-3.5" />
+                      View My Solutions <ArrowRight className="h-3.5 w-3.5" />
                     </Link>
                   ) : (
                     <Link
-                      href={`/challenges/${challenge.id}/eoi`}
-                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-5 py-2.5 text-xs font-bold text-white shadow-sm transition-all shrink-0"
+                      href={`/solutions/new?challengeId=${challenge.id}`}
+                      className="inline-flex items-center gap-2 rounded-xl bg-teal-700 hover:bg-teal-800 px-5 py-2.5 text-xs font-bold text-white shadow-sm transition-all shrink-0"
                     >
-                      <span>Express Interest (Submit EOI)</span>
+                      <span>Propose a Solution</span>
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                   )}
@@ -798,17 +1180,22 @@ export default function ChallengeDetailPage() {
             ) : (
               <div className="text-center py-4 text-xs text-stone-500 space-y-2">
                 <p>No active institutional recommendation for your organization on this specific problem.</p>
-                {!myEoi && (
+                {!mySolution && (
                   <Link
-                    href={`/challenges/${challenge.id}/eoi`}
-                    className="inline-flex items-center gap-1.5 text-emerald-700 font-semibold underline hover:text-emerald-800"
+                    href={`/solutions/new?challengeId=${challenge.id}`}
+                    className="inline-flex items-center gap-1.5 text-teal-700 font-semibold underline hover:text-teal-800"
                   >
-                    Explore submitting an Expression of Interest <ArrowRight className="h-3.5 w-3.5" />
+                    Explore proposing a solution <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 )}
               </div>
             )}
           </div>
+        )}
+
+        {/* Research Intelligence & Scholarly Evidence */}
+        {challenge.status !== "DRAFT" && (
+          <ResearchIntelligenceCard challengeId={challenge.id} token={token} />
         )}
 
         {/* AI Problem Intelligence Section (Citizen & Reviewer Visible) */}
@@ -1008,92 +1395,140 @@ export default function ChallengeDetailPage() {
           </div>
         )}
 
-        {/* Expression of Interest (EOI) / Consortium Section */}
+        {/* Proposed Solutions & Open Collaboration Section */}
         {challenge.status === "PROJECT_INITIATED" ? (
-          <div className="rounded-2xl border border-blue-200 bg-blue-50/80 p-5 mt-6 flex items-start gap-4 shadow-xs">
-            <div className="p-2.5 bg-blue-100 rounded-xl text-blue-700 shrink-0">
+          <div className="rounded-2xl border border-teal-200 bg-teal-50/80 p-5 mt-6 flex items-start gap-4 shadow-xs">
+            <div className="p-2.5 bg-teal-100 rounded-xl text-teal-700 shrink-0">
               <Users className="h-5 w-5" />
             </div>
             <div className="space-y-1">
-              <h4 className="text-sm font-bold text-blue-950">
-                EOI Intake Closed — Collaborative Project Initiated
+              <h4 className="text-sm font-bold text-teal-950">
+                Collaborative Project Active in Execution
               </h4>
-              <p className="text-xs text-blue-800 leading-relaxed">
-                A multi-institutional consortium project has already been formally initiated for this challenge. Expressions of Interest are now closed.
+              <p className="text-xs text-teal-800 leading-relaxed">
+                A collaborative initiative has been formally initiated for this challenge and is executing milestone deliverables.
               </p>
-              {myEoi && (
+              {mySolution && (
                 <div className="pt-2">
                   <Link
-                    href={`/challenges/${challenge.id}/eoi`}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:text-blue-900 underline"
+                    href={`/solutions/${mySolution.id}`}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-700 hover:text-teal-900 underline"
                   >
-                    View your institution&apos;s EOI ({myEoi.status.replace(/_/g, " ")}) <ArrowRight className="h-3 w-3" />
+                    View Your Institution&apos;s Solution ({mySolution.status.replace(/_/g, " ")}) <ArrowRight className="h-3 w-3" />
                   </Link>
                 </div>
               )}
             </div>
           </div>
         ) : challenge.status !== "DRAFT" && challenge.status !== "REJECTED" ? (
-          <div className="rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/70 via-white to-stone-50 p-6 mt-6 shadow-xs">
+          <div className="rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/70 via-white to-stone-50 p-6 mt-6 shadow-xs space-y-5">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="space-y-1.5 max-w-xl">
                 <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 uppercase tracking-wider bg-emerald-100/60 px-2.5 py-0.5 rounded-md">
-                  <Sparkles className="h-3 w-3" /> Phase 6 Consortium Opportunity
+                  <Sparkles className="h-3 w-3" /> Open Collaboration Opportunity
                 </div>
                 <h4 className="text-base font-bold text-stone-900">
-                  Express Interest in Solving this Challenge
+                  Proposed Solutions &amp; Collaborative Responses
                 </h4>
                 <p className="text-xs text-stone-600 leading-relaxed">
-                  Verified Higher Education Institutions (HEIs), R&amp;D Labs, and Impact Startups can propose collaborative solutions, deploy testbeds, or contribute technical capacity to solve this verified civic challenge.
+                  Higher Education Institutions formulate technical solutions with multidisciplinary faculty &amp; student teams, publish them to the Open Solution Workspace, and invite industry, MSMEs, startups, and CSR partners to collaborate.
                 </p>
               </div>
 
-              <div className="shrink-0">
-                {myEoi ? (
+              <div className="shrink-0 flex flex-wrap items-center gap-2">
+                {forumAccess.canAccess && (
+                  <Link
+                    href={`/challenges/${challenge.id}/forum`}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50/80 px-4 py-2.5 text-xs font-semibold text-indigo-800 hover:bg-indigo-100 transition shadow-2xs"
+                  >
+                    <MessageSquare className="h-4 w-4 text-indigo-700" />
+                    Communication Forum
+                  </Link>
+                )}
+                {mySolution ? (
                   <div className="flex flex-col items-end gap-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-stone-500 font-medium">Your EOI:</span>
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                        myEoi.status === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' :
-                        myEoi.status === 'DISCUSSION_REQUIRED' ? 'bg-amber-100 text-amber-800 border border-amber-300' :
-                        myEoi.status === 'PROJECT_FORMED' ? 'bg-blue-100 text-blue-800 border border-blue-300' :
-                        myEoi.status === 'REJECTED' ? 'bg-red-100 text-red-800 border border-red-300' :
-                        myEoi.status === 'WITHDRAWN' ? 'bg-stone-100 text-stone-600 border border-stone-300' :
-                        'bg-indigo-100 text-indigo-800 border border-indigo-300'
-                      }`}>
-                        {myEoi.status.replace(/_/g, " ")}
+                      <span className="text-xs text-stone-500 font-medium">Your Solution:</span>
+                      <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                        {mySolution.status.replace(/_/g, " ")}
                       </span>
                     </div>
                     <Link
-                      href={`/challenges/${challenge.id}/eoi`}
+                      href={`/solutions/${mySolution.id}`}
                       className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-800 transition"
                     >
-                      {myEoi.status === 'DISCUSSION_REQUIRED' ? 'Respond to Discussion' :
-                       myEoi.status === 'DRAFT' ? 'Continue Draft' : 'View / Edit EOI'}
-                      <ArrowRight className="h-3.5 w-3.5" />
+                      Manage Solution Workspace <ArrowRight className="h-3.5 w-3.5" />
                     </Link>
                   </div>
                 ) : token ? (
                   <Link
-                    href={`/challenges/${challenge.id}/eoi`}
+                    href={`/solutions/new?challengeId=${challenge.id}`}
                     className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-emerald-800 transition"
                   >
-                    <Send className="h-4 w-4" /> Express Interest (EOI)
+                    <Send className="h-4 w-4" /> Propose a Solution
                   </Link>
                 ) : (
                   <Link
-                    href={`/login?redirectTo=/challenges/${challenge.id}/eoi`}
+                    href={`/login?redirectTo=/solutions/new?challengeId=${challenge.id}`}
                     className="inline-flex items-center gap-2 rounded-xl bg-stone-800 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-stone-900 transition"
                   >
-                    Sign In to Express Interest
+                    Sign In to Propose Solution
                   </Link>
                 )}
               </div>
             </div>
 
-            {myEoi && myEoi.status === "DISCUSSION_REQUIRED" && myEoi.discussion_notes && (
-              <div className="mt-4 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
-                <span className="font-bold">Reviewer Feedback:</span> {myEoi.discussion_notes}
+            {/* Published Solutions for this challenge */}
+            {solutions.length > 0 && (
+              <div className="pt-4 border-t border-stone-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h5 className="text-xs font-bold uppercase tracking-wider text-stone-700">
+                    Published Solutions in Open Workspace ({solutions.length})
+                  </h5>
+                  <Link
+                    href="/solutions"
+                    className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1"
+                  >
+                    Explore all in Workspace <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {solutions.map((sol) => (
+                    <div
+                      key={sol.id}
+                      className="rounded-xl border border-stone-200 bg-white p-4 space-y-2 hover:border-emerald-300 transition shadow-2xs flex flex-col justify-between"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-bold text-stone-500 truncate max-w-[180px]">
+                            {sol.proposingOrganization?.name || "Academic Institution"}
+                          </span>
+                          <span className="rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 text-[9px] font-bold">
+                            {sol.status.replace(/_/g, " ")}
+                          </span>
+                        </div>
+                        <h6 className="text-xs font-bold text-stone-900 leading-snug line-clamp-1">
+                          {sol.title}
+                        </h6>
+                        <p className="text-[11px] text-stone-500 line-clamp-2">
+                          {sol.executive_summary || sol.proposed_approach || sol.technical_approach || "No technical description available."}
+                        </p>
+                      </div>
+
+                      <div className="pt-2 border-t border-stone-100 flex items-center justify-between">
+                        <span className="text-[10px] text-stone-400">
+                          {sol.teamMembers?.length || 0} team members
+                        </span>
+                        <Link
+                          href={`/solutions/${sol.id}`}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+                        >
+                          Collaborate / Inspect <ArrowRight className="h-3 w-3" />
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

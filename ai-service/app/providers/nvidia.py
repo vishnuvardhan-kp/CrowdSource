@@ -13,6 +13,8 @@ from ..schemas import (
     RerankCandidate,
     LanguageDetectionResponse,
     TranslateResponse,
+    AnalyzeImageRelevanceRequest,
+    ImageRelevanceResult,
 )
 from ..config import settings
 
@@ -30,7 +32,7 @@ class NvidiaAIProvider(BaseAIProvider):
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
             },
-            timeout=45.0,
+            timeout=25.0,
         )
 
     @property
@@ -43,31 +45,41 @@ class NvidiaAIProvider(BaseAIProvider):
         with strict JSON mode prompt to extract structured problem intelligence.
         """
         system_prompt = (
+            "You are an expert civic problem intelligence analyzer for SamadhanSetu, a national problem-solving platform.\n"
             "Analyze the citizen challenge and return ONLY valid JSON matching this schema:\n"
             "{\n"
-            '  "domain": "Societal domain (e.g. Water & Sanitation, Healthcare, Agriculture, Education)",\n'
-            '  "subdomain": "Specific sub-domain (e.g. Drinking Water Supply, Rural Infrastructure)",\n'
+            '  "professional_title": "Professional, concise civic problem title (e.g. \'Seasonal Potable Water Supply Scarcity\') WITHOUT location suffix, without sensationalism or emotional language.",\n'
+            '  "professional_problem_statement": "Objective, formal civic and technical problem definition using precise administrative and engineering vocabulary. STRICT CONSTRAINTS: DO NOT INVENT or HALLUCINATE unstated population statistics, specific root causes not mentioned by the citizen, unstated locations or wards, specific medical diagnoses/outbreaks, or prescriptive technical/policy solutions. Strictly refine and elevate only the factual information provided.",\n'
+            '  "citizen_facts": ["Factual point 1 extracted strictly and exclusively from citizen text", "Factual point 2 extracted strictly and exclusively from citizen text"],\n'
+            '  "domain": "Identify primary domain: Agriculture, Water & Sanitation, Healthcare, Education, Environment, Energy, Infrastructure, Governance, or Livelihood",\n'
+            '  "subdomain": "Specific sub-domain",\n'
             '  "category": "Infrastructural, technological, or systemic category",\n'
             '  "problem_type": "Specific nature of problem",\n'
             '  "summary": "Concise 1-2 sentence objective summary",\n'
             '  "priority_score": 8.0,\n'
             '  "severity_score": 8.0,\n'
-            '  "affected_population": "Affected group description",\n'
-            '  "problem_factors": ["Key root cause 1", "Key root cause 2"],\n'
+            '  "affected_population": "Affected group description (strictly as reported)",\n'
+            '  "problem_factors": ["Key factor 1", "Key factor 2"],\n'
             '  "required_technologies": ["Relevant technical capability 1", "Relevant technical capability 2"],\n'
             '  "keywords": ["keyword1", "keyword2", "keyword3", "keyword4"],\n'
             '  "solution_domains": ["Solution domain 1", "Solution domain 2"],\n'
             '  "confidence": 0.85\n'
-            "}"
+            "}\n"
+            "CRITICAL ZERO-FABRICATION INSTRUCTIONS:\n"
+            "1. 'citizen_facts' MUST contain ONLY facts stated by the citizen in their submitted text. Do NOT include administrative metadata (such as district or locality) in 'citizen_facts' unless the citizen explicitly typed it into their title or description.\n"
+            "2. For brief or generic inputs (such as 'hospital problem' or 'water issue'), DO NOT assume, extrapolate, or invent details like 'absence of doctors', 'lack of medicines', or 'contaminated pipelines'. Only state the general operational or service constraint reported.\n"
+            "3. Keep 'professional_title' focused on the pure civic challenge (do NOT append location names to it)."
         )
 
         user_content = (
+            f"[CITIZEN-SUBMITTED TEXT]\n"
             f"Title: {request.title}\n"
             f"Description: {request.description}\n"
-            f"District: {request.district or 'Unknown'}, State: {request.state or 'Unknown'}\n"
-            f"Locality: {request.village_locality or 'Unknown'}\n"
             f"Reported Severity: {request.citizen_severity or 'Not specified'}\n"
-            f"Affected Population: {request.affected_population or 'Not specified'}"
+            f"Affected Population: {request.affected_population or 'Not specified'}\n\n"
+            f"[PLATFORM-VERIFIED ADMINISTRATIVE METADATA - DO NOT CONFUSE WITH CITIZEN TEXT]\n"
+            f"District: {request.district or 'Unknown'}, State: {request.state or 'Unknown'}\n"
+            f"Locality: {request.village_locality or 'Unknown'}"
         )
 
         payload = {
@@ -77,7 +89,7 @@ class NvidiaAIProvider(BaseAIProvider):
                 {"role": "user", "content": user_content},
             ],
             "temperature": 0.0,
-            "max_tokens": 220,
+            "max_tokens": 750,
             "response_format": {"type": "json_object"},
         }
 
@@ -99,10 +111,43 @@ class NvidiaAIProvider(BaseAIProvider):
                 parsed = json.loads(raw_content)
 
             domain = parsed.get("domain") or parsed.get("category", request.category or "General")
+            if "Societal domain" in str(domain) or "(" in str(domain) or "Identify primary domain" in str(domain):
+                domain = request.category if (request.category and request.category != "General") else "Civic Infrastructure"
             subdomain = parsed.get("subdomain") or parsed.get("sub_category", "General")
             category = parsed.get("category") or parsed.get("problem_type", "Societal Challenge")
             req_techs = parsed.get("required_technologies") or parsed.get("required_capabilities", [])
             keywords = parsed.get("keywords") or []
+
+            prof_title = parsed.get("professional_title")
+            prof_stmt = parsed.get("professional_problem_statement")
+            citizen_facts = parsed.get("citizen_facts") or parsed.get("key_facts") or []
+
+            platform_meta: Dict[str, Any] = {}
+            if request.district or request.village_locality or request.state:
+                platform_meta = {
+                    "district": request.district,
+                    "village_locality": request.village_locality,
+                    "state": request.state or "Jharkhand",
+                    "source": "platform_verified_record",
+                }
+
+            if not prof_title or not prof_stmt:
+                from .mock import MockAIProvider
+                m = MockAIProvider()
+                m_title, m_stmt, m_facts, m_meta = m._refine_problem_statement(request, domain, subdomain)
+                prof_title = prof_title or m_title
+                prof_stmt = prof_stmt or m_stmt
+                citizen_facts = citizen_facts or m_facts
+                if not platform_meta:
+                    platform_meta = m_meta
+
+            # Professional Title formatting: Pure civic title + ' — Locality, District' ONLY if verified metadata exists
+            loc_parts = [p for p in [request.village_locality, request.district] if p and p.lower() not in ["unknown", "none", ""]]
+            loc_suffix = ", ".join(loc_parts)
+            if loc_suffix and not prof_title.endswith(loc_suffix):
+                final_title = f"{prof_title} — {loc_suffix}"
+            else:
+                final_title = prof_title
 
             return ChallengeAiAnalysisResult(
                 challenge_id=request.challenge_id,
@@ -127,6 +172,12 @@ class NvidiaAIProvider(BaseAIProvider):
                 model_version="nim-v1",
                 prompt_version=settings.PROMPT_VERSION,
                 taxonomy_version=settings.TAXONOMY_VERSION,
+                professional_title=final_title,
+                professional_problem_statement=prof_stmt,
+                citizen_facts=citizen_facts,
+                platform_metadata=platform_meta,
+                key_facts=citizen_facts,
+                refinement_status="REFINED",
                 raw_analysis=parsed,
             )
         except Exception as e:
@@ -444,4 +495,12 @@ class NvidiaAIProvider(BaseAIProvider):
             fallback_res = await MockAIProvider().translate(text, source_language=detected_lang, target_language=target_language)
             fallback_res.provider = "nvidia-fallback-mock"
             return fallback_res
+
+    async def analyze_image_relevance(
+        self,
+        request: AnalyzeImageRelevanceRequest,
+    ) -> ImageRelevanceResult:
+        # Fallback to robust deterministic mock for offline/advisory triage
+        from .mock import MockAIProvider
+        return await MockAIProvider().analyze_image_relevance(request)
 

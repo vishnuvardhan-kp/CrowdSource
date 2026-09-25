@@ -8,9 +8,30 @@ import {
   IsEnum,
   IsNumber,
 } from 'class-validator';
-import { CitizenSeverity } from '../../../common/enums';
+import { CitizenSeverity, ReporterType } from '../../../common/enums';
 
 export class CreateChallengeDto {
+  @IsOptional()
+  @IsEnum(ReporterType, { message: 'reporter_type must be INDIVIDUAL, COMMUNITY, PRI, ULB, or GOVERNMENT_DEPARTMENT.' })
+  reporter_type?: ReporterType;
+
+  @IsOptional()
+  @IsUUID('4', { message: 'institution_id must be a valid UUID.' })
+  institution_id?: string;
+
+  @IsOptional()
+  @IsUUID('4', { message: 'institution_membership_id must be a valid UUID.' })
+  institution_membership_id?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  community_group_name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  audio_evidence_url?: string;
   @IsString()
   @IsNotEmpty({ message: 'Problem title is required.' })
   @MinLength(5, { message: 'Title must be at least 5 characters long.' })
@@ -20,7 +41,7 @@ export class CreateChallengeDto {
   @IsString()
   @IsNotEmpty({ message: 'Problem description is required.' })
   @MinLength(10, { message: 'Description must be at least 10 characters long.' })
-  @MaxLength(5000, { message: 'Description cannot exceed 5000 characters.' })
+  @MaxLength(10000, { message: 'Description cannot exceed 10000 characters.' })
   description: string;
 
   @IsOptional()
@@ -60,12 +81,22 @@ export class CreateChallengeDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(100)
+  domain?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  sub_domain?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(10)
   original_language?: string;
 
   @IsOptional()
   @IsString()
-  @MaxLength(5000)
+  @MaxLength(10000)
   original_text?: string;
 }
 

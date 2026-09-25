@@ -50,30 +50,39 @@ export function Navbar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
   const isReviewer =
     user?.role === "PLATFORM_ADMIN" ||
     user?.role === "GOVERNMENT_OFFICER" ||
     user?.role === "GOVERNMENT_ADMIN";
 
+  const isUniversity =
+    user?.role === "UNIVERSITY_ADMIN" ||
+    user?.role === "FACULTY" ||
+    user?.role === "STUDENT" ||
+    user?.primaryOrganization?.organization_type === "ACADEMIC_INSTITUTION";
+
   const fetchNotifications = useCallback(async () => {
     if (!token) return;
     try {
       setLoadingNotifications(true);
-      const res = await fetch("/api/notifications", {
+      const res = await fetch(`${apiUrl}/notifications`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
-        setNotifications(data.notifications || []);
-        setUnreadCount(data.unreadCount || 0);
+        const items = Array.isArray(data) ? data : (data.notifications || []);
+        const unread = typeof data.unreadCount === "number" ? data.unreadCount : items.filter((n: NotificationItem) => !n.is_read).length;
+        setNotifications(items);
+        setUnreadCount(unread);
       }
     } catch {
       // silent fallback
     } finally {
       setLoadingNotifications(false);
     }
-  }, [token]);
+  }, [apiUrl, token]);
 
   useEffect(() => {
     if (token) {
@@ -89,7 +98,7 @@ export function Navbar() {
   const handleMarkAsRead = async (id: string) => {
     if (!token) return;
     try {
-      await fetch(`/api/notifications/${id}/read`, {
+      await fetch(`${apiUrl}/notifications/${id}/read`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -105,8 +114,8 @@ export function Navbar() {
   const handleMarkAllRead = async () => {
     if (!token) return;
     try {
-      await fetch("/api/notifications/mark-all-read", {
-        method: "POST",
+      await fetch(`${apiUrl}/notifications/mark-all-read`, {
+        method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
       });
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
@@ -137,11 +146,25 @@ export function Navbar() {
       icon: Compass,
     },
     {
+      href: "/solutions",
+      label: "Open Solutions",
+      icon: Sparkles,
+    },
+    {
       href: "/challenges/new",
       label: t("nav.submit_problem"),
       icon: PlusCircle,
       highlight: true,
     },
+    ...(isUniversity
+      ? [
+          {
+            href: "/university-dashboard",
+            label: t("nav.university_dashboard"),
+            icon: Building2,
+          },
+        ]
+      : []),
     ...(userOrgId
       ? [
           {
@@ -149,19 +172,16 @@ export function Navbar() {
             label: t("nav.passport"),
             icon: Award,
           },
-          {
-            href: "/my-eois",
-            label: t("nav.my_eois"),
-            icon: FileCheck2,
-          },
         ]
-      : [
+      : !isReviewer
+      ? [
           {
             href: "/organizations/onboard",
             label: t("nav.onboard_institution"),
             icon: Building2,
           },
-        ]),
+        ]
+      : []),
     ...(user
       ? [
           {
@@ -183,7 +203,6 @@ export function Navbar() {
             href: "/reviewer-queue",
             label: t("nav.reviewer_queue"),
             icon: ShieldAlert,
-            badge: t("nav.gov_admin_badge"),
           },
         ]
       : []),
@@ -191,10 +210,10 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-stone-200 bg-white/95 backdrop-blur-md shadow-[0_1px_3px_0_rgba(0,0,0,0.02)]">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 sm:px-6 py-3 sm:py-3.5 min-h-[64px] min-w-0">
         {/* Brand Identity */}
-        <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-3 group">
+        <div className="flex items-center gap-3 shrink-0">
+          <Link href="/" className="flex items-center gap-2.5 group">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-700 via-emerald-800 to-teal-900 shadow-sm text-white font-bold text-base tracking-tight transition-transform group-hover:scale-105">
               SS
             </div>
@@ -207,7 +226,7 @@ export function Navbar() {
                   {t("nav.brand_subtitle")}
                 </span>
               </div>
-              <p className="hidden md:block text-[11px] text-stone-500 font-medium">
+              <p className="hidden 2xl:block text-[10px] text-stone-500 font-medium">
                 {t("nav.brand_tagline")}
               </p>
             </div>
@@ -215,7 +234,7 @@ export function Navbar() {
         </div>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden xl:flex items-center gap-1 min-w-0">
           {navLinks.map((link) => {
             const Icon = link.icon;
             const isActive = pathname === link.href;
@@ -237,7 +256,7 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-colors ${
                   isActive
                     ? "bg-stone-100 text-emerald-800 font-semibold"
                     : "text-stone-600 hover:text-stone-900 hover:bg-stone-50"
@@ -256,28 +275,28 @@ export function Navbar() {
         </nav>
 
         {/* User Identity & Auth Action */}
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden xl:flex items-center gap-2.5 shrink-0">
           {/* Language Selector */}
           <div className="relative flex items-center">
-            <Languages className="h-3.5 w-3.5 text-stone-500 absolute left-2.5 pointer-events-none" />
+            <Languages className="h-3.5 w-3.5 text-stone-500 absolute left-2 pointer-events-none" />
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
               aria-label={t("nav.language")}
-              className="text-xs font-semibold bg-stone-50 border border-stone-200 text-stone-800 rounded-xl pl-7 pr-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition cursor-pointer hover:bg-stone-100"
+              className="text-xs font-semibold bg-stone-50 border border-stone-200 text-stone-800 rounded-xl pl-6 pr-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition cursor-pointer hover:bg-stone-100 max-w-[95px]"
             >
               {Object.values(supportedLanguages).map((l) => (
                 <option key={l.code} value={l.code}>
-                  {l.nativeName} ({l.name})
+                  {l.code.toUpperCase()} ({l.name})
                 </option>
               ))}
             </select>
           </div>
 
           {user ? (
-            <div className="flex items-center gap-3 pl-2 border-l border-stone-200">
+            <div className="flex items-center gap-2.5 pl-2 border-l border-stone-200 min-w-0">
               {/* Notifications Bell Dropdown */}
-              <div className="relative" ref={dropdownRef}>
+              <div className="relative shrink-0" ref={dropdownRef}>
                 <button
                   type="button"
                   onClick={() => setNotificationsOpen(!notificationsOpen)}
@@ -293,7 +312,7 @@ export function Navbar() {
                 </button>
 
                 {notificationsOpen && (
-                  <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-stone-200 bg-white p-3 shadow-xl z-50">
+                  <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-96 max-w-sm rounded-2xl border border-stone-200 bg-white p-3 shadow-xl z-50">
                     <div className="flex items-center justify-between border-b border-stone-100 pb-2.5 px-1">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-stone-900">{t("nav.notifications")}</span>
@@ -396,13 +415,13 @@ export function Navbar() {
                 )}
               </div>
 
-              <div className="text-right">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-stone-800">
-                  <UserIcon className="h-3.5 w-3.5 text-stone-400" />
-                  {user.name}
+              <div className="text-right max-w-[130px] min-w-0 shrink">
+                <div className="flex items-center gap-1 text-xs font-semibold text-stone-800 truncate" title={user.name}>
+                  <UserIcon className="h-3.5 w-3.5 text-stone-400 shrink-0" />
+                  <span className="truncate">{user.name}</span>
                 </div>
-                <div className="text-[10px]">
-                  <span className="inline-block px-1.5 py-0.2 rounded font-medium bg-emerald-50 text-emerald-800 border border-emerald-200/60">
+                <div className="text-[10px] truncate">
+                  <span className="inline-block px-1.5 py-0.2 rounded font-medium bg-emerald-50 text-emerald-800 border border-emerald-200/60 truncate max-w-[125px]">
                     {formatUserRole(user.role, t)}
                   </span>
                 </div>
@@ -410,7 +429,7 @@ export function Navbar() {
               <button
                 onClick={logout}
                 title={t("nav.logout")}
-                className="rounded-lg border border-stone-200 p-2 text-stone-500 hover:bg-stone-50 hover:text-red-600 transition-colors"
+                className="rounded-lg border border-stone-200 p-2 text-stone-500 hover:bg-stone-50 hover:text-red-600 transition-colors shrink-0"
               >
                 <LogOut className="h-3.5 w-3.5" />
               </button>
@@ -427,20 +446,108 @@ export function Navbar() {
           )}
         </div>
 
-        {/* Mobile menu button */}
-        <div className="md:hidden flex items-center gap-2">
+        {/* Mobile controls */}
+        <div className="xl:hidden flex items-center gap-2 shrink-0">
+          {user && (
+            <div className="relative" ref={dropdownRef}>
+              <button
+                type="button"
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+                title={t("nav.notifications")}
+                className="relative rounded-lg border border-stone-200 p-2 text-stone-600 hover:bg-stone-50 hover:text-stone-900 transition-colors"
+                aria-label={t("nav.notifications")}
+              >
+                <Bell className="h-4 w-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-emerald-600 px-1 text-[10px] font-bold text-white shadow-sm ring-1 ring-white">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {notificationsOpen && (
+                <div className="fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 top-16 sm:top-auto sm:mt-2 w-auto sm:w-96 max-w-sm rounded-2xl border border-stone-200 bg-white p-3 shadow-xl z-50">
+                  <div className="flex items-center justify-between border-b border-stone-100 pb-2.5 px-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-stone-900">{t("nav.notifications")}</span>
+                      {unreadCount > 0 && (
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 border border-emerald-200">
+                          {unreadCount} {t("nav.unread")}
+                        </span>
+                      )}
+                    </div>
+                    {unreadCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleMarkAllRead}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-800"
+                      >
+                        <CheckCheck className="h-3 w-3" />
+                        {t("nav.mark_all_read")}
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="mt-2 max-h-80 overflow-y-auto space-y-1.5 divide-y divide-stone-100">
+                    {loadingNotifications && notifications.length === 0 ? (
+                      <div className="py-6 text-center text-xs text-stone-400">{t("nav.loading_notifications")}</div>
+                    ) : notifications.length === 0 ? (
+                      <div className="py-6 text-center text-xs text-stone-400">{t("nav.no_notifications")}</div>
+                    ) : (
+                      notifications.slice(0, 20).map((n) => (
+                        <div
+                          key={n.id}
+                          className={`p-2.5 rounded-xl transition cursor-pointer border ${
+                            !n.is_read
+                              ? "bg-emerald-50/70 hover:bg-emerald-50 border-emerald-200/60"
+                              : "hover:bg-stone-50 border-transparent"
+                          }`}
+                          onClick={() => {
+                            if (!n.is_read) handleMarkAsRead(n.id);
+                            setNotificationsOpen(false);
+                            const destination =
+                              n.action_url ||
+                              (n.reference_type === "CHALLENGE" && n.reference_id
+                                ? `/challenges/${n.reference_id}`
+                                : undefined);
+                            if (destination) router.push(destination);
+                          }}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-stone-900 leading-snug break-words">
+                                {n.title}
+                              </p>
+                              <p className="text-[11px] text-stone-600 mt-1 leading-relaxed line-clamp-3 break-words">
+                                {n.message}
+                              </p>
+                              <div className="flex items-center justify-between mt-1.5 text-[10px] text-stone-400">
+                                <span>{formatDateSafe(n.created_at)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="rounded-lg border border-stone-200 p-2 text-stone-700 hover:bg-stone-50"
+            aria-label="Toggle navigation menu"
           >
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
       </div>
 
-      {/* Mobile Menu Dropdown */}
+      {/* Mobile & Tablet Menu Dropdown */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-stone-200 bg-white px-4 py-4 space-y-2 shadow-lg">
+        <div className="xl:hidden border-t border-stone-200 bg-white px-4 py-4 space-y-2 shadow-lg max-h-[calc(100vh-4rem)] overflow-y-auto">
           {/* Mobile Language Selector */}
           <div className="flex items-center justify-between pb-3 border-b border-stone-100 mb-2">
             <span className="text-xs font-semibold text-stone-600 flex items-center gap-1.5">
@@ -451,7 +558,7 @@ export function Navbar() {
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
               aria-label={t("nav.language")}
-              className="text-xs font-semibold bg-stone-50 border border-stone-200 text-stone-800 rounded-lg px-2.5 py-1.5"
+              className="text-xs font-semibold bg-stone-50 border border-stone-200 text-stone-800 rounded-lg px-2.5 py-1.5 max-w-[200px]"
             >
               {Object.values(supportedLanguages).map((l) => (
                 <option key={l.code} value={l.code}>
@@ -476,12 +583,12 @@ export function Navbar() {
                     : "text-stone-700 hover:bg-stone-50"
                 }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <Icon className="h-4 w-4" />
-                  {link.label}
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{link.label}</span>
                 </div>
                 {link.badge && (
-                  <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 border border-amber-200">
+                  <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 border border-amber-200 shrink-0">
                     {link.badge}
                   </span>
                 )}
@@ -491,19 +598,19 @@ export function Navbar() {
 
           <div className="border-t border-stone-200 pt-3 mt-3">
             {user ? (
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold text-stone-900">{user.name}</p>
-                  <p className="text-[10px] text-emerald-800 font-medium">{formatUserRole(user.role)}</p>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-stone-900 truncate">{user.name}</p>
+                  <p className="text-[10px] text-emerald-800 font-medium truncate">{formatUserRole(user.role, t)}</p>
                 </div>
                 <button
                   onClick={() => {
                     logout();
                     setMobileMenuOpen(false);
                   }}
-                  className="rounded-lg border border-stone-200 px-3 py-1.5 text-xs text-red-600 hover:bg-stone-50"
+                  className="rounded-lg border border-stone-200 px-3 py-1.5 text-xs text-red-600 hover:bg-stone-50 shrink-0 font-medium"
                 >
-                  Sign Out
+                  {t("nav.logout")}
                 </button>
               </div>
             ) : (
@@ -512,7 +619,7 @@ export function Navbar() {
                 onClick={() => setMobileMenuOpen(false)}
                 className="block text-center rounded-xl bg-stone-900 px-4 py-2.5 text-xs font-semibold text-white hover:bg-stone-800"
               >
-                Sign In / Register
+                {t("nav.login")}
               </Link>
             )}
           </div>

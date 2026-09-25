@@ -98,25 +98,25 @@ export default function OrganizationOnboardPage() {
       </div>
 
       {submittedId ? (
-        <div className="rounded-2xl border border-emerald-200 bg-white p-8 text-center shadow-sm">
+        <div className="rounded-2xl border border-emerald-200 bg-white p-6 sm:p-8 text-center shadow-sm">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs">
             <CheckCircle2 className="h-8 w-8" />
           </div>
-          <h2 className="text-2xl font-bold text-stone-900 mb-2">
+          <h2 className="text-xl sm:text-2xl font-bold text-stone-900 mb-2 break-words">
             Onboarding Application Received!
           </h2>
-          <p className="text-sm text-stone-600 max-w-lg mx-auto mb-6">
+          <p className="text-sm text-stone-600 max-w-lg mx-auto mb-6 break-words">
             Thank you for registering <span className="font-semibold text-emerald-800">{formData.name}</span> with SamadhanSetu. Platform administrators will verify institutional accreditation and authorize your administrative credentials.
           </p>
 
-          <div className="inline-block rounded-xl bg-stone-50 border border-stone-200 px-5 py-3 text-xs text-stone-600 mb-8">
-            Application Reference: <span className="font-mono text-emerald-800 font-bold">{submittedId}</span>
+          <div className="inline-block max-w-full rounded-xl bg-stone-50 border border-stone-200 px-5 py-3 text-xs text-stone-600 mb-8 break-words">
+            Application Reference: <span className="font-mono text-emerald-800 font-bold break-all">{submittedId}</span>
           </div>
 
           <div className="flex justify-center gap-4">
             <Link
               href="/challenges"
-              className="rounded-xl bg-emerald-700 px-5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-800 shadow-sm transition-colors"
+              className="w-full sm:w-auto text-center rounded-xl bg-emerald-700 px-5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-800 shadow-sm transition-colors"
             >
               Explore Challenges
             </Link>
@@ -146,14 +146,14 @@ export default function OrganizationOnboardPage() {
 
           {/* Warning if unauthenticated */}
           {!token && (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-center justify-between gap-4">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 text-amber-900 text-xs">
                 <AlertCircle className="h-4 w-4 shrink-0 text-amber-700" />
                 <span>You must be signed in to submit an institutional onboarding application.</span>
               </div>
               <Link
                 href="/login"
-                className="rounded-xl bg-amber-700 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-amber-800 whitespace-nowrap shadow-sm transition"
+                className="w-full sm:w-auto text-center rounded-xl bg-amber-700 px-3.5 py-2 text-xs font-semibold text-white hover:bg-amber-800 whitespace-nowrap shadow-sm transition"
               >
                 Sign In Now
               </Link>
@@ -351,19 +351,19 @@ export default function OrganizationOnboardPage() {
               </div>
             </div>
 
-            <div className="pt-4 border-t border-stone-100 flex justify-end">
+            <div className="pt-4 border-t border-stone-100 flex flex-col sm:flex-row justify-end">
               <button
                 type="submit"
                 disabled={submitting || !token}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-6 py-3 text-xs font-semibold text-white shadow-sm hover:bg-emerald-800 transition-all disabled:opacity-50"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-6 py-3 text-xs font-semibold text-white shadow-sm hover:bg-emerald-800 transition-all disabled:opacity-50"
               >
                 {submitting ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Submitting Application...
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" /> Submitting Application...
                   </>
                 ) : (
                   <>
-                    <Building2 className="h-4 w-4" /> Submit Institutional Onboarding Request
+                    <Building2 className="h-4 w-4 shrink-0" /> Submit Institutional Onboarding Request
                   </>
                 )}
               </button>

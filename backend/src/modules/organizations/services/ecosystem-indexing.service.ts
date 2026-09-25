@@ -25,7 +25,7 @@ export class EcosystemIndexingService {
     private readonly embeddingRepo: Repository<EntityEmbedding>,
     private readonly configService: ConfigService,
   ) {
-    this.aiServiceUrl = this.configService.get<string>('AI_SERVICE_URL') || 'http://localhost:8000';
+    this.aiServiceUrl = this.configService.get<string>('AI_SERVICE_URL') || 'http://127.0.0.1:8000';
     this.batchDelayMs = Number(this.configService.get<number>('BATCH_INDEXING_DELAY_MS') || 500);
   }
 

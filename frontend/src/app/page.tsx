@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   PlusCircle,
@@ -22,11 +22,105 @@ import {
   Zap,
   BookOpen,
   Truck,
+  Clock,
+  FileCheck2,
+  AlertCircle,
+  Image as ImageIcon,
 } from "lucide-react";
 import { useAuth } from "../lib/auth-context";
 
+interface ChallengeItem {
+  id: string;
+  title: string;
+  description: string;
+  district: string;
+  districtName: string;
+  blockName: string | null;
+  village_locality: string | null;
+  citizen_severity: "NOT_SURE" | "MODERATE" | "SERIOUS" | null;
+  status: "SUBMITTED" | "UNDER_REVIEW" | "VALIDATED";
+  created_at: string;
+  confirmationsCount: number;
+  evidenceCount: number;
+  submitter?: { name: string };
+}
+
 export default function Home() {
   const { user } = useAuth();
+  const [challenges, setChallenges] = useState<ChallengeItem[]>([]);
+  const [loadingChallenges, setLoadingChallenges] = useState(true);
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadChallenges = async () => {
+      try {
+        setLoadingChallenges(true);
+        const res = await fetch(`${apiUrl}/challenges?limit=6`);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted) {
+            setChallenges(data.items || []);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to load featured challenges:", err);
+      } finally {
+        if (isMounted) setLoadingChallenges(false);
+      }
+    };
+    loadChallenges();
+    return () => {
+      isMounted = false;
+    };
+  }, [apiUrl]);
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "VALIDATED":
+        return (
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800">
+            <CheckCircle2 className="h-3 w-3 text-emerald-700" /> Validated
+          </span>
+        );
+      case "UNDER_REVIEW":
+        return (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">
+            <Clock className="h-3 w-3 text-amber-700" /> Under Review
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-[11px] font-semibold text-blue-800">
+            <FileCheck2 className="h-3 w-3 text-blue-700" /> Submitted
+          </span>
+        );
+    }
+  };
+
+  const getSeverityBadge = (severity: string | null) => {
+    if (!severity) return null;
+    switch (severity) {
+      case "SERIOUS":
+        return (
+          <span className="rounded-md bg-red-50 border border-red-200 px-2 py-0.5 text-[10px] font-semibold text-red-700">
+            High Severity
+          </span>
+        );
+      case "MODERATE":
+        return (
+          <span className="rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+            Moderate
+          </span>
+        );
+      default:
+        return (
+          <span className="rounded-md bg-stone-100 border border-stone-200 px-2 py-0.5 text-[10px] font-medium text-stone-600">
+            Unspecified
+          </span>
+        );
+    }
+  };
 
   const problemDomains = [
     {
@@ -161,20 +255,20 @@ export default function Home() {
               </p>
 
               {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-3 pt-2">
+              <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 pt-2">
                 <Link
                   href="/challenges/new"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-6 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 transition-all shadow-emerald-950/10"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-6 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 transition-all shadow-emerald-950/10 text-center"
                 >
-                  <PlusCircle className="h-4 w-4" />
+                  <PlusCircle className="h-4 w-4 shrink-0" />
                   <span>Report a Problem</span>
                 </Link>
 
                 <Link
                   href="/challenges"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-6 py-3.5 text-sm font-semibold text-stone-800 shadow-sm hover:bg-stone-50 transition-all"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-6 py-3.5 text-sm font-semibold text-stone-800 shadow-sm hover:bg-stone-50 transition-all text-center"
                 >
-                  <Compass className="h-4 w-4 text-stone-500" />
+                  <Compass className="h-4 w-4 text-stone-500 shrink-0" />
                   <span>Explore Challenges</span>
                 </Link>
               </div>
@@ -302,70 +396,225 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 4. Priority Problem Domains (Inspired by Positive Citizens Foundation Initiatives) */}
-      <section className="py-16 sm:py-20 px-4 sm:px-6 border-b border-stone-200 bg-white">
-        <div className="mx-auto max-w-7xl space-y-10">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      {/* 4. Priority Societal Challenges & Thematic Research Domains */}
+      <section className="py-16 sm:py-24 px-4 sm:px-6 border-b border-stone-200 bg-white">
+        <div className="mx-auto max-w-7xl space-y-12">
+          {/* Section Header */}
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-stone-100 pb-6">
             <div className="space-y-2">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                Regional Priorities
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                  Regional Priorities
+                </span>
+                <span className="inline-flex items-center gap-1 text-xs text-stone-500 font-medium">
+                  <MapPin className="h-3.5 w-3.5 text-emerald-700" />
+                  Across Jharkhand (24 Districts)
+                </span>
+              </div>
               <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-stone-900">
                 Priority Societal Challenges
               </h2>
-              <p className="text-sm text-stone-600 max-w-xl">
-                Explore grassroots challenges categorized by core community needs across Jharkhand.
+              <p className="text-sm sm:text-base text-stone-600 max-w-2xl leading-relaxed">
+                Explore real grassroots problems submitted by citizens across Jharkhand, verified by district nodal officers and open for institutional research.
               </p>
             </div>
 
-            <Link
-              href="/challenges"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 hover:text-emerald-900 transition-colors self-start md:self-auto"
-            >
-              <span>View Full Challenge Directory</span>
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href="/challenges/new"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs transition"
+              >
+                <PlusCircle className="h-4 w-4" />
+                <span>Report Problem</span>
+              </Link>
+              <Link
+                href="/challenges"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold border border-stone-300 hover:bg-stone-50 text-stone-800 shadow-2xs transition"
+              >
+                <span>Full Directory</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {problemDomains.map((domain, idx) => {
-              const Icon = domain.icon;
-              return (
-                <div
-                  key={idx}
-                  className="civic-card p-6 space-y-4 hover:border-stone-300 hover:shadow-md transition-all group"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className={`h-10 w-10 rounded-xl border flex items-center justify-center ${domain.accent}`}>
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <span className="flex items-center gap-1.5 text-xs font-medium text-stone-500">
-                      <span className={`h-2 w-2 rounded-full ${domain.dotColor}`} />
-                      <span>Active Focus</span>
-                    </span>
-                  </div>
-
-                  <div className="space-y-2">
-                    <h3 className="text-base font-bold text-stone-900 group-hover:text-emerald-800 transition-colors">
-                      {domain.title}
-                    </h3>
-                    <p className="text-xs text-stone-600 leading-relaxed">
-                      {domain.description}
-                    </p>
-                  </div>
-
-                  <div className="pt-2 border-t border-stone-100">
-                    <Link
-                      href={`/challenges?domain=${encodeURIComponent(domain.title)}`}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 hover:text-emerald-900"
-                    >
-                      <span>Explore Challenges</span>
-                      <ChevronRight className="h-3.5 w-3.5" />
-                    </Link>
-                  </div>
+          {/* Live Recent Challenges Showcase */}
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="h-7 w-7 rounded-lg bg-emerald-100/70 border border-emerald-200 flex items-center justify-center text-emerald-800">
+                  <Sparkles className="h-4 w-4" />
                 </div>
-              );
-            })}
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-stone-900">Recently Reported in Jharkhand</h3>
+                  <p className="text-xs text-stone-500">Live feed of grassroots civic issues submitted by citizens</p>
+                </div>
+              </div>
+              <Link
+                href="/challenges"
+                className="text-xs font-semibold text-emerald-800 hover:text-emerald-900 inline-flex items-center gap-1 self-start sm:self-auto"
+              >
+                View all ({challenges.length}+) <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+
+            {loadingChallenges ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="h-56 rounded-2xl bg-white border border-stone-200 animate-pulse p-5 space-y-4 shadow-xs"
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="h-4 bg-stone-200 rounded w-24"></div>
+                      <div className="h-4 bg-stone-100 rounded w-16"></div>
+                    </div>
+                    <div className="h-5 bg-stone-200 rounded w-4/5"></div>
+                    <div className="h-16 bg-stone-100 rounded w-full"></div>
+                    <div className="h-4 bg-stone-100 rounded w-1/2"></div>
+                  </div>
+                ))}
+              </div>
+            ) : challenges.length === 0 ? (
+              <div className="p-10 rounded-2xl border border-dashed border-stone-300 bg-stone-50/50 text-center space-y-3">
+                <AlertCircle className="h-9 w-9 text-stone-400 mx-auto" />
+                <h4 className="text-base font-semibold text-stone-800">No active challenges found</h4>
+                <p className="text-xs text-stone-500 max-w-sm mx-auto">
+                  Be the first to report a grassroots problem in your district so universities and local officers can act.
+                </p>
+                <div className="pt-2">
+                  <Link
+                    href="/challenges/new"
+                    className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-semibold bg-emerald-700 text-white hover:bg-emerald-800 shadow-xs transition"
+                  >
+                    <PlusCircle className="h-4 w-4" />
+                    <span>Report a Problem</span>
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {challenges.slice(0, 6).map((challenge) => (
+                  <div
+                    key={challenge.id}
+                    className="flex flex-col justify-between rounded-2xl border border-stone-200 bg-white p-5 hover:border-emerald-400 hover:shadow-md transition-all group"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        {getStatusBadge(challenge.status)}
+                        {getSeverityBadge(challenge.citizen_severity)}
+                      </div>
+
+                      <Link href={`/challenges/${challenge.id}`}>
+                        <h4 className="text-sm sm:text-base font-bold text-stone-900 group-hover:text-emerald-700 transition-colors line-clamp-2 leading-snug break-words">
+                          {challenge.title}
+                        </h4>
+                      </Link>
+
+                      <p className="text-xs text-stone-600 line-clamp-3 leading-relaxed break-words">
+                        {challenge.description}
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-stone-500 pt-1">
+                        <MapPin className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
+                        <span className="font-semibold text-stone-800">
+                          {challenge.districtName || challenge.district}
+                        </span>
+                        {challenge.blockName && (
+                          <>
+                            <span>·</span>
+                            <span>{challenge.blockName} Block</span>
+                          </>
+                        )}
+                        {challenge.village_locality && (
+                          <>
+                            <span>·</span>
+                            <span className="truncate max-w-[140px]">{challenge.village_locality}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="border-t border-stone-100 pt-4 mt-4 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium bg-stone-50 text-stone-700 border border-stone-200"
+                          title="Community Confirmations"
+                        >
+                          <HeartHandshake className="h-3.5 w-3.5 text-emerald-700" />
+                          <span>{challenge.confirmationsCount || 0} confirmed</span>
+                        </span>
+                        {challenge.evidenceCount > 0 && (
+                          <span
+                            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium bg-stone-50 text-stone-600 border border-stone-200"
+                            title="Evidence Attached"
+                          >
+                            <ImageIcon className="h-3.5 w-3.5 text-stone-500" />
+                            <span>{challenge.evidenceCount}</span>
+                          </span>
+                        )}
+                      </div>
+
+                      <Link
+                        href={`/challenges/${challenge.id}`}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 group/link"
+                      >
+                        <span>Details</span>
+                        <ArrowRight className="h-3.5 w-3.5 group-hover/link:translate-x-0.5 transition-transform" />
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Regional Thematic Research Domains Grid */}
+          <div className="space-y-6 pt-6 border-t border-stone-100">
+            <div className="flex items-center gap-2">
+              <Compass className="h-4 w-4 text-amber-700" />
+              <h3 className="text-base sm:text-lg font-bold text-stone-900">Explore by Thematic Research Domain</h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {problemDomains.map((domain, idx) => {
+                const Icon = domain.icon;
+                return (
+                  <div
+                    key={idx}
+                    className="civic-card p-6 space-y-4 hover:border-stone-300 hover:shadow-md transition-all group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className={`h-10 w-10 rounded-xl border flex items-center justify-center ${domain.accent}`}>
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <span className="flex items-center gap-1.5 text-xs font-medium text-stone-500">
+                        <span className={`h-2 w-2 rounded-full ${domain.dotColor}`} />
+                        <span>Active Focus</span>
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <h4 className="text-base font-bold text-stone-900 group-hover:text-emerald-800 transition-colors">
+                        {domain.title}
+                      </h4>
+                      <p className="text-xs text-stone-600 leading-relaxed">
+                        {domain.description}
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-stone-100">
+                      <Link
+                        href={`/challenges?domain=${encodeURIComponent(domain.title)}`}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 hover:text-emerald-900"
+                      >
+                        <span>Explore Challenges</span>
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>

@@ -7,6 +7,7 @@ import { OrganizationOnboardingRequest } from './entities/organization-onboardin
 import { OrganizationEvidence } from './entities/organization-evidence.entity';
 import { InstitutionProfile } from '../institutions/entities/institution-profile.entity';
 import { Department } from '../institutions/entities/department.entity';
+import { FacultyMember } from '../institutions/entities/faculty-member.entity';
 import { Laboratory } from '../institutions/entities/laboratory.entity';
 import { ResearchArea } from '../institutions/entities/research-area.entity';
 import { InstitutionCapability } from '../institutions/entities/institution-capability.entity';
@@ -42,6 +43,7 @@ import { OnboardingService } from './services/onboarding.service';
       OrganizationEvidence,
       InstitutionProfile,
       Department,
+      FacultyMember,
       Laboratory,
       ResearchArea,
       InstitutionCapability,

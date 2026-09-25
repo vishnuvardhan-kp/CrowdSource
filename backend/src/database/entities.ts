@@ -4,6 +4,10 @@ import { OrganizationMembership } from '../modules/organizations/entities/organi
 import { OrganizationClaimRequest } from '../modules/organizations/entities/organization-claim-request.entity';
 import { Capability } from '../modules/capabilities/entities/capability.entity';
 import { InstitutionProfile } from '../modules/institutions/entities/institution-profile.entity';
+import { Institution } from '../modules/institutions/entities/institution.entity';
+import { InstitutionMembership } from '../modules/institutions/entities/institution-membership.entity';
+import { InstitutionEvidence } from '../modules/institutions/entities/institution-evidence.entity';
+import { InstitutionAuditLog } from '../modules/institutions/entities/institution-audit-log.entity';
 import { Department } from '../modules/institutions/entities/department.entity';
 import { FacultyMember } from '../modules/institutions/entities/faculty-member.entity';
 import { ResearchArea } from '../modules/institutions/entities/research-area.entity';
@@ -49,6 +53,10 @@ import { ProjectContribution } from '../modules/projects/entities/project-contri
 import { ProjectInnovationOutcome } from '../modules/projects/entities/project-innovation-outcome.entity';
 import { Notification } from '../modules/notifications/entities/notification.entity';
 import { ProblemCluster } from '../modules/problem-clusters/entities/problem-cluster.entity';
+import { ProposedSolution } from '../modules/solutions/entities/proposed-solution.entity';
+import { SolutionTeamMember } from '../modules/solutions/entities/solution-team-member.entity';
+import { SolutionDocument } from '../modules/solutions/entities/solution-document.entity';
+import { SolutionCollaboration } from '../modules/solutions/entities/solution-collaboration.entity';
 
 export const ALL_ENTITIES = [
   User,
@@ -58,6 +66,45 @@ export const ALL_ENTITIES = [
   OrganizationOnboardingRequest,
   Capability,
   InstitutionProfile,
+  Institution,
+  InstitutionMembership,
+  InstitutionEvidence,
+  InstitutionAuditLog,
+  Department,
+  FacultyMember,
+  ResearchArea,
+  Laboratory,
+  Facility,
+  InstitutionCapability,
+  IndustryProfile,
+  IndustrySector,
+  IndustrySupportType,
+  IndustryCapability,
+  VerificationRecord,
+  Challenge,
+  ChallengeEvidence,
+  ChallengeConfirmation,
+  District,
+  Block,
+  ChallengeAiAnalysis,
+  EntityEmbedding,
+  RecommendationReview,
+  RecommendationRun,
+  Project,
+  ProjectImpact,
+  TaxonomyAdditionRequest,
+  OrganizationEvidence,
+  ExpressionOfInterest,
+  EoiContribution,
+  EoiEvidence,
+  EoiReview,
+  ProposedSolution,
+  SolutionTeamMember,
+  SolutionDocument,
+  SolutionCollaboration,
+  InstitutionMembership,
+  InstitutionEvidence,
+  InstitutionAuditLog,
   Department,
   FacultyMember,
   ResearchArea,
@@ -111,6 +158,10 @@ export {
   OrganizationClaimRequest,
   Capability,
   InstitutionProfile,
+  Institution,
+  InstitutionMembership,
+  InstitutionEvidence,
+  InstitutionAuditLog,
   Department,
   FacultyMember,
   ResearchArea,
@@ -156,5 +207,9 @@ export {
   ProjectInnovationOutcome,
   Notification,
   ProblemCluster,
+  ProposedSolution,
+  SolutionTeamMember,
+  SolutionDocument,
+  SolutionCollaboration,
 };
 

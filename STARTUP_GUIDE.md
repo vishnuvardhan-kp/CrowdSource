@@ -94,7 +94,7 @@ npx expo start
 | **Citizen (Web)** | `citizen@dev.local` | `CitizenDev123!` | Web Portal (`/challenges/new`, `/my-challenges`) |
 | **Government Officer** | `officer@jharkhand.gov.in` | `Officer123!` | Web Portal (`/reviewer-queue` for Problem Intelligence & Clusters) |
 | **Platform Admin** | `admin@dev.local` | `AdminDev123!` | Web Portal (`/government-dashboard` analytics & management) |
-| **University Researcher** | `dean@bitmesra.ac.in` | `BitMesra123!` | Web Portal (`/challenges` to submit EOI, `/my-eois`) |
+| **University Researcher** | `dean@nitjsr.ac.in` | `NitJsr123!` | Web Portal (Open Solution Workspace, Multidisciplinary Teams) |
 | **Industry Partner** | `contact@tatasteel.com` | `TataSteel123!` | Web Portal (Consortium co-funding & contribution delivery) |
 
 ---

@@ -60,7 +60,7 @@ export class MatchingService {
     private readonly embeddingRepo: Repository<EntityEmbedding>,
     private readonly notificationsService: NotificationsService,
   ) {
-    this.aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+    this.aiServiceUrl = process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000';
   }
 
   /**
@@ -80,12 +80,13 @@ export class MatchingService {
       throw new NotFoundException(`Challenge with ID "${challengeId}" not found.`);
     }
 
-    // MANDATORY WORKFLOW BOUNDARY:
-    // Capability matching is strictly post-government-verification.
-    // Challenges in DRAFT, SUBMITTED, or UNDER_REVIEW cannot generate or receive recommendations.
-    if (challenge.status !== ChallengeStatus.VALIDATED) {
+    // DIRECT WORKFLOW ARCHITECTURE:
+    // Capability matching connects citizen problems directly to universities.
+    // Challenges in DRAFT, REJECTED, or ARCHIVED cannot generate or receive recommendations.
+    const nonMatchingStatuses = [ChallengeStatus.DRAFT, ChallengeStatus.REJECTED, ChallengeStatus.ARCHIVED];
+    if (nonMatchingStatuses.includes(challenge.status)) {
       this.logger.log(
-        `Challenge ${challengeId} is in status ${challenge.status}. Capability matching is reserved strictly for post-verification.`,
+        `Challenge ${challengeId} is in status ${challenge.status}. Capability matching is reserved for submitted or active challenges.`,
       );
       return {
         run_id: '',
@@ -109,8 +110,8 @@ export class MatchingService {
       if (text.includes('water') || text.includes('drain') || text.includes('pipe') || text.includes('sanitation')) {
         detectedCaps.push('Water Purification', 'Hydraulic Modeling');
       }
-      if (text.includes('crop') || text.includes('farm') || text.includes('agri')) {
-        detectedCaps.push('Soil Science & Agronomy', 'Computer Vision & Image Processing');
+      if (text.includes('crop') || text.includes('farm') || text.includes('agri') || text.includes('pest') || text.includes('plant')) {
+        detectedCaps.push('Plant Pathology & Crop Disease Surveillance', 'Agronomy & Field Crop Management', 'Soil Science & Soil Health Testing');
       }
       if (detectedCaps.length === 0) {
         detectedCaps.push('Data Analytics', 'Civic Engineering');
@@ -293,6 +294,15 @@ export class MatchingService {
       }
     } catch (notifErr: any) {
       this.logger.warn(`Failed to dispatch institutional recommendation notifications: ${notifErr.message}`);
+    }
+
+    // Transition challenge status to MATCHED if it is currently in SUBMITTED status and matches exist
+    if (topCandidates.length > 0 && challenge.status === ChallengeStatus.SUBMITTED) {
+      try {
+        await this.challengeRepo.update(challenge.id, { status: ChallengeStatus.MATCHED });
+      } catch (updErr: any) {
+        this.logger.warn(`Could not update challenge ${challenge.id} status to MATCHED: ${updErr.message}`);
+      }
     }
 
     return {

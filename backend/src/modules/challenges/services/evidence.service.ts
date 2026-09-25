@@ -35,6 +35,16 @@ export class EvidenceService {
     'video/mp4': EvidenceType.VIDEO,
     'video/quicktime': EvidenceType.VIDEO,
     'video/webm': EvidenceType.VIDEO,
+    'audio/mp4': EvidenceType.AUDIO,
+    'audio/m4a': EvidenceType.AUDIO,
+    'audio/x-m4a': EvidenceType.AUDIO,
+    'audio/wav': EvidenceType.AUDIO,
+    'audio/x-wav': EvidenceType.AUDIO,
+    'audio/mpeg': EvidenceType.AUDIO,
+    'audio/mp3': EvidenceType.AUDIO,
+    'audio/webm': EvidenceType.AUDIO,
+    'audio/ogg': EvidenceType.AUDIO,
+    'audio/aac': EvidenceType.AUDIO,
     'application/pdf': EvidenceType.DOCUMENT,
     'text/plain': EvidenceType.DOCUMENT,
   };
@@ -132,6 +142,34 @@ export class EvidenceService {
     return this.evidenceRepo.save(evidenceRecord);
   }
 
+  async attachAudioEvidenceByUrl(
+    challengeId: string,
+    userId: string,
+    url: string,
+    title: string = 'Voice Recording Evidence',
+  ): Promise<ChallengeEvidence> {
+    const isWebm = url.toLowerCase().includes('.webm');
+    const isWav = url.toLowerCase().includes('.wav');
+    const isMp3 = url.toLowerCase().includes('.mp3');
+    const mime = isWebm ? 'audio/webm' : isWav ? 'audio/wav' : isMp3 ? 'audio/mpeg' : 'audio/mp4';
+
+    const evidenceRecord = this.evidenceRepo.create({
+      challenge_id: challengeId,
+      uploaded_by: userId,
+      evidence_type: EvidenceType.AUDIO,
+      title,
+      description: 'Audio recording captured during citizen problem reporting',
+      url,
+      mime_type: mime,
+      metadata: {
+        source: 'VOICE_ASSISTANT',
+        uploadedAt: new Date().toISOString(),
+      },
+    });
+
+    return this.evidenceRepo.save(evidenceRecord);
+  }
+
   async deleteEvidenceFile(evidenceId: string): Promise<boolean> {
     const evidence = await this.evidenceRepo.findOne({ where: { id: evidenceId } });
     if (!evidence) {
@@ -185,6 +223,11 @@ export class EvidenceService {
       '.mp4': 'video/mp4',
       '.mov': 'video/quicktime',
       '.webm': 'video/webm',
+      '.mp3': 'audio/mpeg',
+      '.wav': 'audio/wav',
+      '.m4a': 'audio/mp4',
+      '.ogg': 'audio/ogg',
+      '.aac': 'audio/aac',
       '.pdf': 'application/pdf',
       '.txt': 'text/plain',
     };

@@ -91,7 +91,9 @@ export class PassportService {
       relations: [
         'institutionProfile',
         'institutionProfile.departments',
+        'institutionProfile.departments.faculty',
         'institutionProfile.laboratories',
+        'institutionProfile.laboratories.department',
         'institutionProfile.researchAreas',
         'institutionProfile.capabilities',
         'institutionProfile.capabilities.capability',
@@ -119,6 +121,199 @@ export class PassportService {
 
     const isHei = org.organization_type === OrganizationType.INSTITUTION;
 
+    // Structured Academic Entities for HEI
+    const departments = isHei
+      ? (org.institutionProfile?.departments || []).map((d) => ({
+          id: d.id,
+          name: d.name,
+          code: d.code || null,
+          head_of_department: d.head_of_department || null,
+          contact_email: d.contact_email || null,
+          faculty: (d.faculty || []).map((f) => ({
+            id: f.id,
+            name: f.name,
+            designation: f.designation,
+            email: f.email || null,
+            specializations: f.specializations || [],
+            profile_url: f.profile_url || null,
+          })),
+        }))
+      : [];
+
+    const faculty = departments.flatMap((d) =>
+      (d.faculty || []).map((f) => ({
+        ...f,
+        department_id: d.id,
+        department_name: d.name,
+        department_code: d.code,
+      })),
+    );
+
+    const laboratories = isHei
+      ? (org.institutionProfile?.laboratories || []).map((lab) => ({
+          id: lab.id,
+          name: lab.name,
+          description: lab.description || null,
+          equipment_list: lab.equipment_list || [],
+          department_id: lab.department_id || null,
+          department_name: lab.department?.name || null,
+        }))
+      : [];
+
+    const researchAreas = isHei
+      ? (org.institutionProfile?.researchAreas || []).map((ra) => ({
+          id: ra.id,
+          title: ra.title,
+        }))
+      : [];
+
+    const capabilities = isHei
+      ? (org.institutionProfile?.capabilities || []).map((c) => ({
+          id: c.id,
+          capability_id: c.capability_id,
+          name: c.capability?.name,
+          category: c.capability?.category || 'General',
+          department: c.department?.name || null,
+          laboratory: c.laboratory?.name || null,
+          verification_status: c.verification_status,
+          source: c.source,
+          confidence_score: c.confidence_score ? Number(c.confidence_score) : null,
+          evidence_summary: c.evidence_summary || null,
+        }))
+      : (org.industryProfile?.capabilities || []).map((c) => ({
+          id: c.id,
+          capability_id: c.capability_id,
+          name: c.capability?.name,
+          category: c.capability?.category || 'General',
+          support_type: c.supportType?.name || null,
+          support_type_code: c.supportType?.code || null,
+          verification_status: c.verification_status,
+          source: c.source,
+          notes: c.notes || null,
+        }));
+
+    const evidenceList = (org.evidence || []).map((e) => ({
+      id: e.id,
+      title: e.title,
+      description: e.description,
+      evidence_type: e.evidence_type,
+      url: e.url,
+      mime_type: e.mime_type,
+      is_public: e.is_public || false,
+      verification_status: e.verification_status,
+      verified_at: e.verified_at,
+      linked_capability: e.capability?.name || null,
+    }));
+
+    // Dynamic Profile Completeness Calculation (100% Scale)
+    let completenessScore = 0;
+    const completenessItems: any[] = [];
+    const missingActions: string[] = [];
+
+    // 1. Institution Identity (15%)
+    const hasBasicInfo = !!(org.name && (org.email || org.phone) && org.district && org.state);
+    completenessScore += hasBasicInfo ? 15 : 5;
+    completenessItems.push({
+      key: 'identity',
+      label: 'Institution Information',
+      completed: hasBasicInfo,
+      weight: 15,
+    });
+    if (!hasBasicInfo) missingActions.push('Complete basic institution contact & location');
+
+    // 2. Academic Departments (15%)
+    const hasDepts = departments.length > 0;
+    completenessScore += hasDepts ? 15 : 0;
+    completenessItems.push({
+      key: 'departments',
+      label: 'Academic Departments',
+      completed: hasDepts,
+      count: departments.length,
+      weight: 15,
+    });
+    if (!hasDepts) missingActions.push('Add Department');
+
+    // 3. Faculty Members & Expertise (15%)
+    const hasFaculty = faculty.length > 0;
+    completenessScore += hasFaculty ? 15 : 0;
+    completenessItems.push({
+      key: 'faculty',
+      label: 'Faculty Directory & Expertise',
+      completed: hasFaculty,
+      count: faculty.length,
+      weight: 15,
+    });
+    if (!hasFaculty) missingActions.push('Add Faculty');
+
+    // 4. Laboratories & Equipment (15%)
+    const hasLabs = laboratories.length > 0;
+    completenessScore += hasLabs ? 15 : 0;
+    completenessItems.push({
+      key: 'laboratories',
+      label: 'Research Laboratories & Equipment',
+      completed: hasLabs,
+      count: laboratories.length,
+      weight: 15,
+    });
+    if (!hasLabs) missingActions.push('Add Laboratory');
+
+    // 5. Research Focus Areas (10%)
+    const hasResearch = researchAreas.length > 0;
+    completenessScore += hasResearch ? 10 : 0;
+    completenessItems.push({
+      key: 'research_areas',
+      label: 'Research Areas',
+      completed: hasResearch,
+      count: researchAreas.length,
+      weight: 10,
+    });
+    if (!hasResearch) missingActions.push('Add Research Area');
+
+    // 6. Capabilities (15%)
+    const hasCaps = capabilities.length > 0;
+    completenessScore += hasCaps ? 15 : 0;
+    completenessItems.push({
+      key: 'capabilities',
+      label: 'Technical Capabilities',
+      completed: hasCaps,
+      count: capabilities.length,
+      weight: 15,
+    });
+    if (!hasCaps) missingActions.push('Add Capability');
+
+    // 7. Verified Evidence (10%)
+    const verifiedEvidenceCount = evidenceList.filter((e) => e.verification_status === VerificationStatus.VERIFIED).length;
+    const hasEvidence = evidenceList.length > 0;
+    completenessScore += verifiedEvidenceCount > 0 ? 10 : hasEvidence ? 5 : 0;
+    completenessItems.push({
+      key: 'evidence',
+      label: 'Capability Evidence',
+      completed: hasEvidence,
+      verified_count: verifiedEvidenceCount,
+      total_count: evidenceList.length,
+      weight: 10,
+    });
+    if (!hasEvidence) missingActions.push('Upload Capability Evidence');
+
+    // 8. Availability Freshness (5%)
+    const now = new Date();
+    const isAvailActive = org.availability_status === 'ACTIVE' || org.availability_status === 'AVAILABLE';
+    const expiresAt = org.availability_expires_at ? new Date(org.availability_expires_at) : null;
+    const isUnexpired = expiresAt ? expiresAt > now : true;
+    const daysUntilExpiry = expiresAt ? Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))) : null;
+    const hasFreshAvail = isAvailActive && isUnexpired;
+    completenessScore += hasFreshAvail ? 5 : 0;
+    completenessItems.push({
+      key: 'availability',
+      label: 'Active Institutional Availability',
+      completed: hasFreshAvail,
+      days_remaining: daysUntilExpiry,
+      weight: 5,
+    });
+    if (!hasFreshAvail || (daysUntilExpiry !== null && daysUntilExpiry <= 7)) {
+      missingActions.push('Renew Availability');
+    }
+
     return {
       organization: {
         id: org.id,
@@ -143,42 +338,20 @@ export class PassportService {
       },
       passport_type: isHei ? 'HEI_PASSPORT' : 'INDUSTRY_PASSPORT',
       profile_details: isHei ? org.institutionProfile : org.industryProfile,
-      capabilities: isHei
-        ? (org.institutionProfile?.capabilities || []).map((c) => ({
-            id: c.id,
-            capability_id: c.capability_id,
-            name: c.capability?.name,
-            category: c.capability?.category,
-            department: c.department?.name,
-            laboratory: c.laboratory?.name,
-            verification_status: c.verification_status,
-            source: c.source,
-            confidence_score: c.confidence_score,
-            evidence_summary: c.evidence_summary,
-          }))
-        : (org.industryProfile?.capabilities || []).map((c) => ({
-            id: c.id,
-            capability_id: c.capability_id,
-            name: c.capability?.name,
-            category: c.capability?.category,
-            support_type: c.supportType?.name,
-            support_type_code: c.supportType?.code,
-            verification_status: c.verification_status,
-            source: c.source,
-            notes: c.notes,
-          })),
-      evidence: (org.evidence || []).map((e) => ({
-        id: e.id,
-        title: e.title,
-        description: e.description,
-        evidence_type: e.evidence_type,
-        url: e.url,
-        mime_type: e.mime_type,
-        is_public: e.is_public || false,
-        verification_status: e.verification_status,
-        verified_at: e.verified_at,
-        linked_capability: e.capability?.name || null,
-      })),
+      departments,
+      faculty,
+      laboratories,
+      researchAreas,
+      capabilities,
+      evidence: evidenceList,
+      profile_completeness: {
+        score: Math.min(100, Math.max(0, completenessScore)),
+        percentage: Math.min(100, Math.max(0, completenessScore)),
+        checklist: completenessItems,
+        items: completenessItems,
+        missing_actions: missingActions,
+        days_until_expiry: daysUntilExpiry,
+      },
       ai_indexing: {
         indexing_status: embedding?.indexing_status || 'NOT_INDEXED',
         last_indexed_at: embedding?.last_indexed_at || null,

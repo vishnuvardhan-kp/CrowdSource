@@ -462,6 +462,125 @@ export async function runDevSeed() {
     console.log('✅ Linked BIT Mesra Dean OrganizationMembership');
   }
 
+  // 5c. Seed / Ensure Primary Showcase University: National Institute of Technology, Jamshedpur (NIT Jamshedpur)
+  let nitJamshedpur = await orgRepo.findOne({ where: { name: 'National Institute of Technology, Jamshedpur' } });
+  if (!nitJamshedpur) {
+    nitJamshedpur = orgRepo.create({
+      name: 'National Institute of Technology, Jamshedpur',
+      organization_type: OrganizationType.INSTITUTION,
+      geographic_reach: GeographicReach.NATIONAL,
+      is_demo: false,
+      description:
+        'Premier Institute of National Importance in Adityapur, Jamshedpur, specializing in electrical engineering, smart microgrids, environmental telemetry, and advanced robotics.',
+      district: 'East Singhbhum',
+      state: 'Jharkhand',
+      website: 'https://www.nitjsr.ac.in',
+      email: 'dean.research@nitjsr.ac.in',
+      verification_status: VerificationStatus.VERIFIED,
+      is_claimed: true,
+      available_capacity: 6,
+      availability_status: 'AVAILABLE',
+    });
+    nitJamshedpur = await orgRepo.save(nitJamshedpur);
+  }
+
+  let nitProfile = await instProfileRepo.findOne({ where: { organization_id: nitJamshedpur.id } });
+  if (!nitProfile) {
+    nitProfile = await instProfileRepo.save(
+      instProfileRepo.create({
+        organization_id: nitJamshedpur.id,
+        institution_code: 'NIT-JSR-001',
+        institution_category: 'Institute of National Importance',
+        established_year: 1960,
+      }),
+    );
+  }
+
+  let nitDept = await deptRepo.findOne({ where: { institution_id: nitProfile.id, code: 'EED' } });
+  if (!nitDept) {
+    nitDept = await deptRepo.save(
+      deptRepo.create({
+        institution_id: nitProfile.id,
+        name: 'Department of Electrical Engineering',
+        code: 'EED',
+      }),
+    );
+  }
+
+  let nitLab = await labRepo.findOne({
+    where: { institution_id: nitProfile.id, name: 'Smart Microgrid & Clean Energy Systems Lab' },
+  });
+  if (!nitLab) {
+    await labRepo.save(
+      labRepo.create({
+        institution_id: nitProfile.id,
+        department_id: nitDept.id,
+        name: 'Smart Microgrid & Clean Energy Systems Lab',
+        description: 'Advanced real-time digital power simulator and PV-biomass microgrid stabilization testbed.',
+      }),
+    );
+  }
+
+  // Link capabilities for NIT Jamshedpur
+  for (const capKey of ['water-management', 'iot', 'ai-ml', 'gis']) {
+    if (savedCapabilities[capKey]) {
+      const existsCap = await instCapRepo.findOne({
+        where: { institution_id: nitProfile.id, capability_id: savedCapabilities[capKey].id },
+      });
+      if (!existsCap) {
+        await instCapRepo.save(
+          instCapRepo.create({
+            institution_id: nitProfile.id,
+            capability_id: savedCapabilities[capKey].id,
+            department_id: nitDept.id,
+            source: CapabilitySource.ORGANIZATION_PROVIDED,
+            verification_status: VerificationStatus.VERIFIED,
+            confidence_score: 0.95,
+            evidence_summary: 'Accredited NIT Jamshedpur National R&D Facility',
+          }),
+        );
+      }
+    }
+  }
+
+  // Seed Dean of NIT Jamshedpur user (dean@nitjsr.ac.in / NitJsr123!)
+  const nitDeanHash = await bcrypt.hash('NitJsr123!', 10);
+  let nitDeanUser = await userRepo.findOne({ where: { email: 'dean@nitjsr.ac.in' } });
+  if (!nitDeanUser) {
+    nitDeanUser = userRepo.create({
+      name: 'Prof. Rajeshwar Kumar (Dean of R&C, NIT Jamshedpur)',
+      email: 'dean@nitjsr.ac.in',
+      password_hash: nitDeanHash,
+      role: UserRole.UNIVERSITY_ADMIN,
+      organization_id: nitJamshedpur.id,
+      is_active: true,
+      phone: '+91-657-2282231',
+    });
+    nitDeanUser = await userRepo.save(nitDeanUser);
+    console.log('✅ Seeded demo showcase university user (dean@nitjsr.ac.in / NitJsr123!)');
+  } else {
+    nitDeanUser.password_hash = nitDeanHash;
+    nitDeanUser.organization_id = nitJamshedpur.id;
+    nitDeanUser.role = UserRole.UNIVERSITY_ADMIN;
+    nitDeanUser = await userRepo.save(nitDeanUser);
+    console.log('✅ Updated demo showcase university user (dean@nitjsr.ac.in / NitJsr123!)');
+  }
+
+  let nitMembership = await memberRepo.findOne({
+    where: { user_id: nitDeanUser.id, organization_id: nitJamshedpur.id },
+  });
+  if (!nitMembership) {
+    await memberRepo.save(
+      memberRepo.create({
+        user_id: nitDeanUser.id,
+        organization_id: nitJamshedpur.id,
+        organization_role: OrganizationRole.ADMIN,
+        membership_status: MembershipStatus.ACTIVE,
+      }),
+    );
+    console.log('✅ Linked NIT Jamshedpur Dean OrganizationMembership');
+  }
+
   // 6. Seed 1 Demo Industry Partner (clearly marked as dev demo)
   let demoIndOrg = await orgRepo.findOne({ where: { name: '[DEV-DEMO] Demo CleanTech Solutions' } });
   if (!demoIndOrg) {

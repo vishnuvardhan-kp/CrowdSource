@@ -81,6 +81,7 @@ export const challengesApi = {
   async submitChallenge(id: string): Promise<ChallengeItem> {
     return apiClient<ChallengeItem>(`/challenges/${id}/submit`, {
       method: 'POST',
+      timeoutMs: 90000,
     });
   },
 

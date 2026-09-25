@@ -35,6 +35,15 @@ import {
   UpdateProjectContributionDto,
   CreateInnovationOutcomeDto,
   UpdateInnovationOutcomeDto,
+  RecordPrototypeDto,
+  RecordTestValidationDto,
+  RecordPilotDeploymentDto,
+  RecordFinalDeploymentDto,
+  TransitionLifecycleStageDto,
+  MilestoneReviewDto,
+  BlockerReviewDto,
+  VerifyInnovationOutcomeDto,
+  RecordIpAssessmentDto,
 } from './dto';
 
 @Controller('projects')
@@ -174,6 +183,26 @@ export class ProjectsController {
   }
 
   /**
+   * POST /api/projects/:id/milestones/:milestoneId/review
+   * Approves or requests revision on a submitted milestone (Gov / Admin).
+   */
+  @Post(':id/milestones/:milestoneId/review')
+  @HttpCode(HttpStatus.OK)
+  async reviewMilestone(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('milestoneId', ParseUUIDPipe) milestoneId: string,
+    @CurrentUser('id') reviewerId: string,
+    @Body() dto: MilestoneReviewDto,
+  ) {
+    return this.projectsService.reviewMilestone(
+      id,
+      milestoneId,
+      reviewerId,
+      dto,
+    );
+  }
+
+  /**
    * GET /api/projects/:id/tasks
    * Lists tasks for the project.
    */
@@ -306,6 +335,26 @@ export class ProjectsController {
     @Body() dto: CreateProjectUpdateDto,
   ) {
     return this.projectsService.createUpdate(id, userId, userRole, dto);
+  }
+
+  /**
+   * POST /api/projects/:id/updates/:updateId/review
+   * Reviews or resolves a blocker update (Gov / Admin).
+   */
+  @Post(':id/updates/:updateId/review')
+  @HttpCode(HttpStatus.OK)
+  async reviewBlockerOnUpdate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('updateId', ParseUUIDPipe) updateId: string,
+    @CurrentUser('id') reviewerId: string,
+    @Body() dto: BlockerReviewDto,
+  ) {
+    return this.projectsService.reviewBlocker(
+      id,
+      updateId,
+      reviewerId,
+      dto,
+    );
   }
 
   // =========================================================================
@@ -496,4 +545,167 @@ export class ProjectsController {
   ) {
     return this.projectsService.deleteInnovationOutcome(id, outcomeId, userId, userRole);
   }
+
+  /**
+   * POST /api/projects/:id/innovation-outcomes/:outcomeId/verify
+   * Government verification of an innovation or IP outcome.
+   */
+  @Post(':id/innovation-outcomes/:outcomeId/verify')
+  @HttpCode(HttpStatus.OK)
+  async verifyInnovationOutcome(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('outcomeId', ParseUUIDPipe) outcomeId: string,
+    @CurrentUser('id') reviewerId: string,
+    @CurrentUser('role') reviewerRole: string,
+    @Body() dto: VerifyInnovationOutcomeDto,
+  ) {
+    return this.projectsService.verifyInnovationOutcome(
+      id,
+      outcomeId,
+      reviewerId,
+      reviewerRole,
+      dto,
+    );
+  }
+
+  /**
+   * GET /api/projects/:id/ip-assessment
+   * Returns project IP assessment status, protection path, and notes.
+   */
+  @Get(':id/ip-assessment')
+  async getIpAssessment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
+  ) {
+    return this.projectsService.getIpAssessment(id, userId, userRole);
+  }
+
+  /**
+   * POST /api/projects/:id/ip-assessment
+   * Records or updates project IP assessment (Lead institution, IP cell, or Gov).
+   */
+  @Post(':id/ip-assessment')
+  @HttpCode(HttpStatus.OK)
+  async recordIpAssessment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
+    @Body() dto: RecordIpAssessmentDto,
+  ) {
+    return this.projectsService.recordIpAssessment(id, userId, userRole, dto);
+  }
+
+  @Get(':id/lifecycle/ip-assessment')
+  async getLifecycleIpAssessment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
+  ) {
+    return this.projectsService.getIpAssessment(id, userId, userRole);
+  }
+
+  @Post(':id/lifecycle/ip-assessment')
+  @HttpCode(HttpStatus.OK)
+  async recordLifecycleIpAssessment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
+    @Body() dto: RecordIpAssessmentDto,
+  ) {
+    return this.projectsService.recordIpAssessment(id, userId, userRole, dto);
+  }
+
+  // =========================================================================
+  // PHASE 4: PROJECT LIFECYCLE (PROTOTYPE, TEST, PILOT, DEPLOYMENT)
+  // =========================================================================
+
+  /**
+   * GET /api/projects/:id/lifecycle
+   * Returns comprehensive lifecycle status, checklist, test logs, pilot data, and recommendations.
+   */
+  @Get(':id/lifecycle')
+  async getProjectLifecycleSummary(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
+  ) {
+    return this.projectsService.getProjectLifecycleSummary(id, userId, userRole);
+  }
+
+  /**
+   * POST /api/projects/:id/lifecycle/prototype
+   * Records prototype specifications, architecture, and resource needs.
+   */
+  @Post(':id/lifecycle/prototype')
+  @HttpCode(HttpStatus.OK)
+  async recordPrototype(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
+    @Body() dto: RecordPrototypeDto,
+  ) {
+    return this.projectsService.recordPrototype(id, userId, userRole, dto);
+  }
+
+  /**
+   * POST /api/projects/:id/lifecycle/test
+   * Records testing & validation results (lab, field, simulation, safety).
+   */
+  @Post(':id/lifecycle/test')
+  @HttpCode(HttpStatus.OK)
+  async recordTestValidation(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
+    @Body() dto: RecordTestValidationDto,
+  ) {
+    return this.projectsService.recordTestValidation(id, userId, userRole, dto);
+  }
+
+  /**
+   * POST /api/projects/:id/lifecycle/pilot
+   * Records pilot deployment parameters, cohort size, and impact feedback.
+   */
+  @Post(':id/lifecycle/pilot')
+  @HttpCode(HttpStatus.OK)
+  async recordPilotDeployment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
+    @Body() dto: RecordPilotDeploymentDto,
+  ) {
+    return this.projectsService.recordPilotDeployment(id, userId, userRole, dto);
+  }
+
+  /**
+   * POST /api/projects/:id/lifecycle/deployment
+   * Records final deployment readiness, handover entity, training, and operational plan.
+   */
+  @Post(':id/lifecycle/deployment')
+  @HttpCode(HttpStatus.OK)
+  async recordFinalDeployment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
+    @Body() dto: RecordFinalDeploymentDto,
+  ) {
+    return this.projectsService.recordFinalDeployment(id, userId, userRole, dto);
+  }
+
+  /**
+   * POST /api/projects/:id/lifecycle/transition
+   * Guarded transition between lifecycle stages (PLANNING -> PROTOTYPE -> TESTING -> PILOT -> DEPLOYMENT -> COMPLETED).
+   */
+  @Post(':id/lifecycle/transition')
+  @HttpCode(HttpStatus.OK)
+  async transitionLifecycleStage(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
+    @Body() dto: TransitionLifecycleStageDto,
+  ) {
+    return this.projectsService.transitionLifecycleStage(id, userId, userRole, dto);
+  }
 }
+

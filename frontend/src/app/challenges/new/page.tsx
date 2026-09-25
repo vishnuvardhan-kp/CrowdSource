@@ -19,6 +19,16 @@ import {
   Video,
   Globe,
   FileCheck,
+  Landmark,
+  ShieldCheck,
+  Mic,
+  MicOff,
+  Square,
+  Users,
+  Volume2,
+  Sparkles,
+  Play,
+  User as UserIcon,
 } from "lucide-react";
 import { useTranslation } from "../../../lib/i18n";
 
@@ -76,6 +86,56 @@ function SubmissionWizardContent() {
   // Evidence State
   const [evidenceList, setEvidenceList] = useState<UploadedEvidence[]>([]);
   const [uploadingFile, setUploadingFile] = useState(false);
+
+  // Submission Capacity & Community Group State
+  const [verifiedMemberships, setVerifiedMemberships] = useState<any[]>([]);
+  const [submissionMode, setSubmissionMode] = useState<"INDIVIDUAL" | "COMMUNITY" | "INSTITUTIONAL">("INDIVIDUAL");
+  const [communityGroupName, setCommunityGroupName] = useState<string>("");
+  const [selectedMembershipId, setSelectedMembershipId] = useState<string>("");
+
+  // Web Voice Assistant State
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [recordingSeconds, setRecordingSeconds] = useState<number>(0);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [audioEvidenceUrl, setAudioEvidenceUrl] = useState<string | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
+  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
+  const [voiceTranslation, setVoiceTranslation] = useState<string | null>(null);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [voiceRecordedBlob, setVoiceRecordedBlob] = useState<Blob | null>(null);
+
+  // Load user's verified institutional memberships
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${apiUrl}/institution-memberships/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const verified = data.filter((m) => m.authority_status === "VERIFIED");
+          setVerifiedMemberships(verified);
+          const requestedInstId = searchParams.get("institutionId");
+          const requestedMemId = searchParams.get("membershipId");
+          if (requestedMemId && verified.some((m) => m.id === requestedMemId)) {
+            setSubmissionMode("INSTITUTIONAL");
+            setSelectedMembershipId(requestedMemId);
+            const found = verified.find((m) => m.id === requestedMemId);
+            if (found?.institution?.district_id) setSelectedDistrictId(found.institution.district_id);
+            if (found?.institution?.block_id) setSelectedBlockId(found.institution.block_id);
+          } else if (requestedInstId && verified.some((m) => m.institution_id === requestedInstId)) {
+            const found = verified.find((m) => m.institution_id === requestedInstId);
+            if (found) {
+              setSubmissionMode("INSTITUTIONAL");
+              setSelectedMembershipId(found.id);
+              if (found.institution?.district_id) setSelectedDistrictId(found.institution.district_id);
+              if (found.institution?.block_id) setSelectedBlockId(found.institution.block_id);
+            }
+          }
+        }
+      })
+      .catch((err) => console.error("Failed to load user verified memberships:", err));
+  }, [apiUrl, token, searchParams]);
 
   // 1. Load Districts on mount
   useEffect(() => {
@@ -146,6 +206,136 @@ function SubmissionWizardContent() {
     fetchDraft();
   }, [apiUrl, existingDraftId, token]);
 
+  // Voice recording timer
+  useEffect(() => {
+    let interval: any;
+    if (isRecording) {
+      interval = setInterval(() => {
+        setRecordingSeconds((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setRecordingSeconds(0);
+    }
+    return () => clearInterval(interval);
+  }, [isRecording]);
+
+  const startRecording = async () => {
+    setVoiceError(null);
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setVoiceError("Microphone recording is not supported in this browser.");
+        return;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : undefined;
+      const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      const chunks: Blob[] = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          chunks.push(e.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+        setVoiceRecordedBlob(audioBlob);
+        stream.getTracks().forEach((track) => track.stop());
+        await processVoiceAudio(audioBlob);
+      };
+
+      recorder.start(250);
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+    } catch (err: any) {
+      console.error("Recording error:", err);
+      setVoiceError("Could not access microphone: " + (err.message || "Permission denied"));
+      setIsRecording(false);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      mediaRecorder.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const processVoiceAudio = async (audioBlob: Blob) => {
+    if (!token) return;
+    setIsTranscribing(true);
+    setVoiceError(null);
+    try {
+      const formData = new FormData();
+      const ext = audioBlob.type.includes("webm") ? "webm" : "mp4";
+      formData.append("file", audioBlob, `voice-report.${ext}`);
+
+      const transcribeRes = await fetch(`${apiUrl}/voice/transcribe`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!transcribeRes.ok) {
+        const errJson = await transcribeRes.json().catch(() => ({}));
+        throw new Error(errJson.message || "Failed to transcribe voice recording.");
+      }
+
+      const transcribeData = await transcribeRes.json();
+      setVoiceTranscript(transcribeData.originalTranscript);
+      setVoiceTranslation(transcribeData.englishTranslation);
+      if (transcribeData.audioUrl) {
+        setAudioEvidenceUrl(transcribeData.audioUrl);
+      }
+
+      // Analyze voice turn to extract structured fields
+      const promptText = transcribeData.englishTranslation || transcribeData.originalTranscript;
+      const turnRes = await fetch(`${apiUrl}/voice/analyze-turn`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          currentTranscript: promptText,
+          conversationHistory: [],
+        }),
+      });
+
+      if (turnRes.ok) {
+        const analysis = await turnRes.json();
+        if (analysis.title && (!title || title.length < 5)) {
+          setTitle(analysis.title);
+        }
+        if (analysis.problem_statement && (!description || description.length < 10)) {
+          setDescription(analysis.problem_statement);
+        }
+        if (analysis.villageLocality && !villageLocality) {
+          setVillageLocality(analysis.villageLocality);
+        }
+        if (analysis.districtId && !selectedDistrictId) {
+          setSelectedDistrictId(analysis.districtId);
+        }
+        if (analysis.blockId && !selectedBlockId) {
+          setSelectedBlockId(analysis.blockId);
+        }
+      } else if (!description) {
+        setDescription(transcribeData.englishTranslation || transcribeData.originalTranscript);
+        if (!title) {
+          const words = (transcribeData.englishTranslation || transcribeData.originalTranscript).split(" ").slice(0, 8).join(" ");
+          setTitle(words);
+        }
+      }
+    } catch (err: any) {
+      console.error("Voice processing error:", err);
+      setVoiceError(err.message || "Failed to process audio.");
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
   // Helper to capture current GPS coordinates
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -183,6 +373,28 @@ function SubmissionWizardContent() {
       return;
     }
 
+    const selectedMem = verifiedMemberships.find((m) => m.id === selectedMembershipId);
+    const bodyPayload: any = {
+      title: title.trim(),
+      description: description.trim(),
+      citizen_severity: citizenSeverity,
+    };
+
+    if (submissionMode === "INSTITUTIONAL" && selectedMem) {
+      bodyPayload.reporter_type = selectedMem.institution?.type || "PRI";
+      bodyPayload.institution_id = selectedMem.institution_id;
+      bodyPayload.institution_membership_id = selectedMem.id;
+    } else if (submissionMode === "COMMUNITY") {
+      bodyPayload.reporter_type = "COMMUNITY";
+      bodyPayload.community_group_name = communityGroupName.trim() || "Community Group / Collective";
+    } else {
+      bodyPayload.reporter_type = "INDIVIDUAL";
+    }
+
+    if (audioEvidenceUrl) {
+      bodyPayload.audio_evidence_url = audioEvidenceUrl;
+    }
+
     setSavingStep(true);
     try {
       if (!draftId) {
@@ -193,11 +405,7 @@ function SubmissionWizardContent() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            title: title.trim(),
-            description: description.trim(),
-            citizen_severity: citizenSeverity,
-          }),
+          body: JSON.stringify(bodyPayload),
         });
 
         if (!res.ok) {
@@ -214,11 +422,7 @@ function SubmissionWizardContent() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            title: title.trim(),
-            description: description.trim(),
-            citizen_severity: citizenSeverity,
-          }),
+          body: JSON.stringify(bodyPayload),
         });
 
         if (!res.ok) {
@@ -404,7 +608,7 @@ function SubmissionWizardContent() {
           <div className="flex justify-between items-center text-stone-600">
             <span>Current Status:</span>
             <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-              Pending Government Verification
+              Pending Administrative Review
             </span>
           </div>
           <div className="flex justify-between items-center text-stone-600">
@@ -511,6 +715,264 @@ function SubmissionWizardContent() {
             </div>
           </div>
 
+          {/* Submission Capacity Selector: Individual / Community Group / Institutional */}
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <Landmark className="w-4 h-4 text-emerald-600" />
+                Submission Capacity
+              </span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-semibold flex items-center gap-1">
+                {submissionMode === "INSTITUTIONAL" ? "Official Representative" : submissionMode === "COMMUNITY" ? "Collective Submission" : "Individual Citizen"}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <label
+                className={`p-3 rounded-lg border text-left cursor-pointer transition ${
+                  submissionMode === "INDIVIDUAL"
+                    ? "border-emerald-600 bg-emerald-50/50 text-emerald-950 font-medium shadow-xs"
+                    : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="submissionMode"
+                  value="INDIVIDUAL"
+                  checked={submissionMode === "INDIVIDUAL"}
+                  onChange={() => setSubmissionMode("INDIVIDUAL")}
+                  className="sr-only"
+                />
+                <div className="font-semibold text-xs flex items-center gap-1.5">
+                  <UserIcon className="w-3.5 h-3.5 text-emerald-600" />
+                  Individual Citizen
+                </div>
+                <div className="text-[11px] text-slate-500 mt-1">Submit problem as an individual community member</div>
+              </label>
+
+              <label
+                className={`p-3 rounded-lg border text-left cursor-pointer transition ${
+                  submissionMode === "COMMUNITY"
+                    ? "border-blue-600 bg-blue-50/50 text-blue-950 font-medium shadow-xs"
+                    : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="submissionMode"
+                  value="COMMUNITY"
+                  checked={submissionMode === "COMMUNITY"}
+                  onChange={() => setSubmissionMode("COMMUNITY")}
+                  className="sr-only"
+                />
+                <div className="font-semibold text-xs flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-blue-600" />
+                  Community Group / Collective
+                </div>
+                <div className="text-[11px] text-slate-500 mt-1">SHG, Farmer Collective, Youth Club, Resident Association</div>
+              </label>
+
+              <label
+                className={`p-3 rounded-lg border text-left cursor-pointer transition ${
+                  submissionMode === "INSTITUTIONAL"
+                    ? "border-purple-600 bg-purple-50/50 text-purple-950 font-medium shadow-xs"
+                    : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="submissionMode"
+                  value="INSTITUTIONAL"
+                  checked={submissionMode === "INSTITUTIONAL"}
+                  onChange={() => {
+                    setSubmissionMode("INSTITUTIONAL");
+                    if (!selectedMembershipId && verifiedMemberships[0]) {
+                      setSelectedMembershipId(verifiedMemberships[0].id);
+                      if (verifiedMemberships[0].institution?.district_id) {
+                        setSelectedDistrictId(verifiedMemberships[0].institution.district_id);
+                      }
+                      if (verifiedMemberships[0].institution?.block_id) {
+                        setSelectedBlockId(verifiedMemberships[0].institution.block_id);
+                      }
+                    }
+                  }}
+                  className="sr-only"
+                />
+                <div className="font-semibold text-xs flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+                  Panchayat / Local Body
+                </div>
+                <div className="text-[11px] text-slate-500 mt-1">Official verified PRI, ULB, or Department representation</div>
+              </label>
+            </div>
+
+            {/* Community Group Name Input */}
+            {submissionMode === "COMMUNITY" && (
+              <div className="pt-2 border-t border-slate-200/70 space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-800">
+                  Community Group / Collective Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Maa Durga Self-Help Group, Kisan Vikas Sangh, Ward 12 Youth Club"
+                  value={communityGroupName}
+                  onChange={(e) => setCommunityGroupName(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+                <p className="text-[11px] text-slate-500">
+                  Community group submissions receive collective verification weight and are open for solution matching directly.
+                </p>
+              </div>
+            )}
+
+            {/* Institutional Membership Selector */}
+            {submissionMode === "INSTITUTIONAL" && (
+              <div className="pt-2 border-t border-slate-200/70 space-y-2">
+                {verifiedMemberships.length > 0 ? (
+                  <>
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Select Verified Local Body
+                    </label>
+                    <select
+                      value={selectedMembershipId}
+                      onChange={(e) => {
+                        setSelectedMembershipId(e.target.value);
+                        const mem = verifiedMemberships.find((m) => m.id === e.target.value);
+                        if (mem?.institution?.district_id) setSelectedDistrictId(mem.institution.district_id);
+                        if (mem?.institution?.block_id) setSelectedBlockId(mem.institution.block_id);
+                      }}
+                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                    >
+                      {verifiedMemberships.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.institution?.name} (LGD: {m.institution?.lgd_code}) - {m.designation}
+                        </option>
+                      ))}
+                    </select>
+
+                    {(() => {
+                      const activeMem = verifiedMemberships.find((m) => m.id === selectedMembershipId) || verifiedMemberships[0];
+                      if (!activeMem) return null;
+                      return (
+                        <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span>
+                              Submitting on behalf of <strong>{activeMem.institution?.name}</strong> (LGD: {activeMem.institution?.lgd_code}) as <strong>{activeMem.designation}</strong>
+                            </span>
+                          </div>
+                          <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-200 text-emerald-800">
+                            PRI/ULB Verified
+                          </span>
+                        </div>
+                      );
+                    })()}
+                  </>
+                ) : (
+                  <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900">
+                    <p className="font-semibold">No verified institutional affiliation found</p>
+                    <p className="text-[11px] text-amber-800 mt-1">
+                      To submit on behalf of a Gram Panchayat or Urban Local Body, link and verify your appointment through the{" "}
+                      <Link href="/institutions/onboard" className="underline font-bold hover:text-amber-950">
+                        Local Body Onboarding Portal
+                      </Link>
+                      , or proceed as an Individual or Community Collective.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Web Voice Problem Assistant Card */}
+          <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50/50 to-blue-50 border border-emerald-200/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center">
+                  <Mic className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold text-stone-900">Voice Problem Assistant (Multilingual)</h3>
+                  <p className="text-[11px] text-stone-600">Speak in Hindi, Santali, Nagpuri, Tamil, or English to auto-populate this form</p>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                <Sparkles className="w-3 h-3 text-emerald-700" /> AI Speech-to-Text
+              </span>
+            </div>
+
+            {/* Recording Controls */}
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              {!isRecording ? (
+                <button
+                  type="button"
+                  onClick={startRecording}
+                  disabled={isTranscribing}
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 text-xs font-semibold transition shadow-xs disabled:opacity-50"
+                >
+                  <Mic className="w-4 h-4 text-emerald-200" />
+                  {voiceTranscript ? "Record Again" : "Start Voice Recording"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={stopRecording}
+                  className="inline-flex items-center gap-2 rounded-xl bg-red-600 hover:bg-red-700 text-white px-4 py-2 text-xs font-bold transition shadow-xs animate-pulse"
+                >
+                  <Square className="w-4 h-4 fill-white" />
+                  Stop Recording ({Math.floor(recordingSeconds / 60)}:{(recordingSeconds % 60).toString().padStart(2, "0")})
+                </button>
+              )}
+
+              {isTranscribing && (
+                <div className="flex items-center gap-2 text-xs text-emerald-800 font-medium">
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                  Transcribing & structuring problem statement...
+                </div>
+              )}
+            </div>
+
+            {voiceError && (
+              <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs text-red-800 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                <span>{voiceError}</span>
+              </div>
+            )}
+
+            {/* Voice Recording Result & Player */}
+            {voiceTranscript && (
+              <div className="pt-2 border-t border-emerald-200/60 space-y-2">
+                <div className="p-3 rounded-lg bg-white/90 border border-emerald-200 text-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-stone-800 flex items-center gap-1.5">
+                      <Volume2 className="w-3.5 h-3.5 text-emerald-600" />
+                      Recorded Speech Recognized
+                    </span>
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      Persistent Audio Evidence Linked
+                    </span>
+                  </div>
+                  <p className="text-stone-700 italic">&ldquo;{voiceTranscript}&rdquo;</p>
+                  {voiceTranslation && voiceTranslation !== voiceTranscript && (
+                    <div className="text-[11px] text-stone-600 border-t border-stone-100 pt-1.5">
+                      <span className="font-semibold text-stone-700">English Translation: </span>
+                      {voiceTranslation}
+                    </div>
+                  )}
+
+                  {/* Audio Player if URL available */}
+                  {audioEvidenceUrl && (
+                    <div className="pt-1">
+                      <audio controls className="w-full h-8 rounded" src={`${apiUrl.replace("/api", "")}${audioEvidenceUrl}`}>
+                        Your browser does not support audio playback.
+                      </audio>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="space-y-4">
             {/* Title */}
             <div className="space-y-1.5">
@@ -551,7 +1013,7 @@ function SubmissionWizardContent() {
               <label className="text-xs font-semibold text-stone-700">
                 How severe is this problem? <span className="text-stone-400 font-normal">(Optional)</span>
               </label>
-              <div className="grid grid-cols-3 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 {[
                   { value: "NOT_SURE", label: "Not sure", desc: "Hard to assess" },
                   { value: "MODERATE", label: "Moderate", desc: "Noticeable hardship" },
@@ -579,7 +1041,7 @@ function SubmissionWizardContent() {
             <button
               onClick={handleProceedFromProblem}
               disabled={savingStep}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-800 shadow-sm transition disabled:opacity-50"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-800 shadow-sm transition disabled:opacity-50"
             >
               {savingStep ? (
                 <>
@@ -698,17 +1160,17 @@ function SubmissionWizardContent() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-4 border-t border-stone-100">
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-stone-100">
             <button
               onClick={() => setStep(1)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-stone-300 px-4 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-300 px-4 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition"
             >
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
             <button
               onClick={handleProceedFromLocation}
               disabled={savingStep}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-800 shadow-sm transition disabled:opacity-50"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-800 shadow-sm transition disabled:opacity-50"
             >
               {savingStep ? (
                 <>
@@ -786,25 +1248,25 @@ function SubmissionWizardContent() {
                       key={ev.id}
                       className="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs"
                     >
-                      <div className="flex items-center gap-2.5 truncate">
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
                         {isVideo ? (
                           <Video className="h-4 w-4 text-purple-600 shrink-0" />
                         ) : (
                           <FileCheck className="h-4 w-4 text-emerald-600 shrink-0" />
                         )}
-                        <span className="truncate font-medium text-stone-800">{ev.title}</span>
+                        <span className="truncate font-medium text-stone-800 break-words min-w-0">{ev.title}</span>
                         {isVideo && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 shrink-0">
                             VIDEO
                           </span>
                         )}
                         {isPhoto && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 shrink-0">
                             PHOTO
                           </span>
                         )}
                         {!isVideo && !isPhoto && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-stone-200 text-stone-700">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-stone-200 text-stone-700 shrink-0">
                             DOCUMENT
                           </span>
                         )}
@@ -812,7 +1274,7 @@ function SubmissionWizardContent() {
                       <button
                         type="button"
                         onClick={() => handleDeleteEvidence(ev.id)}
-                        className="p-1 rounded-lg text-stone-400 hover:text-red-600 transition-colors"
+                        className="p-1 rounded-lg text-stone-400 hover:text-red-600 transition-colors shrink-0"
                         title="Remove file"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -824,16 +1286,16 @@ function SubmissionWizardContent() {
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-4 border-t border-stone-100">
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-stone-100">
             <button
               onClick={() => setStep(2)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-stone-300 px-4 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-300 px-4 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition"
             >
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
             <button
               onClick={() => setStep(4)}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-800 shadow-sm transition"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-800 shadow-sm transition"
             >
               Next: Review & Submit <ArrowRight className="h-4 w-4" />
             </button>
@@ -897,9 +1359,44 @@ function SubmissionWizardContent() {
               <div>
                 <span className="text-stone-500 block text-[11px] font-medium uppercase tracking-wider">Evidence Attached</span>
                 <p className="font-semibold text-stone-800 mt-0.5">
-                  {evidenceList.length} file(s) attached
+                  {evidenceList.length + (audioEvidenceUrl ? 1 : 0)} file(s) attached {audioEvidenceUrl ? "(includes voice recording)" : ""}
                 </p>
               </div>
+            </div>
+
+            {/* Submission Capacity Summary */}
+            <div className="pt-2 border-t border-stone-200">
+              <span className="text-stone-500 block text-[11px] font-medium uppercase tracking-wider">
+                Submission Capacity
+              </span>
+              {submissionMode === "INSTITUTIONAL" && selectedMembershipId ? (
+                (() => {
+                  const m = verifiedMemberships.find((x) => x.id === selectedMembershipId);
+                  return (
+                    <div className="mt-1 flex items-center gap-2 p-2.5 rounded-lg bg-emerald-50 text-emerald-900 border border-emerald-200">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <div>
+                        <span className="font-bold">Official Institutional Challenge:</span> {m?.institution?.name} (LGD: {m?.institution?.lgd_code})
+                        <div className="text-[10px] text-emerald-700">
+                          Authorized Representative: {m?.designation} • {m?.relationship}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()
+              ) : submissionMode === "COMMUNITY" ? (
+                <div className="mt-1 flex items-center gap-2 p-2.5 rounded-lg bg-blue-50 text-blue-900 border border-blue-200">
+                  <Users className="w-4 h-4 text-blue-600 shrink-0" />
+                  <div>
+                    <span className="font-bold">Community Group / Collective:</span> {communityGroupName || "Community Collective"}
+                    <div className="text-[10px] text-blue-700">
+                      Submitted on behalf of local collective / association
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="font-semibold text-stone-800 mt-0.5">Individual Citizen Submission</p>
+              )}
             </div>
           </div>
 

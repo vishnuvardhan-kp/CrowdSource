@@ -10,6 +10,7 @@ import kru from "../locales/kru.json";
 import kho from "../locales/kho.json";
 import sad from "../locales/sad.json";
 import pan from "../locales/pan.json";
+import ta from "../locales/ta.json";
 
 export interface LanguageInfo {
   code: string;
@@ -21,6 +22,7 @@ export interface LanguageInfo {
 export const SUPPORTED_LANGUAGES: Record<string, LanguageInfo> = {
   en: { code: "en", name: "English", nativeName: "English", script: "Latin" },
   hi: { code: "hi", name: "Hindi", nativeName: "हिन्दी", script: "Devanagari" },
+  ta: { code: "ta", name: "Tamil", nativeName: "தமிழ்", script: "Tamil" },
   sat: { code: "sat", name: "Santali", nativeName: "ᱥᱟᱱᱛᱟᱲᱤ", script: "Ol Chiki" },
   nag: { code: "nag", name: "Nagpuri", nativeName: "नागपुरी", script: "Devanagari" },
   mun: { code: "mun", name: "Mundari", nativeName: "मुंडारी", script: "Devanagari" },
@@ -33,6 +35,7 @@ export const SUPPORTED_LANGUAGES: Record<string, LanguageInfo> = {
 const translations: Record<string, any> = {
   en,
   hi,
+  ta,
   sat,
   nag,
   mun,

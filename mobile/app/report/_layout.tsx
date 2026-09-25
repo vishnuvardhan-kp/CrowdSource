@@ -11,6 +11,7 @@ export default function ReportLayout() {
       }}
     >
       <Stack.Screen name="new" />
+      <Stack.Screen name="voice" />
     </Stack>
   );
 }

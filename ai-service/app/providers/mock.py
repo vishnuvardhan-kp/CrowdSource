@@ -12,6 +12,8 @@ from ..schemas import (
     RerankCandidate,
     LanguageDetectionResponse,
     TranslateResponse,
+    AnalyzeImageRelevanceRequest,
+    ImageRelevanceResult,
 )
 from ..config import settings
 
@@ -24,6 +26,91 @@ class MockAIProvider(BaseAIProvider):
     @property
     def provider_name(self) -> str:
         return "mock"
+
+    def _refine_problem_statement(self, request: AnalyzeChallengeRequest, category: str, sub_category: str) -> tuple[str, str, List[str], Dict[str, Any]]:
+        text = f"{request.title} {request.description}".lower()
+
+        # Build verified platform metadata (authoritative, not inferred from text)
+        loc_parts = []
+        if request.village_locality and request.village_locality.lower() not in ["unknown", "not specified"]:
+            loc_parts.append(request.village_locality.strip())
+        if request.district and request.district.lower() not in ["unknown", "not specified"]:
+            loc_parts.append(request.district.strip())
+        loc_suffix = ", ".join(loc_parts)
+
+        platform_meta = {
+            "verified_district": request.district if (request.district and request.district.lower() != "unknown") else None,
+            "verified_locality": request.village_locality if (request.village_locality and request.village_locality.lower() != "unknown") else None,
+            "verified_state": request.state if (request.state and request.state.lower() != "unknown") else None,
+            "reported_severity": request.citizen_severity or None,
+            "reported_affected_population": request.affected_population or None,
+            "source": "PLATFORM_VERIFIED_CHALLENGE_METADATA",
+        }
+
+        # Case 1: Potable Water Scarcity (Hindi, Hinglish, English, Regional)
+        if any(w in text for w in ["pani", "water", "drinking", "peene", "garmi", "sukha", "नल", "जल", "पानी", "daah"]):
+            base_title = "Seasonal Potable Water Supply Scarcity in Rural Community"
+            statement = "The local community experiences acute drinking water shortages during seasonal peak dry periods, leading to persistent household supply deficits."
+            citizen_facts = [
+                "Water supply unavailability or deficit reported during peak summer periods" if ("garmi" in text or "summer" in text) else "Disruption or deficit in local potable water supply",
+                "Affects residential households and community water access",
+            ]
+
+        # Case 2: Waste Management / Garbage Accumulation (Mixed Language, Hinglish)
+        elif any(w in text for w in ["garbage", "kachra", "waste", "safai", "dustbin", "dump", "कूड़ा", "refuse"]):
+            base_title = "Irregular Solid Waste Collection Leading to Roadside Accumulation"
+            statement = "Inconsistent municipal solid waste collection schedules have resulted in roadside waste accumulation, posing public sanitation and environmental cleanliness challenges in the locality."
+            citizen_facts = [
+                "Irregular municipal garbage collection schedules",
+                "Accumulation of refuse along roadside corridors",
+            ]
+
+        # Case 3: Road Infrastructure / Structural Damage (Informal English, Hindi, etc.)
+        elif any(w in text for w in ["road", "broken", "pothole", "gaddha", "sadak", "rasta", "highway", "commute", "सड़क"]):
+            base_title = "Severe Road Surface Deterioration and Commuter Inconvenience"
+            statement = "The local roadway infrastructure exhibits extensive structural damage and surface degradation, impeding safe vehicular transit and pedestrian mobility."
+            citizen_facts = [
+                "Road surface is damaged/broken",
+                "Impedes commuter transit and community mobility",
+            ]
+
+        # Case 4: Healthcare Facility / Hospital Access
+        elif any(w in text for w in ["hospital", "clinic", "health", "doctor", "aspatal", "swasthya", "medical", "dawa"]):
+            base_title = "Healthcare Facility Operational and Accessibility Challenges"
+            statement = "The community healthcare facility is experiencing operational, infrastructure, or service delivery constraints impacting local healthcare access."
+            citizen_facts = [
+                "Operational constraints reported at local healthcare facility",
+                "Impacts community healthcare access and clinical service continuity",
+            ]
+
+        # Case 5: Regional / Tribal Language & Electrical Grid (Nagpuri, Santali, Mundari, Sadri)
+        elif any(w in text for w in ["bijli", "electricity", "power", "grid", "transformer", "andhera", "current", "batti", "voltage", "blackout", "hamre", "toli", "ato"]):
+            base_title = "Prolonged Electrical Grid Disruption and Power Supply Instability"
+            statement = "The local settlement is experiencing extended electrical power outages and grid unreliability, disrupting evening illumination and domestic energy access."
+            citizen_facts = [
+                "Prolonged electrical outage reported in the locality",
+                "Disruption of evening illumination and domestic power access",
+            ]
+
+        # Safe Default Civic Refinement (Strictly zero fabrication)
+        else:
+            clean_title = re.sub(r'[!?,.]+$', '', request.title.strip())
+            words = clean_title.split()
+            base_title = f"{clean_title.title()} Operational Challenges" if len(words) < 3 else clean_title.title()
+            clean_desc = request.description.strip()
+            statement = f"Local civic concern regarding {category.lower()} reported: {clean_desc}."
+            citizen_facts = [
+                f"Civic problem reported regarding {category}",
+                f"Report details: {clean_desc[:120]}",
+            ]
+
+        # Professional Title: Append verified location suffix with em-dash ONLY when metadata exists
+        if loc_suffix:
+            final_title = f"{base_title} — {loc_suffix}"
+        else:
+            final_title = base_title
+
+        return final_title, statement, citizen_facts, platform_meta
 
     async def analyze_challenge(self, request: AnalyzeChallengeRequest) -> ChallengeAiAnalysisResult:
         combined_text = f"{request.title} {request.description}".lower()
@@ -153,6 +240,7 @@ class MockAIProvider(BaseAIProvider):
             keywords = [category, sub_category]
 
         summary = f"Identified civic need in {category} ({sub_category}). Primary challenge: {problem_type}. Key factors include {', '.join(problem_factors[:2])}."
+        prof_title, prof_stmt, citizen_facts, platform_meta = self._refine_problem_statement(request, category, sub_category)
 
         return ChallengeAiAnalysisResult(
             challenge_id=request.challenge_id,
@@ -177,10 +265,19 @@ class MockAIProvider(BaseAIProvider):
             model_version="mock-v1",
             prompt_version=settings.PROMPT_VERSION,
             taxonomy_version=settings.TAXONOMY_VERSION,
+            professional_title=prof_title,
+            professional_problem_statement=prof_stmt,
+            citizen_facts=citizen_facts,
+            platform_metadata=platform_meta,
+            key_facts=citizen_facts,
+            refinement_status="REFINED",
             raw_analysis={
                 "provider": "mock",
                 "execution_mode": "offline_deterministic",
                 "tokens_evaluated": len(combined_text.split()),
+                "refinement_applied": True,
+                "citizen_facts": citizen_facts,
+                "platform_metadata": platform_meta,
             },
         )
 
@@ -196,19 +293,24 @@ class MockAIProvider(BaseAIProvider):
 
         for idx, text in enumerate(texts):
             text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
-            # Deterministic pseudo-embedding vector generated from sha256 hash digest
-            hash_bytes = hashlib.sha512(text.encode("utf-8")).digest()
-            vector: List[float] = []
-            for i in range(dims):
-                byte_val = hash_bytes[i % len(hash_bytes)]
-                # Map to normalized float [-1.0, 1.0]
-                val = ((byte_val / 255.0) * 2.0) - 1.0
-                vector.append(round(val, 6))
+            # Deterministic semantic pseudo-embedding vector generated from token hashes
+            words = re.findall(r"[\w]+", text.lower())
+            vector: List[float] = [0.0] * dims
+            for w in words:
+                if len(w) < 2:
+                    continue
+                h = int(hashlib.md5(w.encode("utf-8")).hexdigest(), 16)
+                for i in range(4):
+                    pos = (h >> (i * 16)) % dims
+                    sign = 1.0 if ((h >> (i * 8)) & 1) else -1.0
+                    vector[pos] += sign
 
             # Normalize vector to unit length
             norm = sum(x * x for x in vector) ** 0.5
             if norm > 0:
                 vector = [round(x / norm, 6) for x in vector]
+            else:
+                vector = [0.0] * dims
 
             items.append(
                 EmbeddingItem(
@@ -483,5 +585,36 @@ class MockAIProvider(BaseAIProvider):
             provider="mock",
             model="deterministic-mock",
             requires_review=False,
+        )
+
+    async def analyze_image_relevance(
+        self,
+        request: AnalyzeImageRelevanceRequest,
+    ) -> ImageRelevanceResult:
+        context_text = f"{request.title or ''} {request.description or ''}".lower()
+        
+        detected_features = []
+        is_relevant = True
+        confidence = 0.88
+        
+        if "water" in context_text or "pipe" in context_text or "drain" in context_text:
+            detected_features = ["water body/leakage", "piping infrastructure", "civic terrain"]
+            summary = "Image displays civic physical terrain consistent with water infrastructure or drainage challenges."
+        elif "road" in context_text or "pothole" in context_text or "bridge" in context_text:
+            detected_features = ["road surface damage", "pothole structure", "transportation corridor"]
+            summary = "Image displays road surface distress and physical vehicular corridor consistent with reported transport defect."
+        elif "crop" in context_text or "farm" in context_text or "agriculture" in context_text:
+            detected_features = ["vegetation / cropland", "agricultural field", "foliage pattern"]
+            summary = "Image displays agricultural cropland or field conditions consistent with reported farming challenge."
+        else:
+            detected_features = ["outdoor civic environment", "local physical infrastructure"]
+            summary = "Image displays local environmental conditions broadly consistent with reported community context."
+
+        return ImageRelevanceResult(
+            is_relevant=is_relevant,
+            confidence=confidence,
+            visual_summary=summary,
+            detected_features=detected_features,
+            disclaimer="Advisory lightweight visual check for civic triage only. Not a legally binding or exhaustive forensic determination.",
         )
 

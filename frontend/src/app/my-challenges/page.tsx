@@ -15,6 +15,7 @@ import {
   HeartHandshake,
   ArrowRight,
   AlertCircle,
+  MessageSquare,
 } from "lucide-react";
 import { formatDateSafe } from "../../lib/utils";
 
@@ -243,14 +244,14 @@ export default function MyChallengesPage() {
                 </div>
               </div>
 
-              <div>
-                <h3 className="text-base font-bold text-stone-900">{item.title}</h3>
-                <p className="text-xs text-stone-600 mt-1 line-clamp-2 leading-relaxed">
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-stone-900 break-words">{item.title}</h3>
+                <p className="text-xs text-stone-600 mt-1 line-clamp-2 leading-relaxed break-words">
                   {item.description}
                 </p>
               </div>
 
-              <div className="text-[11px] text-stone-500">
+              <div className="text-[11px] text-stone-500 break-words">
                 <span>Location: </span>
                 <span className="text-stone-800 font-medium">
                   {item.districtName}
@@ -260,41 +261,55 @@ export default function MyChallengesPage() {
               </div>
 
               {item.status === "REJECTED" && item.rejection_reason && (
-                <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-900">
+                <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-900 break-words">
                   <span className="font-bold text-red-950">Rejection Reason:</span>{" "}
                   {item.rejection_reason}
                 </div>
               )}
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-between pt-3 border-t border-stone-100">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-3 border-t border-stone-100">
                 {item.status === "DRAFT" ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                     <Link
                       href={`/challenges/new?draftId=${item.id}`}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 shadow-sm transition"
+                      className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 shadow-sm transition flex-1 sm:flex-none text-center"
                     >
-                      <Edit3 className="h-3.5 w-3.5" /> Continue Editing
+                      <Edit3 className="h-3.5 w-3.5 shrink-0" /> Continue Editing
                     </Link>
                     <button
                       onClick={() => handleDeleteDraft(item.id)}
                       disabled={deletingId === item.id}
-                      className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 transition disabled:opacity-50"
+                      className="inline-flex items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 transition disabled:opacity-50 flex-1 sm:flex-none text-center"
                     >
-                      <Trash2 className="h-3.5 w-3.5" /> Delete Draft
+                      <Trash2 className="h-3.5 w-3.5 shrink-0" /> Delete Draft
                     </button>
                   </div>
                 ) : (
-                  <Link
-                    href={`/challenges/${item.id}`}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800"
-                  >
-                    <span>View Public Page</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Link
+                      href={`/challenges/${item.id}`}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 py-1"
+                    >
+                      <span>View Public Page</span>
+                      <ArrowRight className="h-3.5 w-3.5 shrink-0" />
+                    </Link>
+
+                    {item.status !== "REJECTED" && (
+                      <Link
+                        href={`/challenges/${item.id}/forum`}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-200 px-2.5 py-1 text-xs font-semibold text-indigo-800 hover:bg-indigo-100 transition shadow-2xs"
+                      >
+                        <MessageSquare className="h-3.5 w-3.5 text-indigo-600" />
+                        <span>Communication Forum</span>
+                      </Link>
+                    )}
+                  </div>
                 )}
 
-                <span className="text-[11px] font-mono text-stone-400">Ref: {item.id.slice(0, 8)}...</span>
+                <span className="text-[11px] font-mono text-stone-400 self-end sm:self-auto shrink-0">
+                  Ref: {item.id.slice(0, 8)}...
+                </span>
               </div>
             </div>
           ))}

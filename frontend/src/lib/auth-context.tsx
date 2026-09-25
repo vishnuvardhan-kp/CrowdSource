@@ -70,11 +70,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const profileData = await res.json();
         setUser(profileData);
         return profileData;
-      } else {
-        // Token invalid or expired
+      } else if (res.status === 401 || res.status === 403) {
+        // Token confirmed invalid or expired
         localStorage.removeItem("samadhan_token");
         setToken(null);
         setUser(null);
+        return null;
+      } else {
+        // Transient server error (500, 502, 503) - keep token
         return null;
       }
     } catch (err) {

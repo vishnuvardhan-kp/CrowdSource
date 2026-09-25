@@ -8,6 +8,8 @@ from ..schemas import (
     RerankCandidate,
     LanguageDetectionResponse,
     TranslateResponse,
+    AnalyzeImageRelevanceRequest,
+    ImageRelevanceResult,
 )
 
 class BaseAIProvider(ABC):
@@ -76,5 +78,15 @@ class BaseAIProvider(ABC):
         """
         Translates text from source language to target language.
         Returns confidence, review flags, and normalized content.
+        """
+        pass
+
+    @abstractmethod
+    async def analyze_image_relevance(
+        self,
+        request: AnalyzeImageRelevanceRequest,
+    ) -> ImageRelevanceResult:
+        """
+        Performs lightweight advisory visual relevance check of uploaded evidence against problem context.
         """
         pass

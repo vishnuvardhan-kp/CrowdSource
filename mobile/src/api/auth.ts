@@ -8,10 +8,14 @@ export interface AuthResponse {
 }
 
 export const authApi = {
-  async login(email: string, password: string): Promise<AuthResponse> {
+  async login(identifier: string, password: string): Promise<AuthResponse> {
+    const isEmail = identifier.includes('@');
+    const body = isEmail
+      ? { email: identifier.trim(), password }
+      : { identifier: identifier.trim(), phone: identifier.trim(), password };
     return apiClient<AuthResponse>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify(body),
     });
   },
 

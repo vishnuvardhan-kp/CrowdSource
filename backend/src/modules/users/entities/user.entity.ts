@@ -80,6 +80,15 @@ export class User {
   @Column({ type: 'varchar', length: 10, default: 'en' })
   preferred_language: string;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  department: string | null;
+
+  @Column({ type: 'varchar', length: 150, nullable: true })
+  designation: string | null;
+
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  specializations: string[];
+
   @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;
 

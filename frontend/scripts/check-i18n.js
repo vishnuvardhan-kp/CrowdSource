@@ -16,7 +16,7 @@ const path = require('path');
 
 const LOCALES_DIR = path.join(__dirname, '..', 'src', 'locales');
 const CANONICAL_LOCALE = 'en';
-const SUPPORTED_LOCALES = ['en', 'hi', 'sat', 'nag', 'mun', 'kru', 'kho', 'sad', 'pan'];
+const SUPPORTED_LOCALES = ['en', 'hi', 'ta', 'sat', 'nag', 'mun', 'kru', 'kho', 'sad', 'pan'];
 
 function loadJson(filePath) {
   try {
@@ -96,7 +96,7 @@ function main() {
     console.error('\n❌ i18n Consistency Check FAILED! Resolve missing translation keys before proceeding.');
     process.exit(1);
   } else {
-    console.log('\n🎉 ALL 9 LOCALES PASSED i18n CONSISTENCY CHECK WITH 100% COVERAGE!');
+    console.log('\n🎉 ALL 10 LOCALES PASSED i18n CONSISTENCY CHECK WITH 100% COVERAGE!');
     process.exit(0);
   }
 }

@@ -12,7 +12,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "SamadhanSetu uses your camera to attach photographic evidence to civic problem reports.",
         "NSPhotoLibraryUsageDescription": "SamadhanSetu accesses your photo library to attach evidence to problem reports.",
-        "NSLocationWhenInUseUsageDescription": "Your location helps SamadhanSetu identify the affected area and consolidate similar civic reports."
+        "NSLocationWhenInUseUsageDescription": "Your location helps SamadhanSetu identify the affected area and consolidate similar civic reports.",
+        "NSMicrophoneUsageDescription": "SamadhanSetu uses your microphone to record citizen voice problem reports."
       }
     },
     "android": {
@@ -21,6 +22,7 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "CAMERA",
+        "RECORD_AUDIO",
         "READ_EXTERNAL_STORAGE",
         "READ_MEDIA_IMAGES",
         "READ_MEDIA_VIDEO"
@@ -45,7 +47,8 @@
           "photosPermission": "The app accesses your photos to let you attach evidence of civic problems.",
           "cameraPermission": "The app uses your camera to capture evidence of civic problems."
         }
-      ]
+      ],
+      "expo-audio"
     ]
   }
 }

@@ -41,6 +41,7 @@ export enum ChallengePriority {
 export enum EvidenceType {
   IMAGE = 'IMAGE',
   VIDEO = 'VIDEO',
+  AUDIO = 'AUDIO',
   DOCUMENT = 'DOCUMENT',
   LINK = 'LINK',
   LOCATION_DATA = 'LOCATION_DATA',
@@ -186,6 +187,9 @@ export interface ChallengeDetail extends ChallengeItem {
   cluster?: ProblemClusterSummary | null;
   aiAnalysis?: AiAnalysisData | null;
   verification_display_status?: string;
+  reporter_type?: string;
+  community_group_name?: string;
+  verification_snapshot?: any;
 }
 
 export interface NotificationItem {
@@ -203,13 +207,31 @@ export interface NotificationItem {
 export interface CreateChallengeDraftPayload {
   title: string;
   description: string;
+  reporter_type?: string;
+  community_group_name?: string;
+  institution_id?: string;
+  institution_membership_id?: string;
+  district_id?: string;
+  block_id?: string;
+  village_locality?: string;
   citizen_severity?: CitizenSeverity;
+  affected_population?: string;
+  latitude?: number;
+  longitude?: number;
   category?: string;
+  domain?: string;
+  sub_domain?: string;
+  original_language?: string;
+  original_text?: string;
 }
 
 export interface UpdateChallengeDraftPayload {
   title?: string;
   description?: string;
+  reporter_type?: string;
+  community_group_name?: string;
+  institution_id?: string;
+  institution_membership_id?: string;
   district_id?: string;
   block_id?: string;
   village_locality?: string;

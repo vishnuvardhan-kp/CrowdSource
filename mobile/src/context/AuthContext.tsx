@@ -9,7 +9,7 @@ interface AuthContextType {
   user: UserProfile | null;
   token: string | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (identifier: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (data: {
     name: string;
     email: string;
@@ -39,13 +39,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const profile = await authApi.getMe();
           setUser(profile);
           await storage.setItem(config.storageKeys.userProfile, JSON.stringify(profile));
-        } catch {
-          // Token expired or invalid
-          await storage.removeItem(config.storageKeys.authToken);
-          await storage.removeItem(config.storageKeys.userProfile);
-          setToken(null);
-          setApiAuthToken(null);
-          setUser(null);
+        } catch (err: any) {
+          // ONLY clear credentials if server explicitly rejected authentication (401 / 403)
+          if (err && (err.status === 401 || err.status === 403)) {
+            await storage.removeItem(config.storageKeys.authToken);
+            await storage.removeItem(config.storageKeys.userProfile);
+            setToken(null);
+            setApiAuthToken(null);
+            setUser(null);
+          } else {
+            // Transient network error (status 0), timeout (status 408), or backend starting up (5xx):
+            // KEEP token intact! Restore cached profile for UI continuity.
+            const cachedProfile = await storage.getItem(config.storageKeys.userProfile);
+            if (cachedProfile) {
+              try {
+                setUser(JSON.parse(cachedProfile));
+              } catch {}
+            }
+          }
         }
       }
     } catch {
@@ -60,11 +71,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [initAuth]);
 
   const login = async (
-    email: string,
+    identifier: string,
     password: string,
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const res = await authApi.login(email.trim(), password);
+      const res = await authApi.login(identifier.trim(), password);
       const jwtToken = res.accessToken || res.access_token;
       if (!jwtToken) {
         throw new Error('No access token returned from server.');

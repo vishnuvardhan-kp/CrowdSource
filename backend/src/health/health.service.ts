@@ -4,11 +4,17 @@ import { DataSource } from 'typeorm';
 
 export interface HealthCheckResult {
   status: string;
+  readiness: 'ready' | 'degraded' | 'unavailable';
   appName: string;
   service: string;
   database: {
     status: 'connected' | 'disconnected';
     type: string;
+  };
+  ai_service: {
+    status: 'available' | 'degraded' | 'unavailable';
+    provider: string;
+    endpoint: string;
   };
   timestamp: string;
 }
@@ -31,7 +37,6 @@ export class HealthService {
     let isDbConnected = false;
     try {
       if (this.dataSource && this.dataSource.isInitialized) {
-        // Ping database with a simple query
         await this.dataSource.query('SELECT 1');
         isDbConnected = true;
       }
@@ -39,15 +44,55 @@ export class HealthService {
       isDbConnected = false;
     }
 
+    const aiEndpoint =
+      this.configService.get<string>('AI_SERVICE_URL') ||
+      this.configService.get<string>('app.aiServiceUrl') ||
+      'http://127.0.0.1:8000';
+
+    let aiStatus: 'available' | 'degraded' | 'unavailable' = 'unavailable';
+    let aiProvider = 'unknown';
+
+    try {
+      const res = await fetch(`${aiEndpoint}/health`, {
+        signal: AbortSignal.timeout(2000),
+      });
+      if (res.ok) {
+        const aiData = await res.json();
+        aiStatus = aiData.provider_available === false ? 'degraded' : 'available';
+        aiProvider = aiData.provider || 'unknown';
+      } else {
+        aiStatus = 'degraded';
+      }
+    } catch {
+      aiStatus = 'unavailable';
+    }
+
+    const readiness: 'ready' | 'degraded' | 'unavailable' = !isDbConnected
+      ? 'unavailable'
+      : aiStatus === 'available'
+        ? 'ready'
+        : 'degraded';
+
     return {
       status: 'ok',
+      readiness,
       appName,
       service: serviceSlug,
       database: {
         status: isDbConnected ? 'connected' : 'disconnected',
         type: 'postgres',
       },
+      ai_service: {
+        status: aiStatus,
+        provider: aiProvider,
+        endpoint: aiEndpoint,
+      },
       timestamp: new Date().toISOString(),
     };
+  }
+
+  async checkReadiness(): Promise<HealthCheckResult> {
+    const result = await this.checkHealth();
+    return result;
   }
 }

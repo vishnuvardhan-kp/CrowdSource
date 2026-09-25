@@ -13,6 +13,7 @@ import {
   NotificationType,
   InnovationOutcomeType,
   InnovationOutcomeStatus,
+  ProjectIpAssessmentStatus,
 } from '../../common/enums';
 import {
   CreateAcademicMemberDto,
@@ -23,12 +24,14 @@ import {
   CreateInnovationOutcomeDto,
   UpdateInnovationOutcomeDto,
   VerifyInnovationOutcomeDto,
+  RecordIpAssessmentDto,
 } from './dto';
 import {
   Injectable,
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  ConflictException,
   Logger,
   Optional,
 } from '@nestjs/common';
@@ -71,6 +74,11 @@ import {
   BlockerReviewDto,
   ProjectCompletionDto,
   ImpactVerificationDto,
+  RecordPrototypeDto,
+  RecordTestValidationDto,
+  RecordPilotDeploymentDto,
+  RecordFinalDeploymentDto,
+  TransitionLifecycleStageDto,
 } from './dto';
 
 export interface ExpressUploadedFile {
@@ -162,6 +170,17 @@ export class ProjectsService {
     if (!role) return false;
     const r = role.toUpperCase();
     return r === 'LEAD' || r === 'LEAD_INSTITUTION';
+  }
+
+  isProjectActiveStatus(status: ProjectStatus): boolean {
+    return [
+      ProjectStatus.ACTIVE,
+      ProjectStatus.PLANNING,
+      ProjectStatus.PROTOTYPE_DEVELOPMENT,
+      ProjectStatus.TESTING,
+      ProjectStatus.PILOT,
+      ProjectStatus.DEPLOYMENT,
+    ].includes(status);
   }
 
   async getParticipantForUser(
@@ -341,6 +360,9 @@ export class ProjectsService {
         'updates.resolvedByReview',
         'reviews',
         'reviews.reviewerUser',
+        'academicMembers',
+        'academicMembers.user',
+        'academicMembers.organization',
       ],
       order: {
         milestones: {
@@ -579,6 +601,11 @@ export class ProjectsService {
       ProjectStatus.PROPOSED,
       ProjectStatus.KICKOFF_REVISION,
       ProjectStatus.ACTIVE,
+      ProjectStatus.PLANNING,
+      ProjectStatus.PROTOTYPE_DEVELOPMENT,
+      ProjectStatus.TESTING,
+      ProjectStatus.PILOT,
+      ProjectStatus.DEPLOYMENT,
     ];
 
     if (!creatableStatuses.includes(project.status)) {
@@ -660,9 +687,9 @@ export class ProjectsService {
       userRole,
     );
 
-    if (project.status !== ProjectStatus.ACTIVE) {
+    if (!this.isProjectActiveStatus(project.status)) {
       throw new BadRequestException(
-        `Cannot start milestone: Project is in status "${project.status}". Project must be ACTIVE.`,
+        `Cannot start milestone: Project is in status "${project.status}". Project must be in an active status.`,
       );
     }
 
@@ -696,9 +723,9 @@ export class ProjectsService {
       userRole,
     );
 
-    if (project.status !== ProjectStatus.ACTIVE) {
+    if (!this.isProjectActiveStatus(project.status)) {
       throw new BadRequestException(
-        `Cannot request milestone review: Project is in status "${project.status}". Project must be ACTIVE.`,
+        `Cannot request milestone review: Project is in status "${project.status}". Project must be in an active status.`,
       );
     }
 
@@ -819,6 +846,25 @@ export class ProjectsService {
           'PROJECT',
           projectId,
         );
+
+        if (dto.decision === 'APPROVE') {
+          const projWithChal = await this.projectRepo.findOne({
+            where: { id: projectId },
+            relations: ['challenge'],
+          });
+          if (projWithChal?.challenge?.submitted_by) {
+            await this.notifService?.notifyUser(
+              projWithChal.challenge.submitted_by,
+              NotificationType.PROJECT_GOVERNANCE,
+              `Project Milestone Completed: ${milestone.title}`,
+              `Good news! Milestone "${milestone.title}" has been successfully completed and approved on the project addressing your reported problem: "${projWithChal.challenge.title}".`,
+              'PROJECT',
+              projectId,
+              projWithChal.challenge.district_id,
+              projWithChal.challenge.district,
+            );
+          }
+        }
       } catch (e) {
         this.logger.warn(`Failed to send milestone review notification: ${e}`);
       }
@@ -1171,6 +1217,8 @@ export class ProjectsService {
           // Already blocked, but allow posting another blocker note
           blockerStatus = 'OPEN';
         } else {
+          if (!project.metadata) project.metadata = {};
+          project.metadata.status_before_blocked = project.status;
           project.status = ProjectStatus.BLOCKED;
           blockerStatus = 'OPEN';
           await queryRunner.manager.save(project);
@@ -1270,7 +1318,9 @@ export class ProjectsService {
             lock: { mode: 'pessimistic_write' },
           });
           if (project && project.status === ProjectStatus.BLOCKED) {
-            project.status = ProjectStatus.ACTIVE;
+            project.status =
+              (project.metadata?.status_before_blocked as ProjectStatus) ||
+              ProjectStatus.ACTIVE;
             await queryRunner.manager.save(project);
           }
         }
@@ -1352,9 +1402,17 @@ export class ProjectsService {
         throw new NotFoundException(`Project with ID "${projectId}" not found.`);
       }
 
-      if (project.status !== ProjectStatus.ACTIVE) {
+      const completableStatuses = [
+        ProjectStatus.ACTIVE,
+        ProjectStatus.PLANNING,
+        ProjectStatus.PROTOTYPE_DEVELOPMENT,
+        ProjectStatus.TESTING,
+        ProjectStatus.PILOT,
+        ProjectStatus.DEPLOYMENT,
+      ];
+      if (!completableStatuses.includes(project.status)) {
         throw new BadRequestException(
-          `Cannot complete project: Current status is "${project.status}". Only ACTIVE projects can be completed.`,
+          `Cannot complete project: Current status is "${project.status}". Only active lifecycle projects (PLANNING, PROTOTYPE, TESTING, PILOT, DEPLOYMENT, ACTIVE) can be completed.`,
         );
       }
 
@@ -1452,6 +1510,23 @@ export class ProjectsService {
           'PROJECT',
           projectId,
         );
+
+        const fullProj = await this.projectRepo.findOne({
+          where: { id: projectId },
+          relations: ['challenge'],
+        });
+        if (fullProj?.challenge?.submitted_by) {
+          await this.notifService?.notifyUser(
+            fullProj.challenge.submitted_by,
+            NotificationType.PROJECT_GOVERNANCE,
+            `Project Completed: ${project.title}`,
+            `The collaborative project addressing your reported problem "${fullProj.challenge.title}" has been successfully completed! Impact assessment is now underway.`,
+            'PROJECT',
+            projectId,
+            fullProj.challenge.district_id,
+            fullProj.challenge.district,
+          );
+        }
       } catch (e) {
         this.logger.warn(`Failed to send project completed notification: ${e}`);
       }
@@ -1526,6 +1601,38 @@ export class ProjectsService {
       await queryRunner.manager.save(review);
 
       await queryRunner.commitTransaction();
+
+      // IMPACT_VERIFIED_NOTIF
+      try {
+        await this.notifService?.notifyConsortium(
+          projectId,
+          NotificationType.IMPACT_UPDATE,
+          `Impact Verified: ${project.title}`,
+          `Impact assessment for project "${project.title}" has been verified by government reviewer. Project is now marked IMPACT_VERIFIED.`,
+          'PROJECT',
+          projectId,
+        );
+
+        const fullProj = await this.projectRepo.findOne({
+          where: { id: projectId },
+          relations: ['challenge'],
+        });
+        if (fullProj?.challenge?.submitted_by) {
+          await this.notifService?.notifyUser(
+            fullProj.challenge.submitted_by,
+            NotificationType.IMPACT_UPDATE,
+            `Problem Resolved & Impact Verified: ${project.title}`,
+            `The real-world outcomes and impact for your reported problem "${fullProj.challenge.title}" have been officially verified by government authorities. Thank you for reporting!`,
+            'PROJECT',
+            projectId,
+            fullProj.challenge.district_id,
+            fullProj.challenge.district,
+          );
+        }
+      } catch (notifErr: any) {
+        this.logger.warn(`Failed to dispatch impact verified notification: ${notifErr.message}`);
+      }
+
       return this.getProjectById(projectId, reviewerId, UserRole.GOVERNMENT_OFFICER);
     } catch (err) {
       await queryRunner.rollbackTransaction();
@@ -2150,6 +2257,12 @@ export class ProjectsService {
     callerRole: string,
     dto: CreateInnovationOutcomeDto,
   ): Promise<ProjectInnovationOutcome> {
+    if (callerRole === UserRole.STUDENT) {
+      throw new ForbiddenException(
+        'Students are not authorized to independently register or verify patent filings, startups, or technology transfers.',
+      );
+    }
+
     const isGovOrAdmin = this.isGovernmentOrAdmin(callerRole);
     let participant: ProjectParticipant | null = null;
     if (!isGovOrAdmin) {
@@ -2169,14 +2282,68 @@ export class ProjectsService {
       throw new NotFoundException(`Project with ID "${projectId}" not found.`);
     }
 
+    // Prevent duplicate innovation outcomes
+    const duplicateQuery: any = {
+      project_id: projectId,
+      outcome_type: dto.outcome_type,
+    };
+    if (dto.reference_number && dto.reference_number.trim().length > 0) {
+      duplicateQuery.reference_number = dto.reference_number.trim();
+    } else {
+      duplicateQuery.title = dto.title.trim();
+    }
+
+    const existing = await this.outcomeRepo.findOne({
+      where: duplicateQuery,
+    });
+    if (existing) {
+      throw new ConflictException(
+        `An innovation outcome of type "${dto.outcome_type}" with ${
+          dto.reference_number
+            ? `reference number "${dto.reference_number}"`
+            : `title "${dto.title}"`
+        } already exists for this project.`,
+      );
+    }
+
+    let targetOrgId = dto.organization_id || participant?.organization_id || null;
+    if (
+      dto.outcome_type === InnovationOutcomeType.TECHNOLOGY_TRANSFER &&
+      dto.metadata?.receiving_organization_id
+    ) {
+      targetOrgId = dto.metadata.receiving_organization_id;
+    }
+
+    if (targetOrgId) {
+      const orgExists = await this.orgRepo.findOne({ where: { id: targetOrgId } });
+      if (!orgExists && dto.organization_id) {
+        throw new NotFoundException(
+          `Referenced organization with ID "${targetOrgId}" not found.`,
+        );
+      }
+    }
+
+    if (dto.metadata?.evidence_document_id || dto.metadata?.evidenceDeliverableId) {
+      const delivId =
+        dto.metadata.evidence_document_id || dto.metadata.evidenceDeliverableId;
+      const deliverable = await this.deliverableRepo.findOne({
+        where: { id: delivId, project_id: projectId },
+      });
+      if (deliverable) {
+        dto.metadata.evidence_deliverable_title = deliverable.title;
+        dto.metadata.evidence_document_type = deliverable.document_type;
+      }
+    }
+
     const outcome = this.outcomeRepo.create({
       project_id: projectId,
       outcome_type: dto.outcome_type,
       title: dto.title,
       description: dto.description,
-      reference_number: dto.reference_number || null,
-      organization_id: dto.organization_id || participant?.organization_id || null,
-      status: isGovOrAdmin && dto.status ? dto.status : InnovationOutcomeStatus.PROPOSED,
+      reference_number: dto.reference_number ? dto.reference_number.trim() : null,
+      organization_id: targetOrgId,
+      status:
+        isGovOrAdmin && dto.status ? dto.status : InnovationOutcomeStatus.PROPOSED,
       created_by_user_id: callerUserId,
       metadata: dto.metadata || null,
     });
@@ -2184,14 +2351,35 @@ export class ProjectsService {
     const saved = await this.outcomeRepo.save(outcome);
 
     try {
+      let notifTitle = `Innovation Outcome Proposed: ${dto.title}`;
+      if (
+        dto.outcome_type === InnovationOutcomeType.PATENT ||
+        dto.outcome_type === InnovationOutcomeType.PATENT_APPLICATION
+      ) {
+        notifTitle = `Patent Filing Recorded: ${dto.title}`;
+      } else if (dto.outcome_type === InnovationOutcomeType.STARTUP_CREATED) {
+        notifTitle = `Startup Formed from Project: ${dto.title}`;
+      } else if (dto.outcome_type === InnovationOutcomeType.TECHNOLOGY_TRANSFER) {
+        notifTitle = `Technology Transfer Executed: ${dto.title}`;
+      }
+
+      await this.notifService?.notifyConsortium(
+        projectId,
+        NotificationType.PROJECT_GOVERNANCE,
+        notifTitle,
+        `An innovation outcome (${dto.outcome_type}) "${dto.title}" has been recorded for project "${project.title}".`,
+        'INNOVATION_OUTCOME',
+        saved.id,
+      );
+
       if (project.challenge?.district) {
         await this.notifService?.notifyDistrictOfficers(
           project.challenge.district,
           NotificationType.PROJECT_GOVERNANCE,
-          `Innovation Outcome Proposed: ${dto.title}`,
-          `An innovation outcome (${dto.outcome_type}) "${dto.title}" has been proposed for project "${project.title}".`,
-          'PROJECT',
-          projectId,
+          notifTitle,
+          `An innovation outcome (${dto.outcome_type}) "${dto.title}" has been recorded for project "${project.title}".`,
+          'INNOVATION_OUTCOME',
+          saved.id,
         );
       }
     } catch (e) {
@@ -2306,8 +2494,8 @@ export class ProjectsService {
         NotificationType.PROJECT_GOVERNANCE,
         `Innovation Outcome ${dto.status}: ${outcome.title}`,
         `The innovation outcome "${outcome.title}" (${outcome.outcome_type}) has been reviewed: ${dto.status}.`,
-        'PROJECT',
-        projectId,
+        'INNOVATION_OUTCOME',
+        `${outcome.id}_${dto.status}`,
       );
     } catch (e) {
       this.logger.warn(`Failed to dispatch innovation outcome verification notification: ${e}`);
@@ -2333,4 +2521,831 @@ export class ProjectsService {
 
     return qb.getMany();
   }
+
+  async recordIpAssessment(
+    projectId: string,
+    userId: string,
+    userRole: string,
+    dto: RecordIpAssessmentDto,
+  ) {
+    if (userRole === UserRole.STUDENT) {
+      throw new ForbiddenException(
+        'Students are not authorized to independently perform or record IP assessments.',
+      );
+    }
+
+    const { project } = await this.ensureLeadOrGov(projectId, userId, userRole);
+    if (!project.metadata) project.metadata = {};
+
+    let deliverableTitle: string | null = null;
+    if (dto.evidence_deliverable_id) {
+      const deliv = await this.deliverableRepo.findOne({
+        where: { id: dto.evidence_deliverable_id, project_id: projectId },
+      });
+      if (deliv) {
+        deliverableTitle = deliv.title;
+      }
+    }
+
+    const ipAssessmentRecord = {
+      ip_status: dto.ip_status,
+      status: dto.ip_status,
+      assessment_date:
+        dto.assessment_date || new Date().toISOString().split('T')[0],
+      assessor_name: dto.assessor_name,
+      assessor_role: dto.assessor_role || userRole,
+      assessor_organization_id: dto.assessor_organization_id || null,
+      protection_type:
+        dto.protection_type ||
+        (dto.ip_status === ProjectIpAssessmentStatus.PATENT_APPLICATION_FILED ||
+        dto.ip_status === ProjectIpAssessmentStatus.PATENT_GRANTED
+          ? 'PATENT'
+          : dto.ip_status === ProjectIpAssessmentStatus.CONFIDENTIAL
+          ? 'CONFIDENTIAL_KNOW_HOW'
+          : 'NONE'),
+      reference_number: dto.reference_number || null,
+      assessment_notes: dto.assessment_notes,
+      is_confidential:
+        dto.is_confidential ??
+        dto.ip_status === ProjectIpAssessmentStatus.CONFIDENTIAL,
+      commercialization_path: dto.commercialization_path || null,
+      evidence_deliverable_id: dto.evidence_deliverable_id || null,
+      evidence_deliverable_title: deliverableTitle,
+      metadata: dto.metadata || {},
+      assessed_by_user_id: userId,
+      recorded_at: new Date().toISOString(),
+    };
+
+    project.metadata.ip_assessment = ipAssessmentRecord;
+    if (!project.metadata.ip_assessment_history) {
+      project.metadata.ip_assessment_history = [];
+    }
+    project.metadata.ip_assessment_history.push(ipAssessmentRecord);
+
+    await this.projectRepo.save(project);
+
+    // Also record progress update in project updates log
+    const update = this.updateRepo.create({
+      project_id: projectId,
+      author_user_id: userId,
+      update_type: ProjectUpdateType.PROGRESS,
+      summary: `IP Assessment: ${dto.ip_status.replace(/_/g, ' ')}`,
+      details: `Assessor: ${dto.assessor_name} (${dto.assessor_role || userRole}). Protection: ${ipAssessmentRecord.protection_type}. Notes: ${dto.assessment_notes}`,
+    });
+    await this.updateRepo.save(update);
+
+    try {
+      await this.notifService?.notifyConsortium(
+        projectId,
+        NotificationType.PROJECT_GOVERNANCE,
+        `IP Assessment Recorded: ${dto.ip_status.replace(/_/g, ' ')}`,
+        `Project "${project.title}" IP assessment recorded: ${dto.ip_status}. Notes: ${dto.assessment_notes}`,
+        'IP_ASSESSMENT',
+        `${projectId}_${dto.ip_status}`,
+      );
+    } catch (e) {
+      this.logger.warn(`Failed to dispatch IP assessment notification: ${e}`);
+    }
+
+    return {
+      ipAssessment: ipAssessmentRecord,
+      lifecycleSummary: await this.getProjectLifecycleSummary(projectId, userId, userRole),
+    };
+  }
+
+  async getIpAssessment(projectId: string, userId: string, userRole: string) {
+    const { project } = await this.ensureAccess(projectId, userId, userRole);
+    return project.metadata?.ip_assessment || null;
+  }
+
+  // =========================================================================
+  // 12. PHASE 4: PROJECT LIFECYCLE (PROTOTYPE, TEST, PILOT, DEPLOYMENT)
+  // =========================================================================
+
+  async getProjectLifecycleSummary(
+    projectId: string,
+    userId: string,
+    userRole: string,
+  ) {
+    const { project } = await this.ensureAccess(projectId, userId, userRole);
+
+    const milestones = await this.milestoneRepo.find({
+      where: { project_id: projectId },
+      order: { order_index: 'ASC', created_at: 'ASC' },
+    });
+
+    const tasks = await this.taskRepo
+      .createQueryBuilder('task')
+      .innerJoin('task.milestone', 'milestone')
+      .where('milestone.project_id = :projectId', { projectId })
+      .getMany();
+
+    const deliverables = await this.deliverableRepo.find({
+      where: { project_id: projectId },
+    });
+
+    const updates = await this.updateRepo.find({
+      where: { project_id: projectId },
+    });
+
+    const contributions = await this.contribRepo.find({
+      where: { project_id: projectId },
+    });
+
+    const meta = project.metadata || {};
+    const prototype = meta.prototype || null;
+    const testRecords: any[] = meta.test_records || [];
+    const pilot = meta.pilot_deployment || null;
+    const deployment = meta.final_deployment || null;
+    const transitions: any[] = meta.lifecycle_transitions || [];
+
+    const totalMilestones = milestones.length;
+    const approvedMilestones = milestones.filter(
+      (m) => m.status === MilestoneStatus.APPROVED,
+    ).length;
+    const inProgressMilestones = milestones.filter(
+      (m) => m.status === MilestoneStatus.IN_PROGRESS,
+    ).length;
+    const now = new Date();
+    const overdueMilestones = milestones.filter(
+      (m) =>
+        m.due_date &&
+        new Date(m.due_date) < now &&
+        m.status !== MilestoneStatus.APPROVED,
+    ).length;
+
+    const totalTasks = tasks.length;
+    const doneTasks = tasks.filter((t) => t.status === TaskStatus.DONE).length;
+
+    const openBlockers = updates.filter(
+      (u) =>
+        u.update_type === ProjectUpdateType.BLOCKER &&
+        u.blocker_status === 'OPEN',
+    ).length;
+
+    const deliverablesByType: Record<string, number> = {};
+    for (const d of deliverables) {
+      deliverablesByType[d.document_type] =
+        (deliverablesByType[d.document_type] || 0) + 1;
+    }
+
+    const passedTests = testRecords.filter((t) => t.passed === true).length;
+    const failedTests = testRecords.filter((t) => t.passed === false).length;
+
+    const requiredContribs = contributions.filter((c) => c.is_required);
+    const unverifiedRequiredContribs = requiredContribs.filter(
+      (c) => c.status !== ContributionStatus.VERIFIED,
+    );
+
+    const hasMilestones = totalMilestones > 0;
+    const allMilestonesApproved =
+      hasMilestones && approvedMilestones === totalMilestones;
+    const hasDeliverable = deliverables.length > 0;
+    const hasPrototype =
+      !!prototype ||
+      (deliverablesByType['PROTOTYPE'] || 0) > 0 ||
+      (deliverablesByType['PROTOTYPE_SPEC'] || 0) > 0;
+    const hasTestValidation =
+      passedTests > 0 || (deliverablesByType['TESTING_REPORT'] || 0) > 0;
+    const hasPilotOrDeployment =
+      !!pilot ||
+      !!deployment ||
+      (deliverablesByType['PILOT_REPORT'] || 0) > 0;
+    const noOpenBlockers = openBlockers === 0;
+    const allRequiredContributionsVerified =
+      unverifiedRequiredContribs.length === 0;
+
+    const readyForCompletion =
+      hasMilestones &&
+      allMilestonesApproved &&
+      hasDeliverable &&
+      noOpenBlockers &&
+      allRequiredContributionsVerified;
+
+    let progressPercentage = 0;
+    if (
+      project.status === ProjectStatus.COMPLETED ||
+      project.status === ProjectStatus.IMPACT_VERIFIED
+    ) {
+      progressPercentage = 100;
+    } else if (project.status === ProjectStatus.DEPLOYMENT) {
+      progressPercentage = 85 + (readyForCompletion ? 10 : 0);
+    } else if (project.status === ProjectStatus.PILOT) {
+      progressPercentage = 65 + (pilot?.feedbackSummary ? 15 : 5);
+    } else if (project.status === ProjectStatus.TESTING) {
+      progressPercentage = 45 + (passedTests > 0 ? 15 : 5);
+    } else if (project.status === ProjectStatus.PROTOTYPE_DEVELOPMENT) {
+      progressPercentage = 25 + (hasPrototype ? 15 : 5);
+    } else if (
+      project.status === ProjectStatus.ACTIVE ||
+      project.status === ProjectStatus.PLANNING
+    ) {
+      const milestoneProg =
+        totalMilestones > 0
+          ? Math.round((approvedMilestones / totalMilestones) * 20)
+          : 10;
+      progressPercentage = Math.min(25, 10 + milestoneProg);
+    } else {
+      progressPercentage = 5;
+    }
+
+    let nextRecommendedAction = '';
+    if (openBlockers > 0) {
+      nextRecommendedAction = `Resolve ${openBlockers} open blocker(s) before proceeding.`;
+    } else if (
+      project.status === ProjectStatus.INITIATED ||
+      project.status === ProjectStatus.PLANNING
+    ) {
+      nextRecommendedAction =
+        'Define milestones and record prototype specifications to begin prototype development.';
+    } else if (
+      project.status === ProjectStatus.ACTIVE ||
+      project.status === ProjectStatus.PROTOTYPE_DEVELOPMENT
+    ) {
+      if (!hasPrototype) {
+        nextRecommendedAction =
+          'Record prototype specifications and architecture details.';
+      } else {
+        nextRecommendedAction =
+          'Conduct lab/field validation testing and record test outcomes to transition to Testing stage.';
+      }
+    } else if (project.status === ProjectStatus.TESTING) {
+      if (passedTests === 0) {
+        nextRecommendedAction =
+          'Execute test cases and record passing validation results.';
+      } else {
+        nextRecommendedAction =
+          'Plan pilot cohort and record pilot deployment parameters to proceed to Pilot stage.';
+      }
+    } else if (project.status === ProjectStatus.PILOT) {
+      if (!pilot?.feedbackSummary && !pilot?.observedImpactMetrics) {
+        nextRecommendedAction =
+          'Monitor pilot cohort and record observed impact metrics and user feedback.';
+      } else {
+        nextRecommendedAction =
+          'Confirm deployment readiness checklist and record handover plan for Deployment.';
+      }
+    } else if (project.status === ProjectStatus.DEPLOYMENT) {
+      if (!readyForCompletion) {
+        if (!allMilestonesApproved) {
+          nextRecommendedAction = `Complete and approve all remaining milestones (${
+            totalMilestones - approvedMilestones
+          } remaining).`;
+        } else if (!allRequiredContributionsVerified) {
+          nextRecommendedAction = `Verify remaining mandatory industry contributions (${unverifiedRequiredContribs.length} remaining).`;
+        } else {
+          nextRecommendedAction =
+            'Complete deliverables checklist for final project completion.';
+        }
+      } else {
+        nextRecommendedAction =
+          'All prerequisites met. Project is ready for final completion review.';
+      }
+    } else if (project.status === ProjectStatus.COMPLETED) {
+      if (!project.metadata?.ip_assessment) {
+        nextRecommendedAction =
+          'Project completed. Conduct Innovation & IP Assessment to identify patent potential, startup incubation, or technology transfer.';
+      } else if (
+        project.metadata.ip_assessment.ip_status ===
+          ProjectIpAssessmentStatus.POTENTIAL_IP_IDENTIFIED ||
+        project.metadata.ip_assessment.ip_status ===
+          ProjectIpAssessmentStatus.PATENT_APPLICATION_FILED
+      ) {
+        nextRecommendedAction =
+          'Potential IP identified. Register patent application, startup creation, or technology transfer outcome.';
+      } else {
+        nextRecommendedAction =
+          'Project completed with IP Assessment recorded. Track innovation outcomes and ecosystem deployment.';
+      }
+    } else {
+      nextRecommendedAction = 'Review project progress and updates.';
+    }
+
+    const outcomes = await this.outcomeRepo.find({
+      where: { project_id: projectId },
+      relations: ['organization'],
+    });
+
+    return {
+      projectId: project.id,
+      title: project.title,
+      currentStage: project.status,
+      progressPercentage,
+      milestones: {
+        total: totalMilestones,
+        approved: approvedMilestones,
+        inProgress: inProgressMilestones,
+        pending:
+          totalMilestones - approvedMilestones - inProgressMilestones,
+        overdue: overdueMilestones,
+      },
+      tasks: {
+        total: totalTasks,
+        done: doneTasks,
+        inProgress: tasks.filter((t) => t.status === TaskStatus.IN_PROGRESS)
+          .length,
+        todo: tasks.filter((t) => t.status === TaskStatus.TODO).length,
+      },
+      deliverables: {
+        total: deliverables.length,
+        byType: deliverablesByType,
+      },
+      prototype,
+      tests: {
+        total: testRecords.length,
+        passed: passedTests,
+        failed: failedTests,
+        records: testRecords,
+      },
+      pilot,
+      deployment,
+      blockers: {
+        open: openBlockers,
+        resolved: updates.filter(
+          (u) =>
+            u.update_type === ProjectUpdateType.BLOCKER &&
+            u.blocker_status === 'RESOLVED',
+        ).length,
+      },
+      completionChecklist: {
+        hasMilestones,
+        allMilestonesApproved,
+        hasDeliverable,
+        hasPrototype,
+        hasTestValidation,
+        hasPilotOrDeployment,
+        noOpenBlockers,
+        allRequiredContributionsVerified,
+        readyForCompletion,
+      },
+      stageHistory: transitions,
+      ipAssessment: project.metadata?.ip_assessment
+        ? {
+            ...project.metadata.ip_assessment,
+            status:
+              project.metadata.ip_assessment.status ||
+              project.metadata.ip_assessment.ip_status,
+          }
+        : null,
+      innovationOutcomes: {
+        total: outcomes.length,
+        verified: outcomes.filter(
+          (o) => o.status === InnovationOutcomeStatus.VERIFIED,
+        ).length,
+        patents: outcomes.filter(
+          (o) =>
+            o.outcome_type === InnovationOutcomeType.PATENT ||
+            o.outcome_type === InnovationOutcomeType.PATENT_APPLICATION,
+        ).length,
+        startups: outcomes.filter(
+          (o) => o.outcome_type === InnovationOutcomeType.STARTUP_CREATED,
+        ).length,
+        technologyTransfers: outcomes.filter(
+          (o) => o.outcome_type === InnovationOutcomeType.TECHNOLOGY_TRANSFER,
+        ).length,
+        records: outcomes,
+      },
+      nextRecommendedAction,
+    };
+  }
+
+  async recordPrototype(
+    projectId: string,
+    userId: string,
+    userRole: string,
+    dto: RecordPrototypeDto,
+  ) {
+    const { project } = await this.ensureAccess(projectId, userId, userRole);
+    if (!project.metadata) project.metadata = {};
+
+    project.metadata.prototype = {
+      description: dto.description,
+      version: dto.version || '1.0.0',
+      stage: dto.stage || 'working_prototype',
+      specifications: dto.specifications || {},
+      resourceNeeds: dto.resourceNeeds || [],
+      partnerAssignments: dto.partnerAssignments || [],
+      evidenceDocumentId: dto.evidenceDocumentId || null,
+      notes: dto.notes || '',
+      recordedBy: userId,
+      recordedAt: new Date().toISOString(),
+    };
+
+    if (
+      project.status === ProjectStatus.PLANNING ||
+      project.status === ProjectStatus.ACTIVE ||
+      project.status === ProjectStatus.INITIATED ||
+      project.status === ProjectStatus.PROPOSED
+    ) {
+      if (!project.metadata.lifecycle_transitions) {
+        project.metadata.lifecycle_transitions = [];
+      }
+      project.metadata.lifecycle_transitions.push({
+        fromStage: project.status,
+        toStage: ProjectStatus.PROTOTYPE_DEVELOPMENT,
+        transitionedBy: userId,
+        userRole,
+        reviewNotes: 'Auto-transitioned on prototype specification recording',
+        timestamp: new Date().toISOString(),
+      });
+      project.status = ProjectStatus.PROTOTYPE_DEVELOPMENT;
+    }
+
+    await this.projectRepo.save(project);
+
+    const update = this.updateRepo.create({
+      project_id: projectId,
+      author_user_id: userId,
+      update_type: ProjectUpdateType.PROGRESS,
+      summary: `Prototype specification recorded: v${dto.version || '1.0.0'} (${dto.stage || 'working_prototype'})`,
+      details: dto.description,
+    });
+    await this.updateRepo.save(update);
+
+    try {
+      await this.notifService?.notifyConsortium(
+        projectId,
+        NotificationType.PROJECT_GOVERNANCE,
+        `Prototype Specification Logged: ${project.title}`,
+        `A prototype specification (v${dto.version || '1.0.0'}) has been recorded.`,
+        'PROJECT',
+        projectId,
+      );
+    } catch (e) {
+      this.logger.warn(`Failed to dispatch prototype notification: ${e}`);
+    }
+
+    return this.getProjectLifecycleSummary(projectId, userId, userRole);
+  }
+
+  async recordTestValidation(
+    projectId: string,
+    userId: string,
+    userRole: string,
+    dto: RecordTestValidationDto,
+  ) {
+    const { project } = await this.ensureAccess(projectId, userId, userRole);
+    if (!project.metadata) project.metadata = {};
+    if (!project.metadata.test_records) project.metadata.test_records = [];
+
+    const testId = randomUUID();
+    const record = {
+      id: testId,
+      testPlan: dto.testPlan,
+      testType: dto.testType,
+      parameters: dto.parameters || {},
+      testerName: dto.testerName,
+      testerRole: dto.testerRole || userRole,
+      testerOrgId: dto.testerOrgId || null,
+      lab: dto.lab || null,
+      expectedResult: dto.expectedResult || null,
+      observedResults: dto.observedResults,
+      passed: dto.passed,
+      issuesIdentified: dto.issuesIdentified || [],
+      correctiveAction: dto.correctiveAction || null,
+      retestRequired: dto.retestRequired || false,
+      evidenceDeliverableId: dto.evidenceDeliverableId || null,
+      notes: dto.notes || '',
+      recordedBy: userId,
+      recordedAt: new Date().toISOString(),
+    };
+
+    project.metadata.test_records.push(record);
+
+    if (
+      project.status === ProjectStatus.PROTOTYPE_DEVELOPMENT ||
+      project.status === ProjectStatus.PLANNING ||
+      project.status === ProjectStatus.ACTIVE
+    ) {
+      if (!project.metadata.lifecycle_transitions) {
+        project.metadata.lifecycle_transitions = [];
+      }
+      project.metadata.lifecycle_transitions.push({
+        fromStage: project.status,
+        toStage: ProjectStatus.TESTING,
+        transitionedBy: userId,
+        userRole,
+        reviewNotes: 'Transitioned to TESTING on recording test validation',
+        timestamp: new Date().toISOString(),
+      });
+      project.status = ProjectStatus.TESTING;
+    }
+
+    await this.projectRepo.save(project);
+
+    if (!dto.passed) {
+      const blockerUpdate = this.updateRepo.create({
+        project_id: projectId,
+        author_user_id: userId,
+        update_type: ProjectUpdateType.BLOCKER,
+        blocker_status: 'OPEN',
+        summary: `Testing Failure: ${dto.testType} - ${dto.testPlan}`,
+        details: `Test failed: ${dto.observedResults}. Issues: ${(dto.issuesIdentified || []).join(', ')}${
+          dto.correctiveAction ? `. Corrective Action: ${dto.correctiveAction}` : ''
+        }`,
+      });
+      await this.updateRepo.save(blockerUpdate);
+    } else {
+      // Auto-resolve any previous testing failure blockers for this project if all latest tests pass
+      const testBlockers = await this.updateRepo.find({
+        where: {
+          project_id: projectId,
+          update_type: ProjectUpdateType.BLOCKER,
+          blocker_status: 'OPEN',
+        },
+      });
+      for (const tb of testBlockers) {
+        if (tb.summary?.startsWith('Testing Failure:')) {
+          tb.blocker_status = 'RESOLVED';
+          await this.updateRepo.save(tb);
+        }
+      }
+
+      const progressUpdate = this.updateRepo.create({
+        project_id: projectId,
+        author_user_id: userId,
+        update_type: ProjectUpdateType.PROGRESS,
+        summary: `Test Passed: ${dto.testType} - ${dto.testPlan}`,
+        details: `Tester: ${dto.testerName}. Results: ${dto.observedResults}`,
+      });
+      await this.updateRepo.save(progressUpdate);
+    }
+
+    try {
+      await this.notifService?.notifyConsortium(
+        projectId,
+        NotificationType.PROJECT_GOVERNANCE,
+        `Test Outcome Recorded: ${dto.testType} (${dto.passed ? 'PASSED' : 'FAILED'})`,
+        `Test plan "${dto.testPlan}" was executed by ${dto.testerName}: ${dto.passed ? 'PASSED' : 'FAILED'}.`,
+        'PROJECT',
+        projectId,
+      );
+    } catch (e) {
+      this.logger.warn(`Failed to dispatch test notification: ${e}`);
+    }
+
+    return {
+      record,
+      summary: await this.getProjectLifecycleSummary(
+        projectId,
+        userId,
+        userRole,
+      ),
+    };
+  }
+
+  async recordPilotDeployment(
+    projectId: string,
+    userId: string,
+    userRole: string,
+    dto: RecordPilotDeploymentDto,
+  ) {
+    const { project } = await this.ensureLeadOrGov(projectId, userId, userRole);
+    if (!project.metadata) project.metadata = {};
+
+    project.metadata.pilot_deployment = {
+      location: dto.location,
+      district: dto.district || null,
+      implementingOrg: dto.implementingOrg || null,
+      durationDays: dto.durationDays || 30,
+      startDate: dto.startDate || new Date().toISOString().split('T')[0],
+      targetCohortSize: dto.targetCohortSize || null,
+      coverageScale: dto.coverageScale || null,
+      targetBeneficiaryGroup: dto.targetBeneficiaryGroup || null,
+      objectives: dto.objectives || [],
+      baselineMetrics: dto.baselineMetrics || {},
+      observedImpactMetrics: dto.observedImpactMetrics || {},
+      feedbackSummary: dto.feedbackSummary || null,
+      status: dto.status || 'IN_PROGRESS',
+      localApprovalConfirmed: dto.localApprovalConfirmed ?? true,
+      evidenceDeliverableId: dto.evidenceDeliverableId || null,
+      recordedBy: userId,
+      recordedAt: new Date().toISOString(),
+    };
+
+    if (
+      project.status === ProjectStatus.TESTING ||
+      project.status === ProjectStatus.ACTIVE ||
+      project.status === ProjectStatus.PROTOTYPE_DEVELOPMENT
+    ) {
+      if (!project.metadata.lifecycle_transitions) {
+        project.metadata.lifecycle_transitions = [];
+      }
+      project.metadata.lifecycle_transitions.push({
+        fromStage: project.status,
+        toStage: ProjectStatus.PILOT,
+        transitionedBy: userId,
+        userRole,
+        reviewNotes: 'Initiated pilot deployment phase',
+        timestamp: new Date().toISOString(),
+      });
+      project.status = ProjectStatus.PILOT;
+    }
+
+    await this.projectRepo.save(project);
+
+    const update = this.updateRepo.create({
+      project_id: projectId,
+      author_user_id: userId,
+      update_type: ProjectUpdateType.PROGRESS,
+      summary: `Pilot Deployment Initiated at ${dto.location}`,
+      details: `Target cohort: ${dto.targetCohortSize || 'N/A'} beneficiaries. Duration: ${
+        dto.durationDays || 30
+      } days.`,
+    });
+    await this.updateRepo.save(update);
+
+    try {
+      await this.notifService?.notifyConsortium(
+        projectId,
+        NotificationType.PROJECT_GOVERNANCE,
+        `Pilot Deployment Initiated: ${project.title}`,
+        `Pilot deployment has begun at ${dto.location} (${dto.durationDays || 30} days).`,
+        'PROJECT',
+        projectId,
+      );
+    } catch (e) {
+      this.logger.warn(`Failed to dispatch pilot notification: ${e}`);
+    }
+
+    return this.getProjectLifecycleSummary(projectId, userId, userRole);
+  }
+
+  async recordFinalDeployment(
+    projectId: string,
+    userId: string,
+    userRole: string,
+    dto: RecordFinalDeploymentDto,
+  ) {
+    const { project } = await this.ensureLeadOrGov(projectId, userId, userRole);
+    if (!project.metadata) project.metadata = {};
+
+    project.metadata.final_deployment = {
+      readinessChecklistConfirmed: dto.readinessChecklistConfirmed,
+      finalValidationConfirmed: dto.finalValidationConfirmed ?? true,
+      deploymentLocation: dto.deploymentLocation,
+      deploymentDate: dto.deploymentDate || new Date().toISOString().split('T')[0],
+      handoverEntity: dto.handoverEntity,
+      handoverRecipient: dto.handoverRecipient,
+      implementationOrg: dto.implementationOrg || null,
+      trainingCompleted: dto.trainingCompleted,
+      operationalStatus: dto.operationalStatus,
+      maintenancePlan: dto.maintenancePlan || null,
+      evidenceDeliverableId: dto.evidenceDeliverableId || null,
+      notes: dto.notes || '',
+      recordedBy: userId,
+      recordedAt: new Date().toISOString(),
+    };
+
+    if (
+      project.status === ProjectStatus.PILOT ||
+      project.status === ProjectStatus.ACTIVE ||
+      project.status === ProjectStatus.TESTING
+    ) {
+      if (!project.metadata.lifecycle_transitions) {
+        project.metadata.lifecycle_transitions = [];
+      }
+      project.metadata.lifecycle_transitions.push({
+        fromStage: project.status,
+        toStage: ProjectStatus.DEPLOYMENT,
+        transitionedBy: userId,
+        userRole,
+        reviewNotes: 'Handover and final deployment staged',
+        timestamp: new Date().toISOString(),
+      });
+      project.status = ProjectStatus.DEPLOYMENT;
+    }
+
+    await this.projectRepo.save(project);
+
+    const update = this.updateRepo.create({
+      project_id: projectId,
+      author_user_id: userId,
+      update_type: ProjectUpdateType.PROGRESS,
+      summary: `Final Deployment & Handover to ${dto.handoverEntity}`,
+      details: `Location: ${dto.deploymentLocation}. Operational status: ${dto.operationalStatus}. Training completed: ${dto.trainingCompleted}.`,
+    });
+    await this.updateRepo.save(update);
+
+    try {
+      await this.notifService?.notifyConsortium(
+        projectId,
+        NotificationType.PROJECT_GOVERNANCE,
+        `Final Deployment Staged: ${project.title}`,
+        `Project final deployment and handover to ${dto.handoverEntity} staged at ${dto.deploymentLocation}.`,
+        'PROJECT',
+        projectId,
+      );
+    } catch (e) {
+      this.logger.warn(`Failed to dispatch final deployment notification: ${e}`);
+    }
+
+    return this.getProjectLifecycleSummary(projectId, userId, userRole);
+  }
+
+  async transitionLifecycleStage(
+    projectId: string,
+    userId: string,
+    userRole: string,
+    dto: TransitionLifecycleStageDto,
+  ) {
+    if (userRole === UserRole.STUDENT) {
+      throw new ForbiddenException(
+        'Students are not authorized to transition or approve project lifecycle stages.',
+      );
+    }
+
+    const { project } = await this.ensureLeadOrGov(projectId, userId, userRole);
+
+    const currentStage = project.status;
+    const targetStage = dto.targetStage;
+
+    if (currentStage === targetStage) {
+      return this.getProjectLifecycleSummary(projectId, userId, userRole);
+    }
+
+    const deliverables = await this.deliverableRepo.find({
+      where: { project_id: projectId },
+    });
+    const docTypes = deliverables.map((d) => d.document_type as string);
+    const meta = project.metadata || {};
+
+    if (targetStage === ProjectStatus.TESTING) {
+      const hasPrototype =
+        !!meta.prototype ||
+        docTypes.includes('PROTOTYPE') ||
+        docTypes.includes('PROTOTYPE_SPEC');
+      if (!hasPrototype) {
+        throw new BadRequestException(
+          'Cannot transition to TESTING: Prototype specifications or prototype deliverable must be recorded first.',
+        );
+      }
+    } else if (targetStage === ProjectStatus.PILOT) {
+      const testRecords: any[] = meta.test_records || [];
+      const hasPassedTest =
+        testRecords.some((t) => t.passed === true) ||
+        docTypes.includes('TESTING_REPORT');
+      if (!hasPassedTest) {
+        throw new BadRequestException(
+          'Cannot transition to PILOT: Validated passing test results or testing report deliverable must be recorded before pilot deployment.',
+        );
+      }
+    } else if (targetStage === ProjectStatus.DEPLOYMENT) {
+      const hasPilot =
+        !!meta.pilot_deployment || docTypes.includes('PILOT_REPORT');
+      if (!hasPilot) {
+        throw new BadRequestException(
+          'Cannot transition to DEPLOYMENT: Pilot deployment details or pilot report deliverable must be recorded before final deployment.',
+        );
+      }
+    } else if (targetStage === ProjectStatus.COMPLETED) {
+      return this.completeProject(projectId, userId, {
+        comments:
+          dto.reviewNotes || 'Project completed through lifecycle transition.',
+      });
+    }
+
+    project.status = targetStage;
+    if (!project.metadata) project.metadata = {};
+    if (!project.metadata.lifecycle_transitions) {
+      project.metadata.lifecycle_transitions = [];
+    }
+
+    project.metadata.lifecycle_transitions.push({
+      fromStage: currentStage,
+      toStage: targetStage,
+      transitionedBy: userId,
+      userRole,
+      reviewNotes: dto.reviewNotes || '',
+      timestamp: new Date().toISOString(),
+    });
+
+    await this.projectRepo.save(project);
+
+    const review = this.reviewRepo.create({
+      project_id: projectId,
+      reviewer_user_id: userId,
+      action: ProjectReviewAction.STAGE_APPROVED,
+      comments: `Transitioned stage from ${currentStage} to ${targetStage}. ${
+        dto.reviewNotes || ''
+      }`.trim(),
+    });
+    await this.reviewRepo.save(review);
+
+    try {
+      await this.notifService?.notifyConsortium(
+        projectId,
+        NotificationType.PROJECT_GOVERNANCE,
+        `Stage Transition: ${currentStage} -> ${targetStage}`,
+        `Project "${project.title}" has transitioned to stage ${targetStage}.`,
+        'PROJECT',
+        projectId,
+      );
+    } catch (e) {
+      this.logger.warn(`Failed to dispatch stage transition notification: ${e}`);
+    }
+
+    return this.getProjectLifecycleSummary(projectId, userId, userRole);
+  }
 }
+

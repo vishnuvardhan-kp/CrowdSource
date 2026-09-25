@@ -52,6 +52,8 @@ interface Capability {
   support_type?: string | null;
   support_type_code?: string | null;
   verification_status: "UNVERIFIED" | "PENDING_VERIFICATION" | "VERIFIED" | string;
+  provenance_source?: string | null;
+  match_contribution?: string | null;
   verified_at?: string;
   evidence_summary?: string | null;
   notes?: string | null;
@@ -68,21 +70,50 @@ interface Evidence {
   capability_id?: string;
 }
 
+interface FacultyMember {
+  id: string;
+  name: string;
+  designation?: string | null;
+  department_id?: string | null;
+  department_name?: string | null;
+  specializations?: string[] | null;
+  email?: string | null;
+}
+
 interface Department {
   id: string;
   name: string;
+  code?: string | null;
   head_of_department?: string | null;
+  faculty_count?: number;
 }
 
 interface Lab {
   id: string;
   name: string;
+  department_id?: string | null;
+  department_name?: string | null;
   specialization?: string | null;
+  equipment_list?: string[] | null;
 }
 
 interface ResearchArea {
   id: string;
   title: string;
+}
+
+interface ProfileCompletenessChecklist {
+  key: string;
+  label: string;
+  completed: boolean;
+  weight: number;
+  action: string;
+}
+
+interface ProfileCompleteness {
+  score: number;
+  checklist: ProfileCompletenessChecklist[];
+  missing_actions: string[];
 }
 
 interface OrganizationInfo {
@@ -121,11 +152,14 @@ interface PassportData {
   passport_type: "HEI_PASSPORT" | "INDUSTRY_PASSPORT";
   profile_details: any;
   departments: Department[];
+  faculty: FacultyMember[];
   laboratories: Lab[];
   researchAreas: ResearchArea[];
   capabilities: Capability[];
   evidence: Evidence[];
   ai_indexing: AiIndexingMeta;
+  profile_completeness?: ProfileCompleteness;
+  days_until_expiry?: number;
 }
 
 export default function CapabilityPassportPage() {
@@ -224,24 +258,25 @@ export default function CapabilityPassportPage() {
         organization: orgInfo,
         passport_type: isHei ? "HEI_PASSPORT" : "INDUSTRY_PASSPORT",
         profile_details: profile,
-        departments: Array.isArray(profile.departments)
-          ? profile.departments
-          : Array.isArray(data.departments)
+        departments: Array.isArray(data.departments)
           ? data.departments
+          : Array.isArray(profile.departments)
+          ? profile.departments
           : [],
-        laboratories: Array.isArray(profile.laboratories)
-          ? profile.laboratories
-          : Array.isArray(profile.labs)
-          ? profile.labs
+        faculty: Array.isArray(data.faculty) ? data.faculty : [],
+        laboratories: Array.isArray(data.laboratories)
+          ? data.laboratories
           : Array.isArray(data.labs)
           ? data.labs
+          : Array.isArray(profile.laboratories)
+          ? profile.laboratories
           : [],
-        researchAreas: Array.isArray(profile.researchAreas)
-          ? profile.researchAreas
-          : Array.isArray(profile.research_areas)
-          ? profile.research_areas
+        researchAreas: Array.isArray(data.researchAreas)
+          ? data.researchAreas
           : Array.isArray(data.research_areas)
           ? data.research_areas
+          : Array.isArray(profile.researchAreas)
+          ? profile.researchAreas
           : [],
         capabilities: Array.isArray(data.capabilities) ? data.capabilities : [],
         evidence: Array.isArray(data.evidence) ? data.evidence : [],
@@ -249,6 +284,8 @@ export default function CapabilityPassportPage() {
           indexing_status: "ACTIVE",
           is_active: true,
         },
+        profile_completeness: data.profile_completeness,
+        days_until_expiry: data.days_until_expiry,
       };
 
       setPassport(parsedPassport);
@@ -575,17 +612,17 @@ export default function CapabilityPassportPage() {
               )}
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight break-words">
               {org.name}
             </h1>
 
             <div className="flex flex-wrap items-center gap-4 text-xs text-stone-500 pt-1">
               <span className="flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5 text-emerald-700" />
-                {org.district || "District Not Specified"}, {org.state || "Jharkhand"}
+                <MapPin className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
+                <span>{org.district || "District Not Specified"}, {org.state || "Jharkhand"}</span>
               </span>
               {org.registration_number && (
-                <span className="font-mono text-stone-500">
+                <span className="font-mono text-stone-500 break-all">
                   Reg: {org.registration_number}
                 </span>
               )}
@@ -594,33 +631,33 @@ export default function CapabilityPassportPage() {
                   href={org.website.startsWith("http") ? org.website : `https://${org.website}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-emerald-700 hover:text-emerald-800 hover:underline font-medium"
+                  className="flex items-center gap-1 text-emerald-700 hover:text-emerald-800 hover:underline font-medium break-all"
                 >
-                  <ExternalLink className="h-3 w-3" /> Official Website
+                  <ExternalLink className="h-3 w-3 shrink-0" /> Official Website
                 </a>
               )}
               {org.email && (
-                <span className="text-stone-600">
+                <span className="text-stone-600 break-all">
                   Email: {org.email}
                 </span>
               )}
             </div>
 
             {org.description && (
-              <p className="text-xs sm:text-sm text-stone-700 max-w-3xl leading-relaxed pt-1">
+              <p className="text-xs sm:text-sm text-stone-700 max-w-3xl leading-relaxed pt-1 break-words">
                 {org.description}
               </p>
             )}
           </div>
 
           {/* Action Button: Claim or Sync */}
-          <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-col sm:items-end gap-2 shrink-0">
             {!org.is_claimed && (
               <button
                 onClick={() => setShowClaimModal(true)}
-                className="inline-flex items-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 px-4 py-2 text-xs font-semibold text-white shadow-xs transition-all"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 px-4 py-2.5 sm:py-2 text-xs font-semibold text-white shadow-xs transition-all w-full sm:w-auto"
               >
-                <ShieldCheck className="h-4 w-4" /> Claim This Profile
+                <ShieldCheck className="h-4 w-4 shrink-0" /> Claim This Profile
               </button>
             )}
 
@@ -628,15 +665,76 @@ export default function CapabilityPassportPage() {
               <button
                 onClick={handleReindex}
                 disabled={reindexing}
-                className="inline-flex items-center gap-2 rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 shadow-2xs transition-colors disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-3 py-2 sm:py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 shadow-2xs transition-colors disabled:opacity-50 w-full sm:w-auto"
               >
-                <RefreshCw className={`h-3.5 w-3.5 text-blue-700 ${reindexing ? "animate-spin" : ""}`} />
+                <RefreshCw className={`h-3.5 w-3.5 text-blue-700 shrink-0 ${reindexing ? "animate-spin" : ""}`} />
                 {reindexing ? "Synchronizing..." : "Sync AI Capability Index"}
               </button>
             )}
           </div>
         </div>
       </div>
+
+      {/* Profile Completeness Interactive Grid */}
+      {passport.profile_completeness && (
+        <div className="rounded-2xl border border-stone-200 bg-white p-6 sm:p-8 mb-8 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-100 pb-4">
+            <div className="flex items-center gap-2.5">
+              <Sparkles className="h-5 w-5 text-emerald-700" />
+              <div>
+                <h2 className="text-base font-bold text-stone-900">Capability Passport Completeness</h2>
+                <p className="text-xs text-stone-500">
+                  Comprehensive profiles maximize institutional match ranking for government civic challenges.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-2xl font-bold text-emerald-700">
+                {passport.profile_completeness.score}%
+              </span>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                {passport.profile_completeness.score >= 80 ? "Fully Verified & Ready" : "Optimization Recommended"}
+              </span>
+            </div>
+          </div>
+
+          <div className="w-full bg-stone-100 rounded-full h-2.5 my-4 overflow-hidden">
+            <div
+              className={`h-2.5 rounded-full transition-all duration-500 ${
+                passport.profile_completeness.score >= 80
+                  ? "bg-emerald-600"
+                  : passport.profile_completeness.score >= 50
+                  ? "bg-amber-500"
+                  : "bg-red-500"
+              }`}
+              style={{ width: `${Math.min(100, passport.profile_completeness.score)}%` }}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+            {passport.profile_completeness.checklist.map((item) => (
+              <div
+                key={item.key}
+                className={`p-3 rounded-xl border flex items-start gap-2.5 ${
+                  item.completed
+                    ? "bg-emerald-50/50 border-emerald-200 text-stone-800"
+                    : "bg-stone-50 border-stone-200 text-stone-600"
+                }`}
+              >
+                {item.completed ? (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0 mt-0.5" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold leading-tight">{item.label}</p>
+                  <span className="text-[10px] text-stone-500">{item.action}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Grid: Availability + AI Indexing Status */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -771,22 +869,29 @@ export default function CapabilityPassportPage() {
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div>
-                      <span className="rounded-md bg-stone-200/70 px-2 py-0.5 text-[10px] font-semibold text-stone-700 uppercase tracking-wide">
-                        {cap.category || "General"}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="rounded-md bg-stone-200/70 px-2 py-0.5 text-[10px] font-semibold text-stone-700 uppercase tracking-wide">
+                          {cap.category || "General"}
+                        </span>
+                        {cap.provenance_source && (
+                          <span className="rounded-md bg-blue-50 text-blue-700 border border-blue-200/60 px-1.5 py-0.2 text-[9px] font-medium">
+                            {cap.provenance_source.replace(/_/g, " ")}
+                          </span>
+                        )}
+                      </div>
                       <h3 className="text-sm font-semibold text-stone-900 mt-1.5">{cap.name}</h3>
                     </div>
 
                     {cap.verification_status === "VERIFIED" ? (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 border border-emerald-200">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 border border-emerald-200 shrink-0">
                         <CheckCircle2 className="h-3 w-3 text-emerald-700" /> VERIFIED
                       </span>
                     ) : cap.verification_status === "PENDING_VERIFICATION" ? (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 border border-amber-200">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 border border-amber-200 shrink-0">
                         <Clock className="h-3 w-3 text-amber-700" /> PENDING
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-stone-100 px-2 py-0.5 text-[10px] font-medium text-stone-600 border border-stone-200">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-stone-100 px-2 py-0.5 text-[10px] font-medium text-stone-600 border border-stone-200 shrink-0">
                         UNVERIFIED
                       </span>
                     )}
@@ -865,14 +970,14 @@ export default function CapabilityPassportPage() {
         {passport.evidence.length > 0 ? (
           <div className="divide-y divide-stone-200 rounded-xl border border-stone-200 bg-white">
             {passport.evidence.map((item) => (
-              <div key={item.id} className="flex items-center justify-between p-4 hover:bg-stone-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-stone-50 transition-colors gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
                     <FileCheck className="h-4 w-4" />
                   </div>
-                  <div>
-                    <h4 className="text-sm font-semibold text-stone-900">{item.title}</h4>
-                    <div className="flex items-center gap-2 text-[11px] text-stone-500 mt-0.5">
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-sm font-semibold text-stone-900 break-words">{item.title}</h4>
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-stone-500 mt-0.5">
                       <span className="uppercase text-stone-600 font-medium">{formatEvidenceType(item.evidence_type)}</span>
                       <span>•</span>
                       <span>{formatDateSafe(item.created_at, "Recently")}</span>
@@ -890,7 +995,7 @@ export default function CapabilityPassportPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
                   {item.verification_status === "VERIFIED" ? (
                     <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 border border-emerald-200">
                       VERIFIED
@@ -924,69 +1029,136 @@ export default function CapabilityPassportPage() {
       {/* Role-Specific Institutional Infrastructure Section */}
       {passport.passport_type === "HEI_PASSPORT" ? (
         /* Academic & Research Infrastructure (HEI) */
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Departments */}
-          <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
-            <div className="flex items-center gap-2 mb-3">
-              <Building2 className="h-4 w-4 text-blue-700" />
-              <h3 className="text-sm font-bold text-stone-900">Academic Departments</h3>
+        <div className="space-y-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Departments */}
+            <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
+              <div className="flex items-center gap-2 mb-3">
+                <Building2 className="h-4 w-4 text-blue-700" />
+                <h3 className="text-sm font-bold text-stone-900">Academic Departments ({passport.departments.length})</h3>
+              </div>
+              {passport.departments.length > 0 ? (
+                <ul className="space-y-2.5 max-h-72 overflow-y-auto">
+                  {passport.departments.map((dept) => (
+                    <li key={dept.id} className="rounded-xl bg-stone-50 p-3 text-xs text-stone-700 border border-stone-200">
+                      <div className="flex items-center justify-between">
+                        <p className="font-semibold text-stone-900">{dept.name}</p>
+                        {dept.code && (
+                          <span className="font-mono text-[10px] bg-stone-200/70 px-1.5 py-0.5 rounded text-stone-700 font-bold">
+                            {dept.code}
+                          </span>
+                        )}
+                      </div>
+                      {dept.head_of_department && (
+                        <p className="text-[10px] text-stone-500 mt-1">Head: {dept.head_of_department}</p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-stone-500">None registered.</p>
+              )}
             </div>
-            {passport.departments.length > 0 ? (
-              <ul className="space-y-2">
-                {passport.departments.map((dept) => (
-                  <li key={dept.id} className="rounded-xl bg-stone-50 px-3 py-2 text-xs text-stone-700 border border-stone-200">
-                    <p className="font-semibold text-stone-900">{dept.name}</p>
-                    {dept.head_of_department && (
-                      <p className="text-[10px] text-stone-500 mt-0.5">Head: {dept.head_of_department}</p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs text-stone-500">None registered.</p>
-            )}
+
+            {/* Labs & Facilities */}
+            <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
+              <div className="flex items-center gap-2 mb-3">
+                <FlaskConical className="h-4 w-4 text-emerald-700" />
+                <h3 className="text-sm font-bold text-stone-900">Research Labs & Facilities ({passport.laboratories.length})</h3>
+              </div>
+              {passport.laboratories.length > 0 ? (
+                <ul className="space-y-2.5 max-h-72 overflow-y-auto">
+                  {passport.laboratories.map((lab) => (
+                    <li key={lab.id} className="rounded-xl bg-stone-50 p-3 text-xs text-stone-700 border border-stone-200 space-y-1.5">
+                      <p className="font-semibold text-stone-900">{lab.name}</p>
+                      {lab.specialization && (
+                        <p className="text-[10px] text-emerald-700 font-medium">{lab.specialization}</p>
+                      )}
+                      {lab.equipment_list && lab.equipment_list.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {lab.equipment_list.map((eq: string, idx: number) => (
+                            <span
+                              key={idx}
+                              className="rounded bg-emerald-50 text-emerald-800 border border-emerald-200/60 px-1.5 py-0.5 text-[9px] font-mono"
+                            >
+                              {eq}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-stone-500">None registered.</p>
+              )}
+            </div>
+
+            {/* Research Areas */}
+            <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="h-4 w-4 text-purple-700" />
+                <h3 className="text-sm font-bold text-stone-900">Focus Research Areas ({passport.researchAreas.length})</h3>
+              </div>
+              {passport.researchAreas.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5 max-h-72 overflow-y-auto">
+                  {passport.researchAreas.map((ra) => (
+                    <span key={ra.id} className="rounded-lg bg-purple-50 px-2.5 py-1 text-xs font-semibold text-purple-800 border border-purple-200">
+                      {ra.title}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-stone-500">None registered.</p>
+              )}
+            </div>
           </div>
 
-          {/* Labs & Facilities */}
-          <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
-            <div className="flex items-center gap-2 mb-3">
-              <FlaskConical className="h-4 w-4 text-emerald-700" />
-              <h3 className="text-sm font-bold text-stone-900">Research Labs & Facilities</h3>
-            </div>
-            {passport.laboratories.length > 0 ? (
-              <ul className="space-y-2">
-                {passport.laboratories.map((lab) => (
-                  <li key={lab.id} className="rounded-xl bg-stone-50 px-3 py-2 text-xs text-stone-700 border border-stone-200">
-                    <p className="font-semibold text-stone-900">{lab.name}</p>
-                    {lab.specialization && (
-                      <p className="text-[10px] text-emerald-700 font-medium mt-0.5">{lab.specialization}</p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs text-stone-500">None registered.</p>
-            )}
-          </div>
+          {/* Faculty Directory Section */}
+          {passport.faculty && passport.faculty.length > 0 && (
+            <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <Award className="h-5 w-5 text-blue-700" />
+                  <div>
+                    <h3 className="text-sm font-bold text-stone-900">
+                      Faculty & Research Experts Directory ({passport.faculty.length})
+                    </h3>
+                    <p className="text-xs text-stone-500">
+                      Domain specialists contributing academic expertise to civic innovation initiatives.
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-          {/* Research Areas */}
-          <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="h-4 w-4 text-purple-700" />
-              <h3 className="text-sm font-bold text-stone-900">Focus Research Areas</h3>
-            </div>
-            {passport.researchAreas.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {passport.researchAreas.map((ra) => (
-                  <span key={ra.id} className="rounded-lg bg-purple-50 px-2.5 py-1 text-xs font-semibold text-purple-800 border border-purple-200">
-                    {ra.title}
-                  </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {passport.faculty.map((f) => (
+                  <div
+                    key={f.id}
+                    className="p-3.5 rounded-xl border border-stone-200 bg-stone-50/50 space-y-1.5 hover:border-blue-300 transition"
+                  >
+                    <p className="text-xs font-bold text-stone-900">{f.name}</p>
+                    <p className="text-[11px] text-blue-700 font-medium">{f.designation || "Faculty Member"}</p>
+                    {f.email && (
+                      <p className="text-[10px] text-stone-500 font-mono">{f.email}</p>
+                    )}
+                    {f.specializations && f.specializations.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {f.specializations.map((spec, sIdx) => (
+                          <span
+                            key={sIdx}
+                            className="rounded bg-blue-50 text-blue-800 border border-blue-200 px-1.5 py-0.5 text-[9px] font-medium"
+                          >
+                            {spec}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
-            ) : (
-              <p className="text-xs text-stone-500">None registered.</p>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       ) : (
         /* Industry / Enterprise Collaboration Pillars (Industry) */
@@ -1053,7 +1225,7 @@ export default function CapabilityPassportPage() {
       {/* Modal: Confirm Availability */}
       {showRenewModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl border border-stone-200 bg-white p-6 shadow-xl">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-stone-200 bg-white p-6 shadow-xl">
             <h3 className="text-lg font-bold text-stone-900 mb-1">Confirm Active Capacity</h3>
             <p className="text-xs text-stone-600 mb-4">
               Confirming availability keeps your institution fresh in matching recommendations for the next {renewTtlDays} days.
@@ -1091,17 +1263,19 @@ export default function CapabilityPassportPage() {
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-6 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5">
               <button
+                type="button"
                 onClick={() => setShowRenewModal(false)}
-                className="rounded-xl border border-stone-300 px-4 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-100 transition"
+                className="w-full sm:w-auto rounded-xl border border-stone-300 px-4 py-2.5 sm:py-2 text-xs font-semibold text-stone-700 hover:bg-stone-100 transition text-center"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleConfirmAvailability}
                 disabled={renewLoading}
-                className="rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-50 transition"
+                className="w-full sm:w-auto rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2.5 sm:py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-50 transition text-center"
               >
                 {renewLoading ? "Confirming..." : "Confirm & Save"}
               </button>
@@ -1113,7 +1287,7 @@ export default function CapabilityPassportPage() {
       {/* Modal: Add Capability */}
       {showAddCapModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 backdrop-blur-sm p-4">
-          <form onSubmit={handleAddCapability} className="w-full max-w-md rounded-2xl border border-stone-200 bg-white p-6 shadow-xl">
+          <form onSubmit={handleAddCapability} className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-stone-200 bg-white p-6 shadow-xl">
             <h3 className="text-lg font-bold text-stone-900 mb-1">Add Capability</h3>
             <p className="text-xs text-stone-600 mb-4">
               Add a specialized domain or technical asset to your institution&apos;s passport.
@@ -1163,18 +1337,18 @@ export default function CapabilityPassportPage() {
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-6 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5">
               <button
                 type="button"
                 onClick={() => setShowAddCapModal(false)}
-                className="rounded-xl border border-stone-300 px-4 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-100 transition"
+                className="w-full sm:w-auto rounded-xl border border-stone-300 px-4 py-2.5 sm:py-2 text-xs font-semibold text-stone-700 hover:bg-stone-100 transition text-center"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={capLoading}
-                className="rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-50 transition"
+                className="w-full sm:w-auto rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2.5 sm:py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-50 transition text-center"
               >
                 {capLoading ? "Saving..." : "Add Capability"}
               </button>
@@ -1186,7 +1360,7 @@ export default function CapabilityPassportPage() {
       {/* Modal: Upload Evidence */}
       {showEvidenceModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 backdrop-blur-sm p-4">
-          <form onSubmit={handleAddEvidence} className="w-full max-w-md rounded-2xl border border-stone-200 bg-white p-6 shadow-xl">
+          <form onSubmit={handleAddEvidence} className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-stone-200 bg-white p-6 shadow-xl">
             <h3 className="text-lg font-bold text-stone-900 mb-1">Upload Verification Evidence</h3>
             <p className="text-xs text-stone-600 mb-4">
               Submit proof documentation to verify capability passport entries.
@@ -1251,7 +1425,7 @@ export default function CapabilityPassportPage() {
               {evidenceMode === "file" ? (
                 <div>
                   <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                    Document File (PDF, JPG, PNG, WEBP — Max 15MB) *
+                    Document File (PDF, JPG, PNG, WEBP - Max 15MB) *
                   </label>
                   <input
                     type="file"
@@ -1332,18 +1506,18 @@ export default function CapabilityPassportPage() {
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-6 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5">
               <button
                 type="button"
                 onClick={() => setShowEvidenceModal(false)}
-                className="rounded-xl border border-stone-300 px-4 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-100 transition"
+                className="w-full sm:w-auto rounded-xl border border-stone-300 px-4 py-2.5 sm:py-2 text-xs font-semibold text-stone-700 hover:bg-stone-100 transition text-center"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={evidenceLoading}
-                className="rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-50 transition"
+                className="w-full sm:w-auto rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2.5 sm:py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-50 transition text-center"
               >
                 {evidenceLoading ? "Uploading..." : "Save Evidence"}
               </button>
@@ -1355,7 +1529,7 @@ export default function CapabilityPassportPage() {
       {/* Modal: Claim Institution */}
       {showClaimModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 backdrop-blur-sm p-4">
-          <form onSubmit={handleClaimSubmit} className="w-full max-w-md rounded-2xl border border-stone-200 bg-white p-6 shadow-xl">
+          <form onSubmit={handleClaimSubmit} className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-stone-200 bg-white p-6 shadow-xl">
             <h3 className="text-lg font-bold text-stone-900 mb-1">Claim {org?.name || "Organization"}</h3>
             <p className="text-xs text-stone-600 mb-4">
               Submit your affiliation details. Platform administrators will review your credentials and authorize administrative access.
@@ -1366,6 +1540,15 @@ export default function CapabilityPassportPage() {
                 <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-600 mb-2" />
                 <p className="text-sm font-semibold text-emerald-900">Claim Request Submitted!</p>
                 <p className="text-xs text-emerald-700 mt-1">Our team will verify your institutional credentials promptly.</p>
+                <div className="mt-4 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowClaimModal(false)}
+                    className="w-full sm:w-auto rounded-xl border border-stone-300 bg-white px-4 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-100 transition"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-4">
@@ -1396,18 +1579,18 @@ export default function CapabilityPassportPage() {
                   />
                 </div>
 
-                <div className="mt-6 flex justify-end gap-3">
+                <div className="mt-6 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5">
                   <button
                     type="button"
                     onClick={() => setShowClaimModal(false)}
-                    className="rounded-xl border border-stone-300 px-4 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-100 transition"
+                    className="w-full sm:w-auto rounded-xl border border-stone-300 px-4 py-2.5 sm:py-2 text-xs font-semibold text-stone-700 hover:bg-stone-100 transition text-center"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={claimLoading}
-                    className="rounded-xl bg-amber-700 hover:bg-amber-800 px-4 py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-50 transition"
+                    className="w-full sm:w-auto rounded-xl bg-amber-700 hover:bg-amber-800 px-4 py-2.5 sm:py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-50 transition text-center"
                   >
                     {claimLoading ? "Submitting..." : "Submit Claim"}
                   </button>

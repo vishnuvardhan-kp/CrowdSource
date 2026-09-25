@@ -142,9 +142,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
 
   const activeOption = ENTRY_OPTIONS.find((opt) => opt.id === selectedEntry) || ENTRY_OPTIONS[0];
 
-  const showDemoAccounts =
-    process.env.NODE_ENV !== "production" ||
-    process.env.NEXT_PUBLIC_ENABLE_DEMO_ACCOUNTS === "true";
+  const showDemoAccounts = true; // Always available for evaluation and jury assessment
 
   // =========================================================================
   // INTELLIGENT POST-LOGIN ROUTING
@@ -164,32 +162,33 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
       (m) => m.membership_status === "ACTIVE"
     );
 
-    // 1. Government Officers / Platform Admins
+    // 1. Government Officers & Administrators -> Executive Government Dashboard
     if (
       loggedInUser.role === "PLATFORM_ADMIN" ||
       loggedInUser.role === "GOVERNMENT_OFFICER" ||
       loggedInUser.role === "GOVERNMENT_ADMIN"
     ) {
-      router.push("/reviewer-queue");
+      router.push("/government-dashboard");
       return;
     }
 
-    // 2. Check for multiple verified organization memberships without explicit primary
-    if (activeMemberships.length > 1 && !loggedInUser.primaryOrganization) {
-      setMultiOrgChoices(activeMemberships);
-      return;
-    }
-
-    // Backend-verified organization membership
-    const verifiedOrgId =
-      loggedInUser.primaryOrganization?.id ||
-      activeMemberships[0]?.organization_id;
-
-    // 3. Verified University or Industry Administrators
+    // 2. University Admins & Faculty -> University Experience Dashboard
     if (
       loggedInUser.role === "UNIVERSITY_ADMIN" ||
-      loggedInUser.role === "INDUSTRY_ADMIN"
+      loggedInUser.role === "FACULTY"
     ) {
+      router.push("/university-dashboard");
+      return;
+    }
+
+    // 3. Industry Admins & Members -> Organization Capability Passport
+    if (
+      loggedInUser.role === "INDUSTRY_ADMIN" ||
+      loggedInUser.role === "INDUSTRY_MEMBER"
+    ) {
+      const verifiedOrgId =
+        loggedInUser.primaryOrganization?.id ||
+        activeMemberships[0]?.organization_id;
       if (verifiedOrgId) {
         router.push(`/organizations/${verifiedOrgId}/passport`);
         return;
@@ -198,13 +197,13 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
       return;
     }
 
-    // 4. Institutional Member intent with verified membership
-    if (verifiedOrgId && (selectedEntry === "university" || selectedEntry === "industry")) {
-      router.push(`/organizations/${verifiedOrgId}/passport`);
+    // 4. Citizen / Community Innovator -> My Challenges & Civic Redressal
+    if (loggedInUser.role === "CITIZEN") {
+      router.push("/my-challenges");
       return;
     }
 
-    // 5. Default: Citizen / Community Innovator
+    // 5. Default fallback
     router.push("/challenges");
   };
 
@@ -264,12 +263,19 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
   };
 
   // Quick fill demo credentials helper
-  const handleQuickFill = (demoEmail: string, demoPass: string, entryType: EntryType) => {
+  const handleQuickFill = (
+    demoEmail: string,
+    demoPass: string,
+    entryType: EntryType,
+    roleLabel: string = "Demo Account"
+  ) => {
     setEmail(demoEmail);
     setPassword(demoPass);
     setSelectedEntry(entryType);
     setFormError(null);
-    setFormSuccess(null);
+    setFormSuccess(
+      `✓ Loaded demo credentials for ${roleLabel}. Click "${activeOption.loginButtonText || 'Sign In'}" below to enter the dashboard.`
+    );
   };
 
   if (loading) {
@@ -588,14 +594,14 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
       <div className="rounded-xl border border-stone-200 bg-stone-50/50 p-5 space-y-5">
         {/* Active Purpose Banner & Tabs */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-200 pb-4">
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
             <span
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${activeOption.badgeBorder} ${activeOption.badgeBg} ${activeOption.badgeText}`}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${activeOption.badgeBorder} ${activeOption.badgeBg} ${activeOption.badgeText} shrink-0`}
             >
               {activeOption.title} Portal
             </span>
             <span className="text-xs text-stone-400 hidden sm:inline">•</span>
-            <span className="text-xs text-stone-600">{activeOption.loginHint}</span>
+            <span className="text-xs text-stone-600 break-words">{activeOption.loginHint}</span>
           </div>
 
           <div className="inline-flex rounded-lg bg-stone-200/60 p-1 border border-stone-300 shrink-0">
@@ -650,7 +656,123 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
 
         {/* LOGIN FORM */}
         {activeTab === "login" && (
-          <form onSubmit={handleLogin} className="space-y-4">
+          <>
+            {/* DEMO / EVALUATION ACCOUNTS FOR JURY */}
+            <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200/90 text-stone-800 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span className="text-xs font-bold tracking-tight text-amber-950">
+                    Evaluation & Demo Accounts (Jury Access)
+                  </span>
+                </div>
+                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                  Click to Fill
+                </span>
+              </div>
+              <p className="text-[11px] text-stone-600 leading-relaxed">
+                Click any role to populate verified demo credentials and explore that role&apos;s real dashboard:
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleQuickFill("citizen@example.com", "Password123!", "citizen", "Citizen Innovator (Aarav Verma)")}
+                  className={`flex items-center gap-2 p-2 rounded-lg border text-left text-xs transition ${
+                    email === "citizen@example.com"
+                      ? "bg-emerald-100 border-emerald-400 font-semibold text-emerald-900 ring-1 ring-emerald-400 shadow-xs"
+                      : "bg-white hover:bg-emerald-50/50 border-stone-200 text-stone-800"
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">Citizen</div>
+                    <div className="text-[10px] text-stone-500 truncate">4 Verified Reports</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickFill("dean@nitjsr.ac.in", "NitJsr123!", "university", "University Dean (NIT Jamshedpur)")}
+                  className={`flex items-center gap-2 p-2 rounded-lg border text-left text-xs transition ${
+                    email === "dean@nitjsr.ac.in"
+                      ? "bg-blue-100 border-blue-400 font-semibold text-blue-900 ring-1 ring-blue-400 shadow-xs"
+                      : "bg-white hover:bg-blue-50/50 border-stone-200 text-stone-800"
+                  }`}
+                >
+                  <GraduationCap className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">University (NIT Jsr)</div>
+                    <div className="text-[10px] text-stone-500 truncate">Dean of R&amp;C</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickFill("admin@bau.ac.in", "Password123!", "university", "University Dean (BAU)")}
+                  className={`flex items-center gap-2 p-2 rounded-lg border text-left text-xs transition ${
+                    email === "admin@bau.ac.in"
+                      ? "bg-blue-100 border-blue-400 font-semibold text-blue-900 ring-1 ring-blue-400 shadow-xs"
+                      : "bg-white hover:bg-blue-50/50 border-stone-200 text-stone-800"
+                  }`}
+                >
+                  <GraduationCap className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">University (BAU)</div>
+                    <div className="text-[10px] text-stone-500 truncate">Agri Research Dean</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickFill("admin@tatasteel.com", "Password123!", "industry", "Industry Lead (Tata Steel)")}
+                  className={`flex items-center gap-2 p-2 rounded-lg border text-left text-xs transition ${
+                    email === "admin@tatasteel.com"
+                      ? "bg-amber-100 border-amber-400 font-semibold text-amber-900 ring-1 ring-amber-400 shadow-xs"
+                      : "bg-white hover:bg-amber-50/50 border-stone-200 text-stone-800"
+                  }`}
+                >
+                  <Building2 className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">Industry (Tata)</div>
+                    <div className="text-[10px] text-stone-500 truncate">Sustainability Lead</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickFill("officer@jharkhand.gov.in", "Officer123!", "government", "District Technical Officer (Ranchi)")}
+                  className={`flex items-center gap-2 p-2 rounded-lg border text-left text-xs transition ${
+                    email === "officer@jharkhand.gov.in"
+                      ? "bg-stone-200 border-stone-400 font-semibold text-stone-900 ring-1 ring-stone-400 shadow-xs"
+                      : "bg-white hover:bg-stone-100 border-stone-200 text-stone-800"
+                  }`}
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-stone-700 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">Gov Reviewer</div>
+                    <div className="text-[10px] text-stone-500 truncate">Ranchi Officer</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickFill("admin@samadhansetu.gov.in", "Admin123!", "government", "Platform Administrator")}
+                  className={`flex items-center gap-2 p-2 rounded-lg border text-left text-xs transition ${
+                    email === "admin@samadhansetu.gov.in"
+                      ? "bg-purple-100 border-purple-400 font-semibold text-purple-900 ring-1 ring-purple-400 shadow-xs"
+                      : "bg-white hover:bg-purple-50/50 border-stone-200 text-stone-800"
+                  }`}
+                >
+                  <Shield className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">Platform Admin</div>
+                    <div className="text-[10px] text-stone-500 truncate">Statewide Access</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-stone-700">
                 Email Address <span className="text-red-500">*</span>
@@ -734,7 +856,8 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
               </p>
             </div>
           </form>
-        )}
+        </>
+      )}
 
         {/* REGISTER FORM */}
         {activeTab === "register" && (
@@ -890,41 +1013,48 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
         {/* Quick Fill Dev Credentials Bar (for testing/evaluation) */}
         {showDemoAccounts && (
           <div className="pt-3 border-t border-stone-200">
-            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-stone-600">
-              <span className="font-medium">⚡ Quick Demo Accounts:</span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-stone-600">
+              <span className="font-semibold">⚡ Quick Demo Accounts:</span>
               <div className="flex flex-wrap items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={() => handleQuickFill("citizen@example.com", "Password123!", "citizen")}
-                  className="px-2 py-0.5 rounded bg-white hover:bg-stone-50 text-emerald-800 border border-stone-200 shadow-2xs transition"
+                  onClick={() => handleQuickFill("citizen@example.com", "Password123!", "citizen", "Citizen Innovator (Aarav Verma)")}
+                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-stone-50 text-emerald-800 border border-stone-200 shadow-2xs transition font-medium"
                 >
                   Citizen
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickFill("admin@bau.ac.in", "Password123!", "university")}
-                  className="px-2 py-0.5 rounded bg-white hover:bg-stone-50 text-blue-800 border border-stone-200 shadow-2xs transition"
+                  onClick={() => handleQuickFill("dean@nitjsr.ac.in", "NitJsr123!", "university", "University Dean (NIT Jamshedpur)")}
+                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-stone-50 text-blue-800 border border-stone-200 shadow-2xs transition font-medium"
+                >
+                  University (NIT Jamshedpur)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickFill("admin@bau.ac.in", "Password123!", "university", "University Dean (BAU)")}
+                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-stone-50 text-blue-800 border border-stone-200 shadow-2xs transition font-medium"
                 >
                   University (BAU)
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickFill("admin@tatasteel.com", "Password123!", "industry")}
-                  className="px-2 py-0.5 rounded bg-white hover:bg-stone-50 text-amber-800 border border-stone-200 shadow-2xs transition"
+                  onClick={() => handleQuickFill("admin@tatasteel.com", "Password123!", "industry", "Industry Lead (Tata Steel)")}
+                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-stone-50 text-amber-800 border border-stone-200 shadow-2xs transition font-medium"
                 >
                   Industry (Tata)
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickFill("officer@jharkhand.gov.in", "Officer123!", "government")}
-                  className="px-2 py-0.5 rounded bg-white hover:bg-stone-50 text-stone-800 border border-stone-200 shadow-2xs transition"
+                  onClick={() => handleQuickFill("officer@jharkhand.gov.in", "Officer123!", "government", "District Technical Officer (Ranchi)")}
+                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-stone-50 text-stone-800 border border-stone-200 shadow-2xs transition font-medium"
                 >
                   Gov Reviewer
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickFill("admin@samadhansetu.gov.in", "Admin123!", "government")}
-                  className="px-2 py-0.5 rounded bg-white hover:bg-stone-50 text-purple-800 border border-stone-200 shadow-2xs transition"
+                  onClick={() => handleQuickFill("admin@samadhansetu.gov.in", "Admin123!", "government", "Platform Administrator")}
+                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-stone-50 text-purple-800 border border-stone-200 shadow-2xs transition font-medium"
                 >
                   Platform Admin
                 </button>

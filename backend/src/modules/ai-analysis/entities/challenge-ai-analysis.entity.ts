@@ -81,6 +81,27 @@ export class ChallengeAiAnalysis {
   @Column({ type: 'jsonb', nullable: true })
   raw_analysis: Record<string, any>;
 
+  @Column({ type: 'varchar', length: 300, nullable: true })
+  professional_title: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  professional_problem_statement: string | null;
+
+  @Column({ type: 'jsonb', nullable: true, default: () => "'[]'::jsonb" })
+  key_facts: string[];
+
+  @Column({ type: 'jsonb', nullable: true, default: () => "'[]'::jsonb" })
+  citizen_facts: string[];
+
+  @Column({ type: 'jsonb', nullable: true, default: () => "'{}'::jsonb" })
+  platform_metadata: Record<string, any>;
+
+  @Column({ type: 'varchar', length: 50, default: 'PENDING' })
+  refinement_status: string;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  refined_at: Date | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;
 

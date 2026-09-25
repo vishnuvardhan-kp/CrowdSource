@@ -19,6 +19,7 @@ import {
   ExpressionOfInterest,
   Notification,
   District,
+  EntityEmbedding,
 } from '../src/database/entities';
 import {
   OrganizationType,
@@ -115,6 +116,7 @@ async function main() {
   const contribRepo = dataSource.getRepository(ProjectContribution);
   const notifRepo = dataSource.getRepository(Notification);
   const districtRepo = dataSource.getRepository(District);
+  const embeddingRepo = dataSource.getRepository(EntityEmbedding);
 
   const notifService = new NotificationsService(
     notifRepo,
@@ -127,6 +129,7 @@ async function main() {
     clusterRepo,
     challengeRepo,
     evidenceRepo,
+    embeddingRepo,
     dataSource,
     notifService,
   );
@@ -752,7 +755,7 @@ async function main() {
   } finally {
     console.log('\n--- Cleaning Up Test Data ---');
     try {
-      await dataSource.query('UPDATE challenges SET cluster_id = NULL, potential_cluster_id = NULL WHERE cluster_id IS NOT NULL OR potential_cluster_id IS NOT NULL');
+      await dataSource.query("UPDATE challenges SET cluster_id = NULL, potential_cluster_id = NULL WHERE title LIKE '%" + runId + "%' OR title LIKE '%Test%'");
       await dataSource.query('DELETE FROM project_contributions');
       await dataSource.query('DELETE FROM project_deliverables');
       await dataSource.query('DELETE FROM project_tasks');
@@ -761,7 +764,7 @@ async function main() {
       await dataSource.query('DELETE FROM projects');
       await dataSource.query('DELETE FROM expression_of_interests');
       await dataSource.query("DELETE FROM challenges WHERE title LIKE '%" + runId + "%' OR title LIKE '%Test%'");
-      await dataSource.query('DELETE FROM problem_clusters');
+      await dataSource.query("DELETE FROM problem_clusters WHERE title LIKE '%" + runId + "%' OR title LIKE '%Test%'");
       await dataSource.query("DELETE FROM notifications WHERE user_id IN ('" + citizenUser.id + "', '" + govUser.id + "')");
       await dataSource.query("DELETE FROM organization_memberships WHERE organization_id IN ('" + univOrg.id + "', '" + indOrg.id + "')");
       await dataSource.query("DELETE FROM organizations WHERE id IN ('" + univOrg.id + "', '" + indOrg.id + "')");

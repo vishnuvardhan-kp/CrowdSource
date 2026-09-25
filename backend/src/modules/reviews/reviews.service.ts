@@ -37,14 +37,15 @@ export class ReviewsService {
       throw new NotFoundException(`Challenge with ID "${challengeId}" not found.`);
     }
 
-    // MANDATORY WORKFLOW BOUNDARY:
-    // If the challenge is not VALIDATED, NO recommendations may be generated or exposed.
-    if (challenge.status !== ChallengeStatus.VALIDATED) {
+    // DIRECT WORKFLOW ARCHITECTURE:
+    // If the challenge is in DRAFT, REJECTED, or ARCHIVED, NO recommendations may be generated or exposed.
+    const nonMatchingStatuses = [ChallengeStatus.DRAFT, ChallengeStatus.REJECTED, ChallengeStatus.ARCHIVED];
+    if (nonMatchingStatuses.includes(challenge.status)) {
       return {
         challenge_id: challengeId,
         status: challenge.status,
         recommendations: [],
-        message: 'Institution matching is available only after government verification.',
+        message: 'Institution matching is available for submitted or active challenges.',
       };
     }
 

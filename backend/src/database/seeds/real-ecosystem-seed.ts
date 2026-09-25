@@ -12,6 +12,7 @@ import {
   IndustryCapability,
   User,
   OrganizationMembership,
+  District,
 } from '../entities';
 import {
   OrganizationType,
@@ -22,6 +23,7 @@ import {
   UserRole,
   OrganizationRole,
   MembershipStatus,
+  JurisdictionScope,
 } from '../../common/enums';
 import * as bcrypt from 'bcryptjs';
 
@@ -661,6 +663,9 @@ export async function runRealEcosystemSeed() {
   }
 
   // D. Government Review Officer
+  const distRepo = AppDataSource.getRepository(District);
+  const ranchiDistrict = await distRepo.findOne({ where: { name: 'Ranchi' } });
+
   let govOfficer = await userRepo.findOne({ where: { email: 'officer@jharkhand.gov.in' } });
   if (!govOfficer) {
     govOfficer = userRepo.create({
@@ -668,11 +673,21 @@ export async function runRealEcosystemSeed() {
       email: 'officer@jharkhand.gov.in',
       password_hash: officerPasswordHash,
       role: UserRole.GOVERNMENT_OFFICER,
+      district_id: ranchiDistrict?.id,
+      district: 'Ranchi',
+      state: 'Jharkhand',
+      jurisdiction_scope: JurisdictionScope.DISTRICT,
       phone: '+91-651-2200112',
       is_active: true,
     });
     await userRepo.save(govOfficer);
     console.log('  ✅ Seeded Government Officer (officer@jharkhand.gov.in / Officer123!)');
+  } else {
+    govOfficer.district_id = ranchiDistrict?.id;
+    govOfficer.district = 'Ranchi';
+    govOfficer.state = 'Jharkhand';
+    govOfficer.jurisdiction_scope = JurisdictionScope.DISTRICT;
+    await userRepo.save(govOfficer);
   }
 
   // E. Platform Admin

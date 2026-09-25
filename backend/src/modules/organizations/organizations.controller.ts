@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
   Param,
   Query,
@@ -34,8 +35,65 @@ export class OrganizationsController {
 
   @Get(':id/members')
   @UseGuards(JwtAuthGuard)
-  async getOrganizationMembers(@Param('id') id: string) {
-    return this.organizationsService.findMembers(id);
+  async getOrganizationMembers(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @Query('role') role?: string,
+    @Query('department') department?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.organizationsService.findMembers(id, userId, { role, department, search });
+  }
+
+  @Post(':id/members')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.CREATED)
+  async addOrganizationMember(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @Body() dto: any,
+  ) {
+    return this.organizationsService.addMember(id, userId, dto);
+  }
+
+  @Delete(':id/members/:memberId')
+  @UseGuards(JwtAuthGuard)
+  async removeOrganizationMember(
+    @Param('id') id: string,
+    @Param('memberId') memberId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.organizationsService.removeMember(id, memberId, userId);
+  }
+
+  @Get(':id/departments')
+  @UseGuards(JwtAuthGuard)
+  async getDepartments(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.organizationsService.getDepartments(id, userId);
+  }
+
+  @Post(':id/departments')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.CREATED)
+  async createDepartment(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @Body() dto: any,
+  ) {
+    return this.organizationsService.createDepartment(id, userId, dto);
+  }
+
+  @Delete(':id/departments/:deptId')
+  @UseGuards(JwtAuthGuard)
+  async deleteDepartment(
+    @Param('id') id: string,
+    @Param('deptId') deptId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.organizationsService.deleteDepartment(id, deptId, userId);
   }
 }
 

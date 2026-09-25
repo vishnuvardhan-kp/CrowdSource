@@ -25,3 +25,8 @@ def get_ai_provider() -> BaseAIProvider:
         _provider_instance = MockAIProvider()
 
     return _provider_instance
+
+def reset_ai_provider() -> None:
+    """Resets the singleton provider instance (useful for tests and dynamic configuration updates)."""
+    global _provider_instance
+    _provider_instance = None

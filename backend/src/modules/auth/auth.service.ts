@@ -13,6 +13,7 @@ import { User } from '../users/entities/user.entity';
 import { UserRole } from '../../common/enums';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { normalizePhoneNumber } from '../../common/utils/phone.utils';
 
 @Injectable()
 export class AuthService {
@@ -29,6 +30,7 @@ export class AuthService {
    */
   async register(dto: RegisterDto) {
     const normalizedEmail = dto.email.toLowerCase().trim();
+    const normalizedPhone = normalizePhoneNumber(dto.phone);
 
     const existingUser = await this.userRepo.findOne({
       where: { email: normalizedEmail },
@@ -38,6 +40,15 @@ export class AuthService {
       throw new ConflictException('An account with this email address already exists.');
     }
 
+    if (normalizedPhone) {
+      const existingPhone = await this.userRepo.findOne({
+        where: { phone: normalizedPhone },
+      });
+      if (existingPhone) {
+        throw new ConflictException('An account with this phone number already exists.');
+      }
+    }
+
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(dto.password, salt);
 
@@ -45,7 +56,7 @@ export class AuthService {
       name: dto.name.trim(),
       email: normalizedEmail,
       password_hash,
-      phone: dto.phone ? dto.phone.trim() : null,
+      phone: normalizedPhone,
       role: UserRole.CITIZEN, // Strictly enforce default role
       preferred_language: dto.preferred_language || 'en',
       is_active: true,
@@ -66,20 +77,40 @@ export class AuthService {
   }
 
   /**
-   * Validate user credentials and return a signed JWT token.
+   * Validate user credentials (email or phone) and return a signed JWT token.
    */
   async login(dto: LoginDto) {
-    const normalizedEmail = dto.email.toLowerCase().trim();
+    const rawIdentifier = (dto.identifier || dto.email || dto.phone || '').trim();
+    if (!rawIdentifier) {
+      throw new UnauthorizedException('Invalid email, phone, or password.');
+    }
 
-    // Query user and explicitly select password_hash (which has select: false)
-    const user = await this.userRepo
-      .createQueryBuilder('user')
-      .addSelect('user.password_hash')
-      .where('LOWER(user.email) = :email', { email: normalizedEmail })
-      .getOne();
+    let user: User | null = null;
+
+    if (rawIdentifier.includes('@')) {
+      const normalizedEmail = rawIdentifier.toLowerCase();
+      user = await this.userRepo
+        .createQueryBuilder('user')
+        .addSelect('user.password_hash')
+        .where('LOWER(user.email) = :email', { email: normalizedEmail })
+        .getOne();
+    } else {
+      const normalizedPhone = normalizePhoneNumber(rawIdentifier);
+      const query = this.userRepo
+        .createQueryBuilder('user')
+        .addSelect('user.password_hash');
+
+      if (normalizedPhone) {
+        query.where('user.phone = :phone', { phone: normalizedPhone })
+             .orWhere('LOWER(user.email) = :raw', { raw: rawIdentifier.toLowerCase() });
+      } else {
+        query.where('LOWER(user.email) = :raw', { raw: rawIdentifier.toLowerCase() });
+      }
+      user = await query.getOne();
+    }
 
     if (!user || !user.password_hash) {
-      throw new UnauthorizedException('Invalid email or password.');
+      throw new UnauthorizedException('Invalid email, phone, or password.');
     }
 
     const isPasswordValid = await bcrypt.compare(dto.password, user.password_hash);

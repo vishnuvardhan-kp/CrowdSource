@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useAuth } from "../../lib/auth-context";
 import { formatUserRole, formatDateSafe } from "../../lib/utils";
 import { ProblemClustersQueue } from "./ProblemClustersQueue";
+import { PriUlbVerificationQueue } from "./PriUlbVerificationQueue";
 import {
+  Landmark,
   ShieldCheck,
   Clock,
   CheckCircle2,
@@ -13,7 +15,6 @@ import {
   AlertTriangle,
   FileText,
   MapPin,
-  HeartHandshake,
   ArrowRight,
   Loader2,
   Image as ImageIcon,
@@ -69,35 +70,21 @@ interface QueueChallenge {
   translation_metadata?: any;
 }
 
-interface EoiContribution {
-  id: string;
-  contribution_type: string;
-  description: string;
-  estimated_monetary_value?: number;
-  quantity?: number;
-  unit?: string;
-}
-
-interface EoiItem {
+interface ProposedSolutionItem {
   id: string;
   challenge_id: string;
   organization_id: string;
-  status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "DISCUSSION_REQUIRED" | "ACCEPTED" | "REJECTED" | "WITHDRAWN" | "PROJECT_FORMED";
-  motivation: string;
-  proposed_contribution: string;
-  proposed_approach: string;
-  resource_summary?: string;
-  timeline: string;
-  timeline_notes?: string;
-  collaboration_lead_name?: string;
-  collaboration_lead_designation?: string;
-  collaboration_lead_email?: string;
-  collaboration_lead_phone?: string;
+  status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "PUBLISHED" | "COLLABORATION_OPEN" | "CONVERTED_TO_PROJECT" | "REJECTED" | "WITHDRAWN";
+  title: string;
+  abstract: string;
+  proposed_methodology?: string;
+  expected_outcomes?: string;
+  budget_estimate?: number;
+  timeline_months?: number;
   rejection_reason?: string;
-  discussion_notes?: string;
+  review_notes?: string;
   submitted_at?: string;
-  accepted_at?: string;
-  rejected_at?: string;
+  published_at?: string;
   created_at: string;
   organization?: {
     id: string;
@@ -105,7 +92,6 @@ interface EoiItem {
     type: string;
     category?: string;
     contact_email?: string;
-    contact_phone?: string;
   };
   challenge?: {
     id: string;
@@ -114,18 +100,17 @@ interface EoiItem {
     status: string;
     citizen_severity?: string;
   };
-  contributions?: EoiContribution[];
-  evidence?: any[];
-  reviews?: any[];
+  team_members?: { id: string; role: string; user?: { name: string } }[];
+  collaborations?: { id: string; status: string; organization?: { name: string }; collaboration_type: string }[];
 }
 
 export default function ReviewerQueuePage() {
   const { user, token } = useAuth();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
-  // Primary Tab: 'clusters' | 'challenges' | 'eois' | 'consortium' | 'projects' | 'impact' | 'innovations' | 'capabilities'
+  // Primary Tab: 'clusters' | 'challenges' | 'solutions' | 'projects' | 'impact' | 'innovations' | 'capabilities' | 'pri_ulb'
   const [primaryTab, setPrimaryTab] = useState<
-    "clusters" | "challenges" | "eois" | "consortium" | "projects" | "impact" | "innovations" | "capabilities"
+    "clusters" | "challenges" | "solutions" | "projects" | "impact" | "innovations" | "capabilities" | "pri_ulb"
   >("clusters");
 
   // Sync tab from URL query param if present
@@ -135,7 +120,7 @@ export default function ReviewerQueuePage() {
       const tabParam = params.get("tab");
       if (
         tabParam &&
-        ["clusters", "challenges", "eois", "consortium", "projects", "impact", "innovations", "capabilities"].includes(tabParam)
+        ["clusters", "challenges", "solutions", "projects", "impact", "innovations", "capabilities", "pri_ulb"].includes(tabParam)
       ) {
         setPrimaryTab(tabParam as any);
       }
@@ -243,22 +228,13 @@ export default function ReviewerQueuePage() {
     }
   };
 
-  // Tab 2: EOI Review State
-  const [eoisQueue, setEoisQueue] = useState<EoiItem[]>([]);
-  const [eoisLoading, setEoisLoading] = useState<boolean>(false);
-  const [selectedEoiStatus, setSelectedEoiStatus] = useState<string>("SUBMITTED");
-  const [activeEoi, setActiveEoi] = useState<EoiItem | null>(null);
-  const [discussionMessage, setDiscussionMessage] = useState<string>("");
-  const [eoiRejectionReason, setEoiRejectionReason] = useState<string>("");
-  const [eoiActionModal, setEoiActionModal] = useState<"discussion" | "reject" | null>(null);
-
-  // Tab 3: Collaborative Project Formation State
-  const [acceptedEois, setAcceptedEois] = useState<EoiItem[]>([]);
-  const [formationLoading, setFormationLoading] = useState<boolean>(false);
-  const [selectedFormationChallengeId, setSelectedFormationChallengeId] = useState<string>("");
-  const [selectedEoiIds, setSelectedEoiIds] = useState<string[]>([]);
-  const [projectTitle, setProjectTitle] = useState<string>("");
-  const [projectDescription, setProjectDescription] = useState<string>("");
+  // Tab 3: Proposed Solutions Review State
+  const [solutionsQueue, setSolutionsQueue] = useState<ProposedSolutionItem[]>([]);
+  const [solutionsLoading, setSolutionsLoading] = useState<boolean>(false);
+  const [selectedSolutionStatus, setSelectedSolutionStatus] = useState<string>("SUBMITTED");
+  const [activeSolution, setActiveSolution] = useState<ProposedSolutionItem | null>(null);
+  const [solutionReviewNotes, setSolutionReviewNotes] = useState<string>("");
+  const [solutionActionModal, setSolutionActionModal] = useState<"reject" | null>(null);
 
   // Action status / feedback
   const [processingAction, setProcessingAction] = useState<boolean>(false);
@@ -326,58 +302,35 @@ export default function ReviewerQueuePage() {
     }
   }, [apiUrl, isReviewer, selectedChallengeStatus, token, activeChallenge]);
 
-  // Fetch EOIs Queue
-  const fetchEoisQueue = useCallback(async () => {
+  // Fetch Proposed Solutions Queue (Tab 3)
+  const fetchSolutionsQueue = useCallback(async () => {
     if (!token || !isReviewer) return;
-    setEoisLoading(true);
+    setSolutionsLoading(true);
     try {
-      const url = selectedEoiStatus && selectedEoiStatus !== "ALL"
-        ? `${apiUrl}/admin/eois?status=${selectedEoiStatus}`
-        : `${apiUrl}/admin/eois`;
+      const url = selectedSolutionStatus && selectedSolutionStatus !== "ALL"
+        ? `${apiUrl}/admin/solutions?status=${selectedSolutionStatus}`
+        : `${apiUrl}/admin/solutions`;
 
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
-        setEoisQueue(data);
+        setSolutionsQueue(data);
         if (data.length > 0) {
-          setActiveEoi(data[0]);
+          setActiveSolution(data[0]);
         } else {
-          setActiveEoi(null);
+          setActiveSolution(null);
         }
       }
     } catch (err) {
-      console.error("Failed to load EOIs queue:", err);
+      console.error("Failed to load solutions queue:", err);
     } finally {
-      setEoisLoading(false);
+      setSolutionsLoading(false);
     }
-  }, [apiUrl, isReviewer, selectedEoiStatus, token]);
+  }, [apiUrl, isReviewer, selectedSolutionStatus, token]);
 
-  // Fetch Accepted EOIs for Project Formation
-  const fetchFormationData = useCallback(async () => {
-    if (!token || !isReviewer) return;
-    setFormationLoading(true);
-    try {
-      const res = await fetch(`${apiUrl}/admin/eois?status=ACCEPTED`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data: EoiItem[] = await res.json();
-        setAcceptedEois(data);
-        if (data.length > 0 && !selectedFormationChallengeId) {
-          const firstChallengeId = data[0].challenge_id;
-          setSelectedFormationChallengeId(firstChallengeId);
-          setProjectTitle(`Collaborative Project: ${data[0].challenge?.title || "Consortium Initiative"}`);
-          setProjectDescription(`Multi-institutional consortium formed to address challenge: ${data[0].challenge?.title || ""}.`);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to load accepted EOIs for formation:", err);
-    } finally {
-      setFormationLoading(false);
-    }
-  }, [apiUrl, isReviewer, token, selectedFormationChallengeId]);
+
 
   // Fetch Projects Queue for Tab 4
   const fetchProjectsQueue = useCallback(async () => {
@@ -506,10 +459,8 @@ export default function ReviewerQueuePage() {
   useEffect(() => {
     if (primaryTab === "challenges") {
       fetchChallengesQueue();
-    } else if (primaryTab === "eois") {
-      fetchEoisQueue();
-    } else if (primaryTab === "consortium") {
-      fetchFormationData();
+    } else if (primaryTab === "solutions") {
+      fetchSolutionsQueue();
     } else if (primaryTab === "projects") {
       fetchProjectsQueue();
     } else if (primaryTab === "impact") {
@@ -521,8 +472,7 @@ export default function ReviewerQueuePage() {
   }, [
     primaryTab,
     fetchChallengesQueue,
-    fetchEoisQueue,
-    fetchFormationData,
+    fetchSolutionsQueue,
     fetchProjectsQueue,
     fetchImpactQueue,
     fetchInnovationsQueue,
@@ -986,78 +936,104 @@ export default function ReviewerQueuePage() {
     }
   };
 
-  // Handle EOI Review Actions
-  const handleEoiAction = async (
-    action: "ACCEPT" | "REQUEST_DISCUSSION" | "REJECT",
-  ) => {
-    if (!activeEoi || !token) return;
-
+  // Handle Solution Review: Publish (approve) to Open Workspace
+  const handleSolutionPublish = async () => {
+    if (!activeSolution || !token) return;
     setProcessingAction(true);
     setActionSuccess(null);
     setActionError(null);
-
     try {
-      let url = "";
-      let body: any = {};
-
-      if (action === "ACCEPT") {
-        url = `${apiUrl}/admin/eois/${activeEoi.id}/accept`;
-      } else if (action === "REQUEST_DISCUSSION") {
-        if (!discussionMessage.trim()) {
-          setActionError("Discussion feedback message is required.");
-          setProcessingAction(false);
-          return;
-        }
-        url = `${apiUrl}/admin/eois/${activeEoi.id}/request-discussion`;
-        body = { message: discussionMessage.trim() };
-      } else if (action === "REJECT") {
-        if (!eoiRejectionReason.trim()) {
-          setActionError("A rejection reason is mandatory.");
-          setProcessingAction(false);
-          return;
-        }
-        url = `${apiUrl}/admin/eois/${activeEoi.id}/reject`;
-        body = { reason: eoiRejectionReason.trim() };
-      }
-
-      const res = await fetch(url, {
+      const res = await fetch(`${apiUrl}/admin/solutions/${activeSolution.id}/publish`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ notes: solutionReviewNotes.trim() || undefined }),
       });
-
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || "Failed to update EOI review status.");
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || "Failed to publish solution.");
       }
-
-      const updatedEoi = await res.json();
-      setActionSuccess(
-        action === "ACCEPT"
-          ? "EOI Accepted! It is now in the approved candidate pool for project formation."
-          : action === "REQUEST_DISCUSSION"
-          ? "Discussion requested. The organization has been notified to revise their EOI."
-          : "EOI Rejected."
-      );
-
-      setEoiActionModal(null);
-      setDiscussionMessage("");
-      setEoiRejectionReason("");
-
-      // Update in queue
-      setEoisQueue((prev) =>
-        prev.map((item) => (item.id === activeEoi.id ? { ...item, ...updatedEoi } : item))
-      );
-      setActiveEoi((prev) => (prev ? { ...prev, ...updatedEoi } : null));
+      setActionSuccess(`Solution "${activeSolution.title}" published to Open Collaboration Workspace. Universities and industry partners can now discover and offer collaboration.`);
+      setSolutionReviewNotes("");
+      await fetchSolutionsQueue();
     } catch (err: any) {
-      setActionError(err.message || "Failed to process EOI review.");
+      setActionError(err.message || "Failed to publish solution.");
     } finally {
       setProcessingAction(false);
     }
   };
+
+  // Handle Solution Review: Reject
+  const handleSolutionReject = async () => {
+    if (!activeSolution || !token) return;
+    if (!solutionReviewNotes.trim()) {
+      setActionError("A rejection reason is mandatory.");
+      return;
+    }
+    setProcessingAction(true);
+    setActionSuccess(null);
+    setActionError(null);
+    try {
+      const res = await fetch(`${apiUrl}/admin/solutions/${activeSolution.id}/reject`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ reason: solutionReviewNotes.trim() }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || "Failed to reject solution.");
+      }
+      setActionSuccess("Solution rejected. University has been notified with the reviewer notes.");
+      setSolutionActionModal(null);
+      setSolutionReviewNotes("");
+      await fetchSolutionsQueue();
+    } catch (err: any) {
+      setActionError(err.message || "Failed to reject solution.");
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  if (!user && !challengeLoading && !solutionsLoading) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-16 text-center space-y-4">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 shadow-sm">
+          <AlertTriangle className="h-7 w-7" />
+        </div>
+        <h2 className="text-xl font-bold text-stone-900">Sign In Required</h2>
+        <p className="text-xs text-stone-600 max-w-sm mx-auto">Please sign in with administrative or government credentials.</p>
+        <div className="pt-2">
+          <Link href="/login" className="inline-flex rounded-xl bg-emerald-700 hover:bg-emerald-800 px-5 py-2.5 text-xs font-semibold text-white shadow-sm transition">
+            Sign In
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isReviewer && !challengeLoading && !solutionsLoading) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-16 text-center space-y-4">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 border border-red-200 text-red-700 shadow-sm">
+          <ShieldCheck className="h-7 w-7" />
+        </div>
+        <h2 className="text-xl font-bold text-stone-900">Access Restricted</h2>
+        <p className="text-xs text-stone-600 max-w-sm mx-auto leading-relaxed">
+          The reviewer queue is strictly restricted to authorized Government Officers and Platform Administrators. Your current role is: <span className="font-semibold text-stone-800">{formatUserRole(user?.role)}</span>.
+        </p>
+        <div className="pt-2">
+          <Link href="/" className="inline-flex rounded-xl border border-stone-300 bg-white px-5 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition">
+            Return Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   // Innovation Outcome Verification
   const handleVerifyInnovationOutcome = async () => {
@@ -1094,108 +1070,7 @@ export default function ReviewerQueuePage() {
     }
   };
 
-  // Handle Collaborative Project Formation
-  const handleFormCollaborativeProject = async () => {
-    if (!token || !selectedFormationChallengeId) return;
 
-    if (selectedEoiIds.length === 0) {
-      setActionError("Please select at least one accepted EOI to form a collaborative project.");
-      return;
-    }
-
-    if (!projectTitle.trim()) {
-      setActionError("Project title is required.");
-      return;
-    }
-
-    setProcessingAction(true);
-    setActionSuccess(null);
-    setActionError(null);
-
-    try {
-      const res = await fetch(`${apiUrl}/admin/challenges/${selectedFormationChallengeId}/projects`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          eoi_ids: selectedEoiIds,
-          title: projectTitle.trim(),
-          description: projectDescription.trim(),
-        }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || "Failed to form collaborative project.");
-      }
-
-      const formedProject = await res.json();
-      setActionSuccess(
-        `Collaborative Project successfully formed! "${formedProject.title || projectTitle}" created. Challenge intake closed (PROJECT_INITIATED) and ${selectedEoiIds.length} participant organization(s) bound.`
-      );
-
-      // Reset selection
-      setSelectedEoiIds([]);
-      // Refresh formation data
-      fetchFormationData();
-    } catch (err: any) {
-      setActionError(err.message || "Error forming collaborative project.");
-    } finally {
-      setProcessingAction(false);
-    }
-  };
-
-  if (!user && !challengeLoading && !eoisLoading) {
-    return (
-      <div className="mx-auto max-w-md px-4 py-16 text-center space-y-4">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 shadow-sm">
-          <AlertTriangle className="h-7 w-7" />
-        </div>
-        <h2 className="text-xl font-bold text-stone-900">Sign In Required</h2>
-        <p className="text-xs text-stone-600 max-w-sm mx-auto">Please sign in with administrative or government credentials.</p>
-        <div className="pt-2">
-          <Link href="/login" className="inline-flex rounded-xl bg-emerald-700 hover:bg-emerald-800 px-5 py-2.5 text-xs font-semibold text-white shadow-sm transition">
-            Sign In
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isReviewer && !challengeLoading && !eoisLoading) {
-    return (
-      <div className="mx-auto max-w-md px-4 py-16 text-center space-y-4">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 border border-red-200 text-red-700 shadow-sm">
-          <ShieldCheck className="h-7 w-7" />
-        </div>
-        <h2 className="text-xl font-bold text-stone-900">Access Restricted</h2>
-        <p className="text-xs text-stone-600 max-w-sm mx-auto leading-relaxed">
-          The reviewer queue is strictly restricted to authorized Government Officers and Platform Administrators. Your current role is: <span className="font-semibold text-stone-800">{formatUserRole(user?.role)}</span>.
-        </p>
-        <div className="pt-2">
-          <Link href="/" className="inline-flex rounded-xl border border-stone-300 bg-white px-5 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition">
-            Return Home
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // Helper: Group accepted EOIs by challenge for Project Formation
-  const challengesWithAcceptedEois: { [challengeId: string]: { challenge: any; eois: EoiItem[] } } = {};
-  acceptedEois.forEach((eoi) => {
-    if (!challengesWithAcceptedEois[eoi.challenge_id]) {
-      challengesWithAcceptedEois[eoi.challenge_id] = {
-        challenge: eoi.challenge,
-        eois: [],
-      };
-    }
-    challengesWithAcceptedEois[eoi.challenge_id].eois.push(eoi);
-  });
-
-  const currentFormationGroup = challengesWithAcceptedEois[selectedFormationChallengeId];
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 space-y-6">
@@ -1212,9 +1087,10 @@ export default function ReviewerQueuePage() {
             Government Reviewer Queue
           </h1>
           <p className="text-xs sm:text-sm text-stone-600 mt-1 max-w-2xl">
-            Review citizen problems, evaluate institutional Expressions of Interest, and assemble multi-organization collaborative projects.
+            Review citizen challenges, evaluate proposed solutions, and govern collaborative innovation projects.
           </p>
         </div>
+
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs font-medium text-stone-600 bg-stone-50 border border-stone-200 px-3.5 py-2 rounded-xl self-start sm:self-auto shadow-xs">
           <div className="flex items-center gap-2">
@@ -1278,42 +1154,21 @@ export default function ReviewerQueuePage() {
 
         <button
           onClick={() => {
-            setPrimaryTab("eois");
+            setPrimaryTab("solutions");
             setActionSuccess(null);
             setActionError(null);
           }}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-            primaryTab === "eois"
-              ? "bg-emerald-700 text-white shadow-xs"
+            primaryTab === "solutions"
+              ? "bg-teal-700 text-white shadow-xs"
               : "text-stone-600 hover:text-stone-900 hover:bg-stone-100"
           }`}
         >
-          <HeartHandshake className="h-4 w-4" />
-          3. EOI Candidate Pool
-          {eoisQueue.length > 0 && (
+          <Sparkles className="h-4 w-4" />
+          3. Proposed Solutions
+          {solutionsQueue.length > 0 && (
             <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] bg-white/20 text-white font-bold">
-              {eoisQueue.length}
-            </span>
-          )}
-        </button>
-
-        <button
-          onClick={() => {
-            setPrimaryTab("consortium");
-            setActionSuccess(null);
-            setActionError(null);
-          }}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-            primaryTab === "consortium"
-              ? "bg-emerald-700 text-white shadow-xs"
-              : "text-stone-600 hover:text-stone-900 hover:bg-stone-100"
-          }`}
-        >
-          <Users className="h-4 w-4" />
-          4. Consortium Formation
-          {acceptedEois.length > 0 && (
-            <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">
-              {acceptedEois.length} Ready
+              {solutionsQueue.length}
             </span>
           )}
         </button>
@@ -1331,7 +1186,7 @@ export default function ReviewerQueuePage() {
           }`}
         >
           <FolderGit2 className="h-4 w-4" />
-          5. Project Governance
+          4. Project Governance
           {projectsQueue.length > 0 && (
             <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] bg-white/20 text-white font-bold">
               {projectsQueue.length}
@@ -1374,7 +1229,7 @@ export default function ReviewerQueuePage() {
           }`}
         >
           <Sparkles className="h-4 w-4" />
-          7. Innovation & IP Review
+          6. Innovation & IP Review
           {innovationsQueue.length > 0 && (
             <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] bg-white/20 text-white font-bold">
               {innovationsQueue.length}
@@ -1396,12 +1251,24 @@ export default function ReviewerQueuePage() {
           }`}
         >
           <ShieldCheck className="h-4 w-4" />
-          8. Capability Verification
+          7. Capability Verification
           {((verificationQueue?.pending_evidence_count || 0) + (verificationQueue?.pending_capabilities_count || 0)) > 0 && (
             <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] bg-amber-400 text-stone-950 font-bold">
               {(verificationQueue?.pending_evidence_count || 0) + (verificationQueue?.pending_capabilities_count || 0)}
             </span>
           )}
+        </button>
+
+        <button
+          onClick={() => setPrimaryTab("pri_ulb")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            primaryTab === "pri_ulb"
+              ? "bg-emerald-800 text-white shadow-xs"
+              : "text-stone-600 hover:text-stone-900 hover:bg-stone-100"
+          }`}
+        >
+          <Landmark className="h-4 w-4" />
+          8. PRI & ULB Authority
         </button>
       </div>
 
@@ -1717,30 +1584,30 @@ export default function ReviewerQueuePage() {
       )}
 
       {/* ========================================================= */}
-      {/* TAB 2: EXPRESSION OF INTEREST (EOI) REVIEW QUEUE */}
+      {/* TAB 3: PROPOSED SOLUTIONS REVIEW */}
       {/* ========================================================= */}
-      {primaryTab === "eois" && (
+      {primaryTab === "solutions" && (
         <div className="space-y-6">
-          {/* EOI Status Filter Bar */}
+          {/* Solution Status Filter Bar */}
           <div className="flex flex-wrap gap-2 border-b border-stone-200 pb-3 text-xs">
             {[
-              { key: "SUBMITTED", label: "New EOIs" },
+              { key: "SUBMITTED", label: "Awaiting Review" },
               { key: "UNDER_REVIEW", label: "Under Review" },
-              { key: "DISCUSSION_REQUIRED", label: "Discussion Pending" },
-              { key: "ACCEPTED", label: "Accepted Candidates" },
-              { key: "PROJECT_FORMED", label: "Project Formed" },
+              { key: "PUBLISHED", label: "Published" },
+              { key: "COLLABORATION_OPEN", label: "Collaboration Open" },
+              { key: "CONVERTED_TO_PROJECT", label: "Converted to Project" },
               { key: "REJECTED", label: "Rejected" },
-              { key: "ALL", label: "All EOIs" },
+              { key: "ALL", label: "All Solutions" },
             ].map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => {
-                  setSelectedEoiStatus(tab.key);
-                  setActiveEoi(null);
+                  setSelectedSolutionStatus(tab.key);
+                  setActiveSolution(null);
                 }}
                 className={`px-3 py-1.5 rounded-xl font-semibold transition-all ${
-                  selectedEoiStatus === tab.key
-                    ? "bg-emerald-50 text-emerald-900 border border-emerald-300 shadow-xs"
+                  selectedSolutionStatus === tab.key
+                    ? "bg-teal-50 text-teal-900 border border-teal-300 shadow-xs"
                     : "bg-white text-stone-600 hover:text-stone-900 hover:bg-stone-50 border border-stone-200"
                 }`}
               >
@@ -1750,66 +1617,82 @@ export default function ReviewerQueuePage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left Column: EOI Queue List */}
+            {/* Left Column: Solution Queue List */}
             <div className="lg:col-span-4 space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-stone-500">
-                  EOI Queue ({eoisQueue.length})
+                  Solutions Queue ({solutionsQueue.length})
                 </h3>
+                <button
+                  onClick={() => fetchSolutionsQueue()}
+                  className="text-xs text-emerald-700 hover:underline flex items-center gap-1"
+                >
+                  <RefreshCw className="h-3 w-3" /> Refresh
+                </button>
               </div>
 
-              {eoisLoading ? (
+              {solutionsLoading ? (
                 <div className="p-8 text-center text-xs text-stone-400">
                   <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2 text-stone-400" />
-                  Loading Expression of Interests...
+                  Loading proposed solutions...
                 </div>
-              ) : eoisQueue.length === 0 ? (
+              ) : solutionsQueue.length === 0 ? (
                 <div className="p-8 rounded-2xl border border-dashed border-stone-300 bg-white text-center text-xs text-stone-500">
-                  No Expressions of Interest in this queue.
+                  No proposed solutions in this queue.
                 </div>
               ) : (
                 <div className="space-y-2.5 max-h-[650px] overflow-y-auto pr-1">
-                  {eoisQueue.map((item) => {
-                    const isSelected = activeEoi?.id === item.id;
+                  {solutionsQueue.map((item) => {
+                    const isSelected = activeSolution?.id === item.id;
                     return (
                       <button
                         key={item.id}
                         onClick={() => {
-                          setActiveEoi(item);
+                          setActiveSolution(item);
                           setActionSuccess(null);
                           setActionError(null);
-                          setEoiActionModal(null);
+                          setSolutionActionModal(null);
                         }}
                         className={`w-full text-left p-4 rounded-xl border transition-all ${
                           isSelected
-                            ? "border-emerald-600 bg-emerald-50/60 shadow-xs ring-1 ring-emerald-600/20"
+                            ? "border-teal-600 bg-teal-50/60 shadow-xs ring-1 ring-teal-600/20"
                             : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50/50"
                         }`}
                       >
                         <div className="flex items-center justify-between text-[11px] text-stone-500 pb-1">
-                          <span className="font-bold text-stone-900 truncate max-w-[180px]">
+                          <span className="font-bold text-stone-900 truncate max-w-[160px]">
                             {item.organization?.name || "Institution"}
                           </span>
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            item.status === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-800' :
-                            item.status === 'DISCUSSION_REQUIRED' ? 'bg-amber-100 text-amber-800' :
-                            item.status === 'PROJECT_FORMED' ? 'bg-blue-100 text-blue-800' :
+                            item.status === 'PUBLISHED' ? 'bg-teal-100 text-teal-800' :
+                            item.status === 'COLLABORATION_OPEN' ? 'bg-emerald-100 text-emerald-800' :
+                            item.status === 'CONVERTED_TO_PROJECT' ? 'bg-blue-100 text-blue-800' :
                             item.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                            item.status === 'UNDER_REVIEW' ? 'bg-amber-100 text-amber-800' :
                             'bg-stone-100 text-stone-700'
                           }`}>
                             {item.status.replace(/_/g, " ")}
                           </span>
                         </div>
                         <h4 className="text-xs font-semibold text-stone-800 line-clamp-1">
-                          Re: {item.challenge?.title || "Civic Challenge"}
+                          {item.title || "Untitled Solution"}
                         </h4>
                         <p className="text-[11px] text-stone-500 line-clamp-2 mt-1">
-                          {item.proposed_contribution || item.motivation}
+                          {item.abstract || "No abstract provided."}
                         </p>
                         <div className="flex items-center gap-2 mt-2 text-[10px] text-stone-400">
                           <span>{item.organization?.type?.replace(/_/g, " ")}</span>
                           <span>•</span>
+                          <span className="text-stone-500 font-medium">Re: {item.challenge?.title}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 text-[10px] text-stone-400">
                           <span>{formatDateSafe(item.submitted_at || item.created_at)}</span>
+                          {item.team_members && item.team_members.length > 0 && (
+                            <>
+                              <span>•</span>
+                              <span>{item.team_members.length} team member{item.team_members.length > 1 ? "s" : ""}</span>
+                            </>
+                          )}
                         </div>
                       </button>
                     );
@@ -1818,155 +1701,148 @@ export default function ReviewerQueuePage() {
               )}
             </div>
 
-            {/* Right Column: EOI Inspection & Reviewer Actions */}
+            {/* Right Column: Solution Inspection & Reviewer Actions */}
             <div className="lg:col-span-8">
-              {activeEoi ? (
+              {activeSolution ? (
                 <div className="p-6 rounded-2xl border border-stone-200 bg-white space-y-6 shadow-sm">
                   {/* Title & Status Badge */}
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-stone-100 pb-4">
                     <div>
-                      <span className="text-[10px] font-mono text-stone-400">EOI ID: {activeEoi.id}</span>
+                      <span className="text-[10px] font-mono text-stone-400">Solution ID: {activeSolution.id}</span>
                       <h2 className="text-xl font-bold text-stone-900 mt-0.5">
-                        {activeEoi.organization?.name || "Proposing Institution"}
+                        {activeSolution.title || "Untitled Proposed Solution"}
                       </h2>
                       <p className="text-xs text-stone-600 mt-1 flex items-center gap-1.5">
                         <Building2 className="h-3.5 w-3.5 text-stone-400" />
-                        <span className="font-semibold">{activeEoi.organization?.type?.replace(/_/g, " ")}</span>
+                        <span className="font-semibold">{activeSolution.organization?.name}</span>
                         <span>•</span>
-                        <span>Challenge:</span>
-                        <Link
-                          href={`/challenges/${activeEoi.challenge_id}`}
-                          target="_blank"
-                          className="font-semibold text-emerald-800 hover:underline flex items-center gap-1"
-                        >
-                          {activeEoi.challenge?.title} <ExternalLink className="h-3 w-3" />
-                        </Link>
+                        <span className="text-stone-500">{activeSolution.organization?.type?.replace(/_/g, " ")}</span>
                       </p>
+                      {activeSolution.challenge && (
+                        <p className="text-xs text-stone-600 mt-1 flex items-center gap-1.5">
+                          <FileText className="h-3.5 w-3.5 text-stone-400" />
+                          <span>Challenge:</span>
+                          <Link
+                            href={`/challenges/${activeSolution.challenge_id}`}
+                            target="_blank"
+                            className="font-semibold text-teal-800 hover:underline flex items-center gap-1"
+                          >
+                            {activeSolution.challenge.title} <ExternalLink className="h-3 w-3" />
+                          </Link>
+                        </p>
+                      )}
                     </div>
 
                     <div className="shrink-0">
                       <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${
-                        activeEoi.status === 'ACCEPTED' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' :
-                        activeEoi.status === 'DISCUSSION_REQUIRED' ? 'bg-amber-50 text-amber-800 border-amber-300' :
-                        activeEoi.status === 'PROJECT_FORMED' ? 'bg-blue-50 text-blue-800 border-blue-300' :
-                        activeEoi.status === 'REJECTED' ? 'bg-red-50 text-red-800 border-red-300' :
+                        activeSolution.status === 'PUBLISHED' ? 'bg-teal-50 text-teal-800 border-teal-300' :
+                        activeSolution.status === 'COLLABORATION_OPEN' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' :
+                        activeSolution.status === 'CONVERTED_TO_PROJECT' ? 'bg-blue-50 text-blue-800 border-blue-300' :
+                        activeSolution.status === 'REJECTED' ? 'bg-red-50 text-red-800 border-red-300' :
+                        activeSolution.status === 'UNDER_REVIEW' ? 'bg-amber-50 text-amber-800 border-amber-300' :
                         'bg-stone-50 text-stone-700 border-stone-300'
                       }`}>
-                        {activeEoi.status.replace(/_/g, " ")}
+                        {activeSolution.status.replace(/_/g, " ")}
                       </span>
                     </div>
                   </div>
 
-                  {/* Proposing Lead Metadata Strip */}
+                  {/* Metadata Strip */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-xl bg-stone-50 border border-stone-200 text-xs">
                     <div>
-                      <span className="text-[10px] text-stone-500 block">Collaboration Lead</span>
-                      <span className="font-semibold text-stone-800">{activeEoi.collaboration_lead_name || "Unspecified"}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-stone-500 block">Designation</span>
-                      <span className="font-semibold text-stone-800">{activeEoi.collaboration_lead_designation || "Faculty / Director"}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-stone-500 block">Email Contact</span>
-                      <span className="font-semibold text-stone-800">{activeEoi.collaboration_lead_email || activeEoi.organization?.contact_email || "N/A"}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-stone-500 block">Proposed Timeline</span>
-                      <span className="font-semibold text-stone-800">{activeEoi.timeline?.replace(/_/g, " ")}</span>
-                    </div>
-                  </div>
-
-                  {/* Proposal Details */}
-                  <div className="space-y-4 text-xs">
-                    <div>
-                      <h4 className="font-bold text-stone-800 uppercase tracking-wider text-[11px] mb-1">
-                        Motivation &amp; Institutional Alignment
-                      </h4>
-                      <p className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-800 leading-relaxed whitespace-pre-wrap">
-                        {activeEoi.motivation}
-                      </p>
-                    </div>
-
-                    <div>
-                      <h4 className="font-bold text-stone-800 uppercase tracking-wider text-[11px] mb-1">
-                        Proposed Technical Approach &amp; Methodology
-                      </h4>
-                      <p className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-800 leading-relaxed whitespace-pre-wrap">
-                        {activeEoi.proposed_approach}
-                      </p>
-                    </div>
-
-                    <div>
-                      <h4 className="font-bold text-stone-800 uppercase tracking-wider text-[11px] mb-1">
-                        Proposed Contribution &amp; Scope
-                      </h4>
-                      <p className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-800 leading-relaxed whitespace-pre-wrap">
-                        {activeEoi.proposed_contribution}
-                      </p>
-                    </div>
-
-                    {activeEoi.resource_summary && (
-                      <div>
-                        <h4 className="font-bold text-stone-800 uppercase tracking-wider text-[11px] mb-1">
-                          Resource Requirements &amp; Infrastructure
-                        </h4>
-                        <p className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-800 leading-relaxed whitespace-pre-wrap">
-                          {activeEoi.resource_summary}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Itemized Contributions Table */}
-                  {activeEoi.contributions && activeEoi.contributions.length > 0 && (
-                    <div className="space-y-2">
-                      <h4 className="font-bold text-stone-800 uppercase tracking-wider text-[11px]">
-                        Itemized Contributions ({activeEoi.contributions.length})
-                      </h4>
-                      <div className="overflow-x-auto border border-stone-200 rounded-xl">
-                        <table className="min-w-full divide-y divide-stone-200 text-xs text-left">
-                          <thead className="bg-stone-50 font-bold text-stone-600">
-                            <tr>
-                              <th className="px-3 py-2">Type</th>
-                              <th className="px-3 py-2">Description</th>
-                              <th className="px-3 py-2">Qty / Unit</th>
-                              <th className="px-3 py-2">Est. Value (₹)</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-stone-100 bg-white">
-                            {activeEoi.contributions.map((c, i) => (
-                              <tr key={i}>
-                                <td className="px-3 py-2 font-semibold text-emerald-800">{c.contribution_type}</td>
-                                <td className="px-3 py-2 text-stone-700">{c.description}</td>
-                                <td className="px-3 py-2 text-stone-600">{c.quantity ? `${c.quantity} ${c.unit || ''}` : '—'}</td>
-                                <td className="px-3 py-2 text-stone-800 font-mono">
-                                  {c.estimated_monetary_value ? `₹${Number(c.estimated_monetary_value).toLocaleString('en-IN')}` : '—'}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Discussion Notes / Rejection Reason Display */}
-                  {activeEoi.discussion_notes && (
-                    <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1">
-                      <span className="font-bold flex items-center gap-1.5">
-                        <MessageSquare className="h-3.5 w-3.5 text-amber-700" /> Active Discussion Notes:
+                      <span className="text-[10px] text-stone-500 block">Budget Estimate</span>
+                      <span className="font-semibold text-stone-800">
+                        {activeSolution.budget_estimate ? `₹${Number(activeSolution.budget_estimate).toLocaleString("en-IN")}` : "Not specified"}
                       </span>
-                      <p className="leading-relaxed">{activeEoi.discussion_notes}</p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-stone-500 block">Timeline</span>
+                      <span className="font-semibold text-stone-800">
+                        {activeSolution.timeline_months ? `${activeSolution.timeline_months} months` : "Not specified"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-stone-500 block">Team Size</span>
+                      <span className="font-semibold text-stone-800">
+                        {activeSolution.team_members?.length || 0} member{(activeSolution.team_members?.length || 0) !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-stone-500 block">Collaboration Offers</span>
+                      <span className="font-semibold text-stone-800">
+                        {activeSolution.collaborations?.length || 0}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Abstract */}
+                  <div className="space-y-1.5 text-xs">
+                    <h4 className="font-bold text-stone-800 uppercase tracking-wider text-[11px]">
+                      Solution Abstract
+                    </h4>
+                    <p className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-800 leading-relaxed whitespace-pre-wrap">
+                      {activeSolution.abstract || "No abstract provided."}
+                    </p>
+                  </div>
+
+                  {/* Methodology */}
+                  {activeSolution.proposed_methodology && (
+                    <div className="space-y-1.5 text-xs">
+                      <h4 className="font-bold text-stone-800 uppercase tracking-wider text-[11px]">
+                        Proposed Methodology
+                      </h4>
+                      <p className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-800 leading-relaxed whitespace-pre-wrap">
+                        {activeSolution.proposed_methodology}
+                      </p>
                     </div>
                   )}
 
-                  {activeEoi.rejection_reason && (
+                  {/* Expected Outcomes */}
+                  {activeSolution.expected_outcomes && (
+                    <div className="space-y-1.5 text-xs">
+                      <h4 className="font-bold text-stone-800 uppercase tracking-wider text-[11px]">
+                        Expected Outcomes
+                      </h4>
+                      <p className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-800 leading-relaxed whitespace-pre-wrap">
+                        {activeSolution.expected_outcomes}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Rejection reason if rejected */}
+                  {activeSolution.rejection_reason && (
                     <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-900 space-y-1">
                       <span className="font-bold flex items-center gap-1.5">
                         <XCircle className="h-3.5 w-3.5 text-red-700" /> Rejection Reason:
                       </span>
-                      <p className="leading-relaxed">{activeEoi.rejection_reason}</p>
+                      <p className="leading-relaxed">{activeSolution.rejection_reason}</p>
+                    </div>
+                  )}
+
+                  {/* Collaboration Offers */}
+                  {activeSolution.collaborations && activeSolution.collaborations.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="font-bold text-stone-800 uppercase tracking-wider text-[11px]">
+                        Collaboration Offers ({activeSolution.collaborations.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {activeSolution.collaborations.map((c, i) => (
+                          <div key={i} className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-200 text-xs flex items-center justify-between">
+                            <div>
+                              <span className="font-semibold text-stone-900">{c.organization?.name || "External Partner"}</span>
+                              <span className="text-stone-500 ml-2">· {c.collaboration_type?.replace(/_/g, " ")}</span>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              c.status === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-800' :
+                              c.status === 'UNDER_DISCUSSION' ? 'bg-amber-100 text-amber-800' :
+                              c.status === 'DECLINED' ? 'bg-red-100 text-red-800' :
+                              'bg-stone-100 text-stone-700'
+                            }`}>
+                              {c.status?.replace(/_/g, " ")}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
@@ -1977,75 +1853,40 @@ export default function ReviewerQueuePage() {
                         Governance Review Actions
                       </h4>
                       <span className="text-[11px] text-stone-500">
-                        Acceptance bundles into candidate pool (does not form project)
+                        Publishing makes the solution visible in the Open Collaboration Workspace
                       </span>
                     </div>
 
-                    {/* Modal Input for Discussion */}
-                    {eoiActionModal === "discussion" && (
-                      <div className="p-4 rounded-xl bg-white border border-amber-300 space-y-3 shadow-xs">
-                        <h5 className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
-                          <MessageSquare className="h-4 w-4 text-amber-700" /> Request Clarification / Scope Modification
-                        </h5>
-                        <p className="text-[11px] text-amber-800">
-                          State what technical information, resource commitment, or methodology adjustments are required before acceptance.
-                        </p>
-                        <textarea
-                          rows={3}
-                          value={discussionMessage}
-                          onChange={(e) => setDiscussionMessage(e.target.value)}
-                          placeholder="e.g. Please clarify deployment methodology for the pilot sensor nodes in Block A..."
-                          className="w-full rounded-xl border border-stone-300 p-2.5 text-xs focus:border-amber-600 focus:outline-none"
-                        />
-                        <div className="flex items-center gap-2 justify-end">
-                          <button
-                            type="button"
-                            onClick={() => setEoiActionModal(null)}
-                            className="px-3 py-1.5 rounded-lg border border-stone-300 text-xs font-medium text-stone-700 hover:bg-stone-50"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            disabled={processingAction || !discussionMessage.trim()}
-                            onClick={() => handleEoiAction("REQUEST_DISCUSSION")}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-amber-700 text-xs font-bold text-white hover:bg-amber-800 transition disabled:opacity-50"
-                          >
-                            {processingAction ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                            Send Discussion Request
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                    {/* Reviewer Notes */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-stone-700">
+                        Reviewer Notes {solutionActionModal === "reject" ? <span className="text-red-500">* (Mandatory for rejection)</span> : <span className="text-stone-400 font-normal">(Optional for publishing)</span>}
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={solutionReviewNotes}
+                        onChange={(e) => setSolutionReviewNotes(e.target.value)}
+                        placeholder={solutionActionModal === "reject" ? "State the governance justification for rejecting this solution..." : "Optional notes to accompany the publish decision..."}
+                        className="w-full rounded-xl border border-stone-300 bg-white p-3 text-xs text-stone-900 placeholder-stone-400 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/10 transition"
+                      />
+                    </div>
 
-                    {/* Modal Input for Reject */}
-                    {eoiActionModal === "reject" && (
-                      <div className="p-4 rounded-xl bg-white border border-red-300 space-y-3 shadow-xs">
-                        <h5 className="text-xs font-bold text-red-950 flex items-center gap-1.5">
-                          <XCircle className="h-4 w-4 text-red-700" /> Reject Expression of Interest
-                        </h5>
-                        <p className="text-[11px] text-red-800">
-                          A clear and explicit rejection reason is mandatory and will be visible to the submitting institution.
-                        </p>
-                        <textarea
-                          rows={3}
-                          value={eoiRejectionReason}
-                          onChange={(e) => setEoiRejectionReason(e.target.value)}
-                          placeholder="State the governance justification for rejecting this EOI..."
-                          className="w-full rounded-xl border border-stone-300 p-2.5 text-xs focus:border-red-600 focus:outline-none"
-                        />
-                        <div className="flex items-center gap-2 justify-end">
+                    {/* Reject confirmation panel */}
+                    {solutionActionModal === "reject" && (
+                      <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-900 space-y-2">
+                        <p className="font-semibold">⚠️ Confirm rejection of this proposed solution. This action will notify the university.</p>
+                        <div className="flex gap-2">
                           <button
                             type="button"
-                            onClick={() => setEoiActionModal(null)}
+                            onClick={() => setSolutionActionModal(null)}
                             className="px-3 py-1.5 rounded-lg border border-stone-300 text-xs font-medium text-stone-700 hover:bg-stone-50"
                           >
                             Cancel
                           </button>
                           <button
                             type="button"
-                            disabled={processingAction || !eoiRejectionReason.trim()}
-                            onClick={() => handleEoiAction("REJECT")}
+                            disabled={processingAction || !solutionReviewNotes.trim()}
+                            onClick={handleSolutionReject}
                             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-red-700 text-xs font-bold text-white hover:bg-red-800 transition disabled:opacity-50"
                           >
                             {processingAction ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
@@ -2055,62 +1896,59 @@ export default function ReviewerQueuePage() {
                       </div>
                     )}
 
-                    {/* Button Controls */}
-                    {eoiActionModal === null && (
-                      <div className="flex flex-wrap items-center gap-3">
-                        {activeEoi.status !== "ACCEPTED" && activeEoi.status !== "PROJECT_FORMED" && (
+                    {/* Action Buttons */}
+                    {solutionActionModal === null && (
+                      <div className="flex flex-wrap items-center gap-3 pt-2">
+                        {(activeSolution.status === "SUBMITTED" || activeSolution.status === "UNDER_REVIEW") && (
                           <button
                             type="button"
                             disabled={processingAction}
-                            onClick={() => handleEoiAction("ACCEPT")}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 shadow-sm transition disabled:opacity-50"
+                            onClick={handleSolutionPublish}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-teal-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-teal-800 shadow-sm transition disabled:opacity-50"
                           >
-                            <CheckCircle2 className="h-3.5 w-3.5" /> Accept EOI into Consortium Pool
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Publish to Open Workspace
                           </button>
                         )}
 
-                        {activeEoi.status !== "PROJECT_FORMED" && activeEoi.status !== "REJECTED" && (
+                        {activeSolution.status !== "REJECTED" && activeSolution.status !== "CONVERTED_TO_PROJECT" && (
                           <button
                             type="button"
                             disabled={processingAction}
-                            onClick={() => setEoiActionModal("discussion")}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-amber-700 shadow-sm transition disabled:opacity-50"
-                          >
-                            <MessageSquare className="h-3.5 w-3.5" /> Request Discussion / Changes
-                          </button>
-                        )}
-
-                        {activeEoi.status !== "REJECTED" && activeEoi.status !== "PROJECT_FORMED" && (
-                          <button
-                            type="button"
-                            disabled={processingAction}
-                            onClick={() => setEoiActionModal("reject")}
+                            onClick={() => setSolutionActionModal("reject")}
                             className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-semibold text-red-700 hover:bg-red-100 transition disabled:opacity-50"
                           >
-                            <XCircle className="h-3.5 w-3.5" /> Reject EOI
+                            <XCircle className="h-3.5 w-3.5" /> Reject Solution
                           </button>
                         )}
 
-                        {activeEoi.status === "ACCEPTED" && (
-                          <span className="text-xs text-emerald-800 font-semibold flex items-center gap-1">
-                            <Check className="h-4 w-4 text-emerald-700" /> Ready for project bundling in Tab 3
+                        <Link
+                          href={`/solutions/${activeSolution.id}`}
+                          target="_blank"
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" /> View Full Solution
+                        </Link>
+
+                        {activeSolution.status === "PUBLISHED" && (
+                          <span className="text-xs text-teal-800 font-semibold flex items-center gap-1">
+                            <CheckCircle2 className="h-4 w-4 text-teal-700" /> Live in Open Collaboration Workspace
                           </span>
                         )}
 
-                        {activeEoi.status === "PROJECT_FORMED" && (
+                        {activeSolution.status === "CONVERTED_TO_PROJECT" && (
                           <span className="text-xs text-blue-800 font-semibold flex items-center gap-1">
-                            <Users className="h-4 w-4 text-blue-700" /> Formally committed to active project
+                            <FolderGit2 className="h-4 w-4 text-blue-700" /> Converted to Active Project
                           </span>
                         )}
 
-                        {processingAction && <Loader2 className="h-4 w-4 animate-spin text-emerald-700 ml-2" />}
+                        {processingAction && <Loader2 className="h-4 w-4 animate-spin text-teal-700 ml-2" />}
                       </div>
                     )}
                   </div>
                 </div>
               ) : (
                 <div className="p-16 rounded-2xl border border-dashed border-stone-300 bg-white text-center text-xs text-stone-500">
-                  Select an Expression of Interest from the queue to inspect technical scope and record governance decisions.
+                  Select a proposed solution from the queue to inspect and record governance decisions.
                 </div>
               )}
             </div>
@@ -2118,264 +1956,8 @@ export default function ReviewerQueuePage() {
         </div>
       )}
 
-      {/* ========================================================= */}
-      {/* TAB 3: COLLABORATIVE PROJECT FORMATION WORKSPACE */}
-      {/* ========================================================= */}
-      {primaryTab === "consortium" && (
-        <div className="space-y-6">
-          <div className="rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-teal-50 to-white p-5">
-            <div className="flex items-start gap-4">
-              <div className="p-3 rounded-xl bg-emerald-700 text-white shadow-xs">
-                <Users className="h-6 w-6" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-base font-bold text-stone-900">
-                  Collaborative Project Formation Workspace
-                </h3>
-                <p className="text-xs text-stone-600 max-w-3xl leading-relaxed">
-                  Phase 6 Invariant: Accepting an EOI does NOT form a project. Here, reviewers explicitly select and bundle approved institutional candidates into a unified collaborative project, binding multiple institutions simultaneously and transitioning the challenge into <strong>PROJECT_INITIATED</strong>.
-                </p>
-              </div>
-            </div>
-          </div>
 
-          {formationLoading ? (
-            <div className="p-16 text-center text-xs text-stone-400">
-              <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-stone-400" />
-              Loading accepted candidate pools...
-            </div>
-          ) : Object.keys(challengesWithAcceptedEois).length === 0 ? (
-            <div className="p-16 rounded-2xl border border-dashed border-stone-300 bg-white text-center space-y-3">
-              <FileCheck2 className="h-10 w-10 text-stone-400 mx-auto" />
-              <h3 className="text-sm font-bold text-stone-800">No Accepted Candidates Available</h3>
-              <p className="text-xs text-stone-500 max-w-md mx-auto">
-                No challenges currently have accepted EOIs awaiting project formation. Review incoming EOIs in Tab 2 and accept qualified candidates to build a consortium.
-              </p>
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => setPrimaryTab("eois")}
-                  className="px-4 py-2 rounded-xl bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800 transition shadow-xs"
-                >
-                  Go to EOI Review Queue
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Left Column: Challenge Selector */}
-              <div className="lg:col-span-4 space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-stone-500">
-                  Challenges with Accepted Candidates ({Object.keys(challengesWithAcceptedEois).length})
-                </h3>
 
-                <div className="space-y-2.5">
-                  {Object.entries(challengesWithAcceptedEois).map(([cId, data]) => {
-                    const isSelected = selectedFormationChallengeId === cId;
-                    return (
-                      <button
-                        key={cId}
-                        type="button"
-                        onClick={() => {
-                          setSelectedFormationChallengeId(cId);
-                          setSelectedEoiIds([]);
-                          setProjectTitle(`Collaborative Project: ${data.challenge?.title || ""}`);
-                          setProjectDescription(`Consortium project addressing: ${data.challenge?.title || ""}.`);
-                          setActionSuccess(null);
-                          setActionError(null);
-                        }}
-                        className={`w-full text-left p-4 rounded-xl border transition-all ${
-                          isSelected
-                            ? "border-emerald-600 bg-emerald-50/60 shadow-xs ring-1 ring-emerald-600/20"
-                            : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50/50"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between text-[11px] text-stone-500 pb-1">
-                          <span className="font-semibold text-emerald-800">
-                            {data.eois.length} Accepted EOI{data.eois.length > 1 ? "s" : ""}
-                          </span>
-                          <span className="font-mono text-[10px] text-stone-400">
-                            {data.challenge?.district || "District"}
-                          </span>
-                        </div>
-                        <h4 className="text-xs font-bold text-stone-900 line-clamp-2">
-                          {data.challenge?.title || "Challenge"}
-                        </h4>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Right Column: Multi-select Consortium Builder */}
-              <div className="lg:col-span-8">
-                {currentFormationGroup ? (
-                  <div className="p-6 rounded-2xl border border-stone-200 bg-white space-y-6 shadow-sm">
-                    {/* Header */}
-                    <div>
-                      <span className="text-[10px] font-mono text-stone-400">
-                        Target Challenge: {currentFormationGroup.challenge?.id}
-                      </span>
-                      <h2 className="text-xl font-bold text-stone-900 mt-0.5">
-                        {currentFormationGroup.challenge?.title}
-                      </h2>
-                      <p className="text-xs text-stone-600 mt-1">
-                        Select which approved institutional partners to bundle into this collaborative project.
-                      </p>
-                    </div>
-
-                    {/* Candidate Pool Checklist */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-stone-700">
-                          Accepted Institutional Candidates ({currentFormationGroup.eois.length})
-                        </h4>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (selectedEoiIds.length === currentFormationGroup.eois.length) {
-                              setSelectedEoiIds([]);
-                            } else {
-                              setSelectedEoiIds(currentFormationGroup.eois.map((e) => e.id));
-                            }
-                          }}
-                          className="text-xs font-semibold text-emerald-700 hover:underline"
-                        >
-                          {selectedEoiIds.length === currentFormationGroup.eois.length
-                            ? "Deselect All"
-                            : "Select All Candidates"}
-                        </button>
-                      </div>
-
-                      <div className="space-y-2.5">
-                        {currentFormationGroup.eois.map((eoi) => {
-                          const isChecked = selectedEoiIds.includes(eoi.id);
-                          return (
-                            <div
-                              key={eoi.id}
-                              onClick={() => {
-                                if (isChecked) {
-                                  setSelectedEoiIds((prev) => prev.filter((id) => id !== eoi.id));
-                                } else {
-                                  setSelectedEoiIds((prev) => [...prev, eoi.id]);
-                                }
-                              }}
-                              className={`p-4 rounded-xl border cursor-pointer transition-all flex items-start gap-3.5 ${
-                                isChecked
-                                  ? "border-emerald-600 bg-emerald-50/40 ring-1 ring-emerald-600/20"
-                                  : "border-stone-200 bg-white hover:border-stone-300"
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => {}} // handled by parent onClick
-                                className="mt-1 h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-600"
-                              />
-
-                              <div className="flex-1 space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <span className="font-bold text-xs text-stone-900">
-                                    {eoi.organization?.name}
-                                  </span>
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-stone-100 text-stone-700">
-                                    {eoi.organization?.type?.replace(/_/g, " ")}
-                                  </span>
-                                </div>
-
-                                <p className="text-xs text-stone-600 line-clamp-2">
-                                  {eoi.proposed_contribution || eoi.proposed_approach}
-                                </p>
-
-                                <div className="flex items-center gap-3 pt-1 text-[11px] text-stone-500">
-                                  <span>Lead: <strong>{eoi.collaboration_lead_name || "Unspecified"}</strong></span>
-                                  <span>•</span>
-                                  <span>Timeline: <strong>{eoi.timeline?.replace(/_/g, " ")}</strong></span>
-                                  {eoi.contributions && eoi.contributions.length > 0 && (
-                                    <>
-                                      <span>•</span>
-                                      <span className="text-emerald-700 font-medium">
-                                        {eoi.contributions.length} contribution item{eoi.contributions.length > 1 ? "s" : ""}
-                                      </span>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Consortium Formation Form & Submit */}
-                    <div className="p-5 rounded-2xl bg-stone-50 border border-stone-200 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-stone-900">
-                          Consortium Project Details
-                        </h4>
-                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
-                          {selectedEoiIds.length} candidate{selectedEoiIds.length === 1 ? "" : "s"} selected
-                        </span>
-                      </div>
-
-                      <div className="space-y-3 text-xs">
-                        <div>
-                          <label className="font-semibold text-stone-700 block mb-1">
-                            Collaborative Project Title <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={projectTitle}
-                            onChange={(e) => setProjectTitle(e.target.value)}
-                            placeholder="Enter formalized project title..."
-                            className="w-full rounded-xl border border-stone-300 bg-white p-2.5 text-xs focus:border-emerald-600 focus:outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="font-semibold text-stone-700 block mb-1">
-                            Project Description / Objective Summary
-                          </label>
-                          <textarea
-                            rows={3}
-                            value={projectDescription}
-                            onChange={(e) => setProjectDescription(e.target.value)}
-                            placeholder="State the collaborative mission, target outcome, and consortium governance plan..."
-                            className="w-full rounded-xl border border-stone-300 bg-white p-2.5 text-xs focus:border-emerald-600 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="pt-2">
-                        <button
-                          type="button"
-                          disabled={processingAction || selectedEoiIds.length === 0}
-                          onClick={handleFormCollaborativeProject}
-                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 text-xs font-bold text-white shadow-sm hover:bg-emerald-800 transition disabled:opacity-50"
-                        >
-                          {processingAction ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <FolderGit2 className="h-4 w-4" />
-                          )}
-                          Form Collaborative Project ({selectedEoiIds.length} Institutional Partners)
-                        </button>
-                        <p className="text-[11px] text-stone-500 text-center mt-2">
-                          This will transition the challenge to PROJECT_INITIATED, close further EOI intake, and bind selected institutions to the project.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-16 rounded-2xl border border-dashed border-stone-300 bg-white text-center text-xs text-stone-500">
-                    Select a challenge on the left to review candidate pool and form a consortium.
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* ========================================================= */}
       {/* TAB 4: COLLABORATIVE PROJECTS GOVERNANCE */}
@@ -2989,10 +2571,10 @@ export default function ReviewerQueuePage() {
                                 </td>
                                 <td className="py-2 px-3 font-medium text-stone-900">{m.metric_name}</td>
                                 <td className="py-2 px-3 text-stone-600">
-                                  {m.baseline_value ? `${m.baseline_value} ${m.unit}` : "—"}
+                                  {m.baseline_value ? `${m.baseline_value} ${m.unit}` : "-"}
                                 </td>
                                 <td className="py-2 px-3 text-stone-600">
-                                  {m.target_value ? `${m.target_value} ${m.unit}` : "—"}
+                                  {m.target_value ? `${m.target_value} ${m.unit}` : "-"}
                                 </td>
                                 <td className="py-2 px-3 font-bold text-emerald-700">
                                   {m.actual_value} {m.unit}
@@ -3498,17 +3080,17 @@ export default function ReviewerQueuePage() {
       {/* 1. Kickoff Review Modal */}
       {projectActionModal === "kickoff" && activeProject && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
-            <h3 className="font-bold text-sm text-stone-900">Government Review: Kickoff Formulation</h3>
-            <p className="text-xs text-stone-600">Review the consortium's objectives and timeline before activating real-world project execution.</p>
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="font-bold text-sm text-stone-900 break-words">Government Review: Kickoff Formulation</h3>
+            <p className="text-xs text-stone-600 break-words">Review the consortium&apos;s objectives and timeline before activating real-world project execution.</p>
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-stone-700 block mb-1">Decision</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setReviewDecision("APPROVE")}
-                    className={`py-2 px-3 rounded-xl border text-xs font-bold ${
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold text-center break-words ${
                       reviewDecision === "APPROVE" ? "bg-emerald-50 text-emerald-900 border-emerald-300" : "bg-white text-stone-600 border-stone-200"
                     }`}
                   >
@@ -3517,7 +3099,7 @@ export default function ReviewerQueuePage() {
                   <button
                     type="button"
                     onClick={() => setReviewDecision("REQUEST_REVISION")}
-                    className={`py-2 px-3 rounded-xl border text-xs font-bold ${
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold text-center break-words ${
                       reviewDecision === "REQUEST_REVISION" ? "bg-orange-50 text-orange-900 border-orange-300" : "bg-white text-stone-600 border-stone-200"
                     }`}
                   >
@@ -3536,9 +3118,9 @@ export default function ReviewerQueuePage() {
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-3 border-t border-stone-100">
-              <button onClick={() => setProjectActionModal(null)} className="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold">Cancel</button>
-              <button onClick={handleKickoffReview} disabled={processingAction} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-stone-100">
+              <button onClick={() => setProjectActionModal(null)} className="px-4 py-2.5 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold text-center">Cancel</button>
+              <button onClick={handleKickoffReview} disabled={processingAction} className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold text-center">
                 {processingAction ? "Processing..." : "Submit Kickoff Review"}
               </button>
             </div>
@@ -3549,17 +3131,17 @@ export default function ReviewerQueuePage() {
       {/* 2. Milestone Review Modal */}
       {projectActionModal === "milestone" && activeProject && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
-            <h3 className="font-bold text-sm text-stone-900">Government Review: Milestone Completion</h3>
-            <p className="text-xs text-stone-600">Approval permanently locks the milestone and advances to the next stage. Requesting revision unlocks it for editing.</p>
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="font-bold text-sm text-stone-900 break-words">Government Review: Milestone Completion</h3>
+            <p className="text-xs text-stone-600 break-words">Approval permanently locks the milestone and advances to the next stage. Requesting revision unlocks it for editing.</p>
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-stone-700 block mb-1">Decision</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setReviewDecision("APPROVE")}
-                    className={`py-2 px-3 rounded-xl border text-xs font-bold ${
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold text-center break-words ${
                       reviewDecision === "APPROVE" ? "bg-emerald-50 text-emerald-900 border-emerald-300" : "bg-white text-stone-600 border-stone-200"
                     }`}
                   >
@@ -3568,7 +3150,7 @@ export default function ReviewerQueuePage() {
                   <button
                     type="button"
                     onClick={() => setReviewDecision("REQUEST_REVISION")}
-                    className={`py-2 px-3 rounded-xl border text-xs font-bold ${
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold text-center break-words ${
                       reviewDecision === "REQUEST_REVISION" ? "bg-orange-50 text-orange-900 border-orange-300" : "bg-white text-stone-600 border-stone-200"
                     }`}
                   >
@@ -3587,9 +3169,9 @@ export default function ReviewerQueuePage() {
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-3 border-t border-stone-100">
-              <button onClick={() => setProjectActionModal(null)} className="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold">Cancel</button>
-              <button onClick={handleMilestoneReview} disabled={processingAction} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-stone-100">
+              <button onClick={() => setProjectActionModal(null)} className="px-4 py-2.5 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold text-center">Cancel</button>
+              <button onClick={handleMilestoneReview} disabled={processingAction} className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold text-center">
                 {processingAction ? "Processing..." : "Submit Milestone Review"}
               </button>
             </div>
@@ -3600,17 +3182,17 @@ export default function ReviewerQueuePage() {
       {/* 3. Blocker Review Modal */}
       {projectActionModal === "blocker" && activeProject && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
-            <h3 className="font-bold text-sm text-stone-900">Government Resolution: Blocker Emergency</h3>
-            <p className="text-xs text-stone-600">Resolving the blocker will automatically unfreeze the project and restore status to ACTIVE.</p>
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="font-bold text-sm text-stone-900 break-words">Government Resolution: Blocker Emergency</h3>
+            <p className="text-xs text-stone-600 break-words">Resolving the blocker will automatically unfreeze the project and restore status to ACTIVE.</p>
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-stone-700 block mb-1">Action</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setReviewDecision("RESOLVE")}
-                    className={`py-2 px-3 rounded-xl border text-xs font-bold ${
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold text-center break-words ${
                       reviewDecision === "RESOLVE" ? "bg-emerald-50 text-emerald-900 border-emerald-300" : "bg-white text-stone-600 border-stone-200"
                     }`}
                   >
@@ -3619,7 +3201,7 @@ export default function ReviewerQueuePage() {
                   <button
                     type="button"
                     onClick={() => setReviewDecision("ACKNOWLEDGE")}
-                    className={`py-2 px-3 rounded-xl border text-xs font-bold ${
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold text-center break-words ${
                       reviewDecision === "ACKNOWLEDGE" ? "bg-stone-100 text-stone-800 border-stone-300" : "bg-white text-stone-600 border-stone-200"
                     }`}
                   >
@@ -3638,9 +3220,9 @@ export default function ReviewerQueuePage() {
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-3 border-t border-stone-100">
-              <button onClick={() => setProjectActionModal(null)} className="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold">Cancel</button>
-              <button onClick={handleBlockerReview} disabled={processingAction} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-stone-100">
+              <button onClick={() => setProjectActionModal(null)} className="px-4 py-2.5 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold text-center">Cancel</button>
+              <button onClick={handleBlockerReview} disabled={processingAction} className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold text-center">
                 {processingAction ? "Saving..." : "Save Blocker Action"}
               </button>
             </div>
@@ -3651,9 +3233,9 @@ export default function ReviewerQueuePage() {
       {/* 4. Complete Project Modal */}
       {projectActionModal === "complete" && activeProject && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
-            <h3 className="font-bold text-sm text-stone-900">Zero-Milestone Completion Guard Check</h3>
-            <p className="text-xs text-stone-600">The server verifies all milestones are APPROVED, at least one deliverable is uploaded, and no blockers remain open.</p>
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="font-bold text-sm text-stone-900 break-words">Zero-Milestone Completion Guard Check</h3>
+            <p className="text-xs text-stone-600 break-words">The server verifies all milestones are APPROVED, at least one deliverable is uploaded, and no blockers remain open.</p>
             <div>
               <label className="text-xs font-semibold text-stone-700 block mb-1">Final Completion Endorsement Comments</label>
               <textarea
@@ -3664,9 +3246,9 @@ export default function ReviewerQueuePage() {
                 className="w-full rounded-xl border border-stone-300 p-2.5 text-xs focus:border-emerald-600 focus:outline-none"
               />
             </div>
-            <div className="flex justify-end gap-2 pt-3 border-t border-stone-100">
-              <button onClick={() => setProjectActionModal(null)} className="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold">Cancel</button>
-              <button onClick={handleCompleteProject} disabled={processingAction} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-stone-100">
+              <button onClick={() => setProjectActionModal(null)} className="px-4 py-2.5 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold text-center">Cancel</button>
+              <button onClick={handleCompleteProject} disabled={processingAction} className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold text-center">
                 {processingAction ? "Validating..." : "Certify Project Completion"}
               </button>
             </div>
@@ -3677,9 +3259,9 @@ export default function ReviewerQueuePage() {
       {/* 5. Impact Verify Modal */}
       {projectActionModal === "impact" && activeProject && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
-            <h3 className="font-bold text-sm text-stone-900">Verify Real-World Project Impact</h3>
-            <p className="text-xs text-stone-600">Final handoff point: Confirm real-world outcomes and beneficiaries served.</p>
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="font-bold text-sm text-stone-900 break-words">Verify Real-World Project Impact</h3>
+            <p className="text-xs text-stone-600 break-words">Final handoff point: Confirm real-world outcomes and beneficiaries served.</p>
             <div>
               <label className="text-xs font-semibold text-stone-700 block mb-1">Impact Verification Statement</label>
               <textarea
@@ -3690,9 +3272,9 @@ export default function ReviewerQueuePage() {
                 className="w-full rounded-xl border border-stone-300 p-2.5 text-xs focus:border-emerald-600 focus:outline-none"
               />
             </div>
-            <div className="flex justify-end gap-2 pt-3 border-t border-stone-100">
-              <button onClick={() => setProjectActionModal(null)} className="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold">Cancel</button>
-              <button onClick={handleImpactVerify} disabled={processingAction} className="px-4 py-2 bg-purple-700 hover:bg-purple-800 text-white rounded-xl text-xs font-bold">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-stone-100">
+              <button onClick={() => setProjectActionModal(null)} className="px-4 py-2.5 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold text-center">Cancel</button>
+              <button onClick={handleImpactVerify} disabled={processingAction} className="px-4 py-2.5 bg-purple-700 hover:bg-purple-800 text-white rounded-xl text-xs font-bold text-center">
                 {processingAction ? "Saving..." : "Verify Impact"}
               </button>
             </div>
@@ -3703,9 +3285,9 @@ export default function ReviewerQueuePage() {
       {/* 6. Terminate Project Modal */}
       {projectActionModal === "terminate" && activeProject && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
-            <h3 className="font-bold text-sm text-red-700">Project Termination Order</h3>
-            <p className="text-xs text-stone-600">This will permanently and irreversibly terminate execution. A detailed, valid reason is mandatory.</p>
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="font-bold text-sm text-red-700 break-words">Project Termination Order</h3>
+            <p className="text-xs text-stone-600 break-words">This will permanently and irreversibly terminate execution. A detailed, valid reason is mandatory.</p>
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-stone-700 block mb-1">Termination Reason <span className="text-red-500">*</span></label>
@@ -3729,9 +3311,9 @@ export default function ReviewerQueuePage() {
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-3 border-t border-stone-100">
-              <button onClick={() => setProjectActionModal(null)} className="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold">Cancel</button>
-              <button onClick={handleTerminateProject} disabled={processingAction} className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white rounded-xl text-xs font-bold">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-stone-100">
+              <button onClick={() => setProjectActionModal(null)} className="px-4 py-2.5 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold text-center">Cancel</button>
+              <button onClick={handleTerminateProject} disabled={processingAction} className="px-4 py-2.5 bg-red-700 hover:bg-red-800 text-white rounded-xl text-xs font-bold text-center">
                 {processingAction ? "Terminating..." : "Confirm Project Termination"}
               </button>
             </div>
@@ -3742,17 +3324,17 @@ export default function ReviewerQueuePage() {
       {/* 7. Approve Impact Verification Modal */}
       {impactActionModal === "approve" && activeImpactAssessment && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-stone-200">
-            <h3 className="font-bold text-sm text-stone-900 flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-emerald-600" />
-              Approve Real-World Impact Verification
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-stone-200 max-h-[90vh] overflow-y-auto">
+            <h3 className="font-bold text-sm text-stone-900 flex items-center gap-2 break-words">
+              <ShieldCheck className="h-5 w-5 text-emerald-600 shrink-0" />
+              <span>Approve Real-World Impact Verification</span>
             </h3>
-            <p className="text-xs text-stone-600 leading-relaxed">
+            <p className="text-xs text-stone-600 leading-relaxed break-words">
               This action verifies that the reported metrics, isolated evidence, and community outcomes are genuine and satisfactory. The project will transition to <span className="font-bold text-emerald-800">IMPACT_VERIFIED</span> and become permanently immutable.
             </p>
             <div>
               <label className="text-xs font-semibold text-stone-700 block mb-1">
-                Official Government Verification Endorsement Notes (Optional)
+                Administrative Review & Oversight Endorsement Notes (Optional)
               </label>
               <textarea
                 rows={3}
@@ -3762,17 +3344,17 @@ export default function ReviewerQueuePage() {
                 className="w-full rounded-xl border border-stone-300 p-2.5 text-xs focus:border-emerald-600 focus:outline-none"
               />
             </div>
-            <div className="flex justify-end gap-2 pt-3 border-t border-stone-100">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-stone-100">
               <button
                 onClick={() => setImpactActionModal(null)}
-                className="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold"
+                className="px-4 py-2.5 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold text-center"
               >
                 Cancel
               </button>
               <button
                 onClick={handleApproveImpactAction}
                 disabled={processingAction}
-                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow-sm"
+                className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow-sm text-center"
               >
                 {processingAction ? "Verifying..." : "Confirm & Seal Impact Verification"}
               </button>
@@ -3784,12 +3366,12 @@ export default function ReviewerQueuePage() {
       {/* 8. Require Revision on Impact Modal */}
       {impactActionModal === "revision" && activeImpactAssessment && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-stone-200">
-            <h3 className="font-bold text-sm text-amber-800 flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-600" />
-              Request Revision on Impact Assessment
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-stone-200 max-h-[90vh] overflow-y-auto">
+            <h3 className="font-bold text-sm text-amber-800 flex items-center gap-2 break-words">
+              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+              <span>Request Revision on Impact Assessment</span>
             </h3>
-            <p className="text-xs text-stone-600 leading-relaxed">
+            <p className="text-xs text-stone-600 leading-relaxed break-words">
               The assessment will transition to <span className="font-bold text-amber-800">REVISION_REQUIRED</span> and unlock for the Consortium Lead to update metrics or provide additional evidence.
             </p>
             <div>
@@ -3805,17 +3387,17 @@ export default function ReviewerQueuePage() {
                 className="w-full rounded-xl border border-amber-300 p-2.5 text-xs focus:border-amber-600 focus:outline-none"
               />
             </div>
-            <div className="flex justify-end gap-2 pt-3 border-t border-stone-100">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-stone-100">
               <button
                 onClick={() => setImpactActionModal(null)}
-                className="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold"
+                className="px-4 py-2.5 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold text-center"
               >
                 Cancel
               </button>
               <button
                 onClick={handleRequireRevisionImpactAction}
                 disabled={processingAction}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow-sm"
+                className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow-sm text-center"
               >
                 {processingAction ? "Sending..." : "Submit Revision Order"}
               </button>
@@ -3827,12 +3409,12 @@ export default function ReviewerQueuePage() {
       {/* 9. Reject Impact Modal */}
       {impactActionModal === "reject" && activeImpactAssessment && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-stone-200">
-            <h3 className="font-bold text-sm text-rose-800 flex items-center gap-2">
-              <XCircle className="h-5 w-5 text-rose-600" />
-              Reject Impact Verification
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-stone-200 max-h-[90vh] overflow-y-auto">
+            <h3 className="font-bold text-sm text-rose-800 flex items-center gap-2 break-words">
+              <XCircle className="h-5 w-5 text-rose-600 shrink-0" />
+              <span>Reject Impact Verification</span>
             </h3>
-            <p className="text-xs text-stone-600 leading-relaxed">
+            <p className="text-xs text-stone-600 leading-relaxed break-words">
               This is a <span className="font-bold text-rose-700">permanent terminal decision</span>. The assessment will be marked <span className="font-bold text-rose-800">REJECTED</span>. The project will remain in COMPLETED state and cannot become IMPACT_VERIFIED.
             </p>
             <div>
@@ -3848,17 +3430,17 @@ export default function ReviewerQueuePage() {
                 className="w-full rounded-xl border border-rose-300 p-2.5 text-xs focus:border-rose-600 focus:outline-none"
               />
             </div>
-            <div className="flex justify-end gap-2 pt-3 border-t border-stone-100">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-stone-100">
               <button
                 onClick={() => setImpactActionModal(null)}
-                className="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold"
+                className="px-4 py-2.5 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold text-center"
               >
                 Cancel
               </button>
               <button
                 onClick={handleRejectImpactAction}
                 disabled={processingAction}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-sm"
+                className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-sm text-center"
               >
                 {processingAction ? "Rejecting..." : "Confirm Final Rejection"}
               </button>
@@ -3870,12 +3452,12 @@ export default function ReviewerQueuePage() {
       {/* 10. Audit Revocation Modal (PLATFORM_ADMIN Only) */}
       {impactActionModal === "revoke" && activeImpactAssessment && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-purple-300">
-            <h3 className="font-bold text-sm text-purple-900 flex items-center gap-2">
-              <Shield className="h-5 w-5 text-purple-700" />
-              Audit Revocation of Verified Impact (Platform Administrator)
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-purple-300 max-h-[90vh] overflow-y-auto">
+            <h3 className="font-bold text-sm text-purple-900 flex items-center gap-2 break-words">
+              <Shield className="h-5 w-5 text-purple-700 shrink-0" />
+              <span>Audit Revocation of Verified Impact (Platform Administrator)</span>
             </h3>
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 space-y-1">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 space-y-1 break-words">
               <p className="font-bold">⚠️ Warning: Controlled Administrative Downgrade</p>
               <p>
                 This administrative action will immediately downgrade the project from <span className="font-bold">IMPACT_VERIFIED</span> back to <span className="font-bold">COMPLETED</span>, and return the Impact Assessment to <span className="font-bold">REVISION_REQUIRED</span>. The original verification will remain permanently logged in the audit history.
@@ -3894,17 +3476,17 @@ export default function ReviewerQueuePage() {
                 className="w-full rounded-xl border border-purple-300 p-2.5 text-xs focus:border-purple-600 focus:outline-none"
               />
             </div>
-            <div className="flex justify-end gap-2 pt-3 border-t border-stone-100">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-stone-100">
               <button
                 onClick={() => setImpactActionModal(null)}
-                className="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold"
+                className="px-4 py-2.5 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold text-center"
               >
                 Cancel
               </button>
               <button
                 onClick={handleRevokeImpactAction}
                 disabled={processingAction}
-                className="px-4 py-2 bg-purple-700 hover:bg-purple-800 text-white rounded-xl text-xs font-bold shadow-sm"
+                className="px-4 py-2.5 bg-purple-700 hover:bg-purple-800 text-white rounded-xl text-xs font-bold shadow-sm text-center"
               >
                 {processingAction ? "Revoking..." : "Execute Audit Revocation"}
               </button>
@@ -3916,12 +3498,12 @@ export default function ReviewerQueuePage() {
       {/* 11. Institutional Capability / Evidence Rejection Modal */}
       {verificationRejectModal && activeVerificationItem && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-rose-300">
-            <h3 className="font-bold text-sm text-rose-900 flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-rose-700" />
-              Rejection of Capability / Evidence Submission
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-rose-300 max-h-[90vh] overflow-y-auto">
+            <h3 className="font-bold text-sm text-rose-900 flex items-center gap-2 break-words">
+              <AlertTriangle className="h-5 w-5 text-rose-700 shrink-0" />
+              <span>Rejection of Capability / Evidence Submission</span>
             </h3>
-            <p className="text-xs text-stone-600">
+            <p className="text-xs text-stone-600 break-words">
               State the audit grounds or deficiencies found. A mandatory explanation is permanently recorded in the verification audit ledger.
             </p>
             <div>
@@ -3937,23 +3519,30 @@ export default function ReviewerQueuePage() {
                 className="w-full rounded-xl border border-rose-300 p-2.5 text-xs focus:border-rose-600 focus:outline-none"
               />
             </div>
-            <div className="flex justify-end gap-2 pt-3 border-t border-stone-100">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-stone-100">
               <button
                 onClick={() => setVerificationRejectModal(false)}
-                className="px-4 py-2 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold"
+                className="px-4 py-2.5 bg-stone-100 text-stone-600 rounded-xl text-xs font-semibold text-center"
               >
                 Cancel
               </button>
               <button
                 onClick={handleRejectVerification}
                 disabled={processingAction || !verificationRejectionNotes.trim()}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-sm disabled:opacity-50"
+                className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-sm disabled:opacity-50 text-center"
               >
                 {processingAction ? "Rejecting..." : "Confirm Rejection"}
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* TAB 9: PRI & ULB REPRESENTATIVE AUTHORITY VERIFICATION */}
+      {/* ========================================================= */}
+      {primaryTab === "pri_ulb" && (
+        <PriUlbVerificationQueue apiUrl={apiUrl} token={token} />
       )}
     </div>
   );

@@ -7,7 +7,7 @@ import { ChallengeAiAnalysis } from '../src/modules/ai-analysis/entities/challen
 import { RecommendationReview } from '../src/modules/reviews/entities/recommendation-review.entity';
 import { ChallengeStatus, ProblemClusterStatus, ClusteringStatus } from '../src/common/enums';
 
-const API_BASE = 'http://localhost:3001/api';
+const API_BASE = 'http://127.0.0.1:3001/api';
 const AI_BASE = 'http://127.0.0.1:8000';
 
 let passedCount = 0;

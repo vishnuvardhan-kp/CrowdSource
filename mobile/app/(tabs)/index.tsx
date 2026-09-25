@@ -181,19 +181,35 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          <Button
-            title="Report a Civic Problem"
-            icon={<Ionicons name="add-circle" size={20} color={theme.colors.textInverse} />}
-            onPress={() => {
-              if (!token) {
-                router.push('/(auth)/login');
-              } else {
-                router.push('/report/new');
-              }
-            }}
-            size="lg"
-            style={styles.heroCtaButton}
-          />
+          <View style={styles.heroActionRow}>
+            <Button
+              title="Report Problem"
+              icon={<Ionicons name="add-circle" size={18} color={theme.colors.textInverse} />}
+              onPress={() => {
+                if (!token) {
+                  router.push('/(auth)/login');
+                } else {
+                  router.push('/report/new');
+                }
+              }}
+              size="md"
+              style={styles.heroCtaButton}
+            />
+            <Button
+              title="Speak to Report"
+              variant="outline"
+              icon={<Ionicons name="mic" size={18} color={theme.colors.primary} />}
+              onPress={() => {
+                if (!token) {
+                  router.push('/(auth)/login');
+                } else {
+                  router.push('/report/voice');
+                }
+              }}
+              size="md"
+              style={styles.heroVoiceButton}
+            />
+          </View>
         </View>
 
         {/* Citizen Impact / Stats Grid */}
@@ -393,8 +409,16 @@ const styles = StyleSheet.create({
     marginTop: 4,
     lineHeight: 20,
   },
+  heroActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: theme.spacing.xs,
+  },
   heroCtaButton: {
-    width: '100%',
+    flex: 1,
+  },
+  heroVoiceButton: {
+    flex: 1,
   },
   statsContainer: {
     flexDirection: 'row',

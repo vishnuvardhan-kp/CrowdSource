@@ -70,6 +70,17 @@ export class ChallengesController {
     return this.challengesService.createDraft(dto, userId);
   }
 
+  // 1.1 Create Draft alias (/challenges/draft)
+  @Post('draft')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.CREATED)
+  async createDraftAlias(
+    @Body() dto: CreateChallengeDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.challengesService.createDraft(dto, userId);
+  }
+
   // 2. Public Challenge Discovery (strictly excludes drafts)
   @Get()
   async getPublicChallenges(
@@ -108,6 +119,17 @@ export class ChallengesController {
     res.setHeader('Content-Type', mimeType);
     res.setHeader('Cache-Control', 'public, max-age=86400');
     return res.sendFile(filePath);
+  }
+
+  // 5.1 Development/Test Only: Reset Submission Limits
+  @Post('dev-reset-limits')
+  @HttpCode(HttpStatus.OK)
+  async devResetLimits(
+    @Body('email') email?: string,
+    @Headers('authorization') authHeader?: string,
+  ) {
+    const userId = this.extractOptionalUserId(authHeader);
+    return this.challengesService.resetUserSubmissionLimits(userId, email);
   }
 
   // 6. Challenge Detail Page
@@ -177,8 +199,10 @@ export class ChallengesController {
   async submitChallenge(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id') userId: string,
+    @Req() req: Request,
   ) {
-    return this.challengesService.submitChallenge(id, userId);
+    const correlationId = (req as any)?.correlationId;
+    return this.challengesService.submitChallenge(id, userId, correlationId);
   }
 
   // 10. Community Confirmation ("I experience this problem too")

@@ -100,12 +100,12 @@ export class ProblemCluster {
   @Column({
     type: 'enum',
     enum: ProblemClusterStatus,
-    default: ProblemClusterStatus.AWAITING_GOVERNMENT_VERIFICATION,
+    default: ProblemClusterStatus.OPEN_FOR_SOLUTIONS,
   })
-  status: ProblemClusterStatus;
+  status: ProblemClusterStatus = ProblemClusterStatus.OPEN_FOR_SOLUTIONS;
 
-  @Column({ type: 'varchar', length: 50, default: 'PENDING' })
-  government_verification_status: string;
+  @Column({ type: 'varchar', length: 50, default: 'NOT_REQUIRED' })
+  government_verification_status: string = 'NOT_REQUIRED';
 
   @Column({ type: 'timestamptz', nullable: true })
   verified_at: Date;

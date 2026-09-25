@@ -486,7 +486,7 @@ export function ProblemClustersQueue({
                   <div className="space-y-1">
                     <h4 className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
                       <ShieldCheck className="h-4 w-4 text-emerald-700" />
-                      Single Government Verification
+                      Administrative Cluster Review & Oversight
                     </h4>
                     <p className="text-[11px] text-emerald-800 leading-relaxed max-w-xl">
                       Validating this problem cluster automatically verifies all{" "}
@@ -672,7 +672,7 @@ export function ProblemClustersQueue({
                             <div className="space-y-1">
                               <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1">
                                 <Globe className="h-3 w-3 text-emerald-700" />
-                                Citizen's Original Text ({report.original_language ? report.original_language.toUpperCase() : "Native"})
+                                Citizen&apos;s Original Text ({report.original_language ? report.original_language.toUpperCase() : "Native"})
                               </span>
                               <p className="text-xs text-stone-800 leading-relaxed bg-stone-50 p-2.5 rounded-lg border border-stone-200">
                                 {report.original_text || report.description}
@@ -741,12 +741,12 @@ export function ProblemClustersQueue({
       {/* Rejection Modal */}
       {rejectModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-2xs p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full space-y-4 shadow-xl border border-stone-200">
-            <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-              <XCircle className="h-5 w-5 text-red-600" />
-              Reject Problem Cluster
+          <div className="bg-white rounded-2xl p-5 sm:p-6 max-w-md w-full space-y-4 shadow-xl border border-stone-200 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2 break-words">
+              <XCircle className="h-5 w-5 text-red-600 shrink-0" />
+              <span>Reject Problem Cluster</span>
             </h3>
-            <p className="text-xs text-stone-600 leading-relaxed">
+            <p className="text-xs text-stone-600 leading-relaxed break-words">
               Please state the reason for rejecting this problem cluster. A clear, documented rationale is mandatory.
             </p>
             <textarea
@@ -756,21 +756,21 @@ export function ProblemClustersQueue({
               placeholder="e.g. Issue was investigated on-site and confirmed already resolved by local municipal authorities..."
               className="w-full text-xs p-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-red-500/20"
             />
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
               <button
                 onClick={() => {
                   setRejectModalOpen(false);
                   setClusterRejectionReason("");
                 }}
                 disabled={processingAction}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-stone-600 hover:bg-stone-100"
+                className="px-4 py-2.5 rounded-xl text-xs font-semibold text-stone-600 hover:bg-stone-100 text-center"
               >
                 Cancel
               </button>
               <button
                 onClick={handleRejectCluster}
                 disabled={processingAction || !clusterRejectionReason.trim()}
-                className="px-4 py-2 rounded-xl bg-red-700 text-white text-xs font-bold hover:bg-red-800 transition disabled:opacity-50"
+                className="px-4 py-2.5 rounded-xl bg-red-700 text-white text-xs font-bold hover:bg-red-800 transition disabled:opacity-50 text-center"
               >
                 {processingAction ? "Rejecting..." : "Confirm Rejection"}
               </button>

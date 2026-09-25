@@ -206,6 +206,8 @@ export class EoisService {
     }
 
     const openChallengeStatuses = [
+      ChallengeStatus.SUBMITTED,
+      ChallengeStatus.PROCESSING,
       ChallengeStatus.VALIDATED,
       ChallengeStatus.MATCHING,
       ChallengeStatus.MATCHED,
@@ -542,6 +544,15 @@ export class EoisService {
 
     // EOI_SUBMIT_NOTIF
     try {
+      await this.notifService?.notifyUser(
+        userId,
+        NotificationType.EOI_UPDATE,
+        'EOI Submitted Successfully',
+        `Your Expression of Interest for "${ch?.title || 'Challenge'}" was submitted successfully and is under government review.`,
+        'EOI',
+        eoi.id,
+      );
+
       if (ch?.district) {
         await this.notifService?.notifyDistrictOfficers(
           ch.district,
@@ -1074,33 +1085,58 @@ export class EoisService {
    * CRITICAL INVARIANT: NEVER CREATES A PROJECT.
    */
   async acceptEoi(id: string, reviewerId: string): Promise<ExpressionOfInterest> {
-    const eoi = await this.eoiRepo.findOne({ where: { id } });
-    if (!eoi) {
-      throw new NotFoundException(`Expression of Interest with ID "${id}" not found.`);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    let eoi: ExpressionOfInterest;
+    try {
+      const found = await queryRunner.manager.findOne(ExpressionOfInterest, {
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!found) {
+        throw new NotFoundException(`Expression of Interest with ID "${id}" not found.`);
+      }
+
+      // Idempotency: if already ACCEPTED, commit and return immediately
+      if (found.status === EoiStatus.ACCEPTED) {
+        await queryRunner.commitTransaction();
+        return this.getEoiById(id, reviewerId, UserRole.PLATFORM_ADMIN);
+      }
+
+      if (found.status !== EoiStatus.UNDER_REVIEW) {
+        throw new BadRequestException(
+          `Only EOIs currently in UNDER_REVIEW status can be accepted (Current: ${found.status}).`,
+        );
+      }
+
+      // Explicit invariant check: no project creation here
+      found.status = EoiStatus.ACCEPTED;
+      found.accepted_at = new Date();
+      found.reviewed_at = new Date();
+      await queryRunner.manager.save(found);
+
+      // Create audit record atomically within the same transaction
+      const audit = queryRunner.manager.create(EoiReview, {
+        eoi_id: found.id,
+        reviewer_id: reviewerId,
+        action: EoiReviewAction.ACCEPT,
+        previous_status: EoiStatus.UNDER_REVIEW,
+        new_status: EoiStatus.ACCEPTED,
+        notes: 'EOI accepted by reviewer. Awaiting consortium bundling.',
+      });
+      await queryRunner.manager.save(audit);
+
+      await queryRunner.commitTransaction();
+      eoi = found;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
     }
-
-    if (eoi.status !== EoiStatus.UNDER_REVIEW) {
-      throw new BadRequestException(
-        `Only EOIs currently in UNDER_REVIEW status can be accepted (Current: ${eoi.status}).`,
-      );
-    }
-
-    // Explicit invariant check: no project creation here
-    eoi.status = EoiStatus.ACCEPTED;
-    eoi.accepted_at = new Date();
-    eoi.reviewed_at = new Date();
-    await this.eoiRepo.save(eoi);
-
-    // Create audit record
-    const audit = this.eoiReviewRepo.create({
-      eoi_id: eoi.id,
-      reviewer_id: reviewerId,
-      action: EoiReviewAction.ACCEPT,
-      previous_status: EoiStatus.UNDER_REVIEW,
-      new_status: EoiStatus.ACCEPTED,
-      notes: 'EOI accepted by reviewer. Awaiting consortium bundling.',
-    });
-    await this.eoiReviewRepo.save(audit);
 
     // EOI_ACCEPT_NOTIF
     try {
@@ -1376,6 +1412,49 @@ export class EoisService {
 
       // 8. Commit everything atomically
       await queryRunner.commitTransaction();
+
+      // 9. Dispatch notifications to all stakeholders
+      try {
+        // A. Notify original citizen reporter that a collaborative project has been formed
+        if (challenge.submitted_by) {
+          await this.notifService?.notifyUser(
+            challenge.submitted_by,
+            NotificationType.PROJECT_GOVERNANCE,
+            `Collaborative Project Initiated: ${projectTitle}`,
+            `Exciting progress! A collaborative solution consortium has been formed to solve your reported problem: "${challenge.title}". You can track milestones and progress directly.`,
+            'PROJECT',
+            savedProject.id,
+            challenge.district_id,
+            challenge.district,
+          );
+        }
+
+        // B. Notify consortium member organizations
+        for (const eoi of eois) {
+          await this.notifService?.notifyOrganization(
+            eoi.organization_id,
+            NotificationType.PROJECT_GOVERNANCE,
+            `Added to Project Consortium: ${projectTitle}`,
+            `Your organization has been included in the active consortium for "${projectTitle}". View project workspace to coordinate kickoff and milestones.`,
+            'PROJECT',
+            savedProject.id,
+          );
+        }
+
+        // C. Notify district government officers
+        if (challenge.district) {
+          await this.notifService?.notifyDistrictOfficers(
+            challenge.district,
+            NotificationType.PROJECT_GOVERNANCE,
+            `Collaborative Project Formed: ${projectTitle}`,
+            `A collaborative project with ${eois.length} partner organization(s) has been formed for challenge "${challenge.title}".`,
+            'PROJECT',
+            savedProject.id,
+          );
+        }
+      } catch (notifErr: any) {
+        this.logger.warn(`Failed to dispatch project formation notifications: ${notifErr.message}`);
+      }
 
       // Return fully populated project
       return this.projectRepo.findOne({

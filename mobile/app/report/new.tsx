@@ -16,9 +16,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { useAuth } from '../../src/context/AuthContext';
 import { challengesApi } from '../../src/api/challenges';
 import { locationsApi } from '../../src/api/locations';
+import { institutionsApi, InstitutionMembership } from '../../src/api/institutions';
 import { draftStorage } from '../../src/utils/draft-storage';
 import {
   DistrictItem,
@@ -36,7 +38,12 @@ import { useTranslation } from '../../src/context/I18nContext';
 
 export default function NewReportWizard() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ draftId?: string; category?: string }>();
+  const params = useLocalSearchParams<{
+    draftId?: string;
+    category?: string;
+    membershipId?: string;
+    institutionId?: string;
+  }>();
   const { user, token } = useAuth();
   const { t } = useTranslation();
 
@@ -53,7 +60,6 @@ export default function NewReportWizard() {
   const [description, setDescription] = useState('');
 
   // Form State: Step 2
-  const [category, setCategory] = useState<string>(params.category || 'Water & Sanitation');
   const [severity, setSeverity] = useState<CitizenSeverity>(CitizenSeverity.MODERATE);
 
   // Form State: Step 3 (Location)
@@ -71,6 +77,40 @@ export default function NewReportWizard() {
   // Form State: Step 4 (Evidence)
   const [evidenceList, setEvidenceList] = useState<EvidenceItem[]>([]);
   const [uploadingEvidence, setUploadingEvidence] = useState<boolean>(false);
+
+  // Submission Capacity & Community Group State
+  const [verifiedMemberships, setVerifiedMemberships] = useState<InstitutionMembership[]>([]);
+  const [submissionMode, setSubmissionMode] = useState<'INDIVIDUAL' | 'COMMUNITY' | 'INSTITUTIONAL'>('INDIVIDUAL');
+  const [communityGroupName, setCommunityGroupName] = useState<string>('');
+  const [selectedMembershipId, setSelectedMembershipId] = useState<string>('');
+
+  useEffect(() => {
+    if (!token) return;
+    institutionsApi
+      .getMyMemberships()
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const verified = data.filter((m) => m.authority_status === 'VERIFIED');
+          setVerifiedMemberships(verified);
+          if (params.membershipId && verified.some((m) => m.id === params.membershipId)) {
+            setSubmissionMode('INSTITUTIONAL');
+            setSelectedMembershipId(params.membershipId as string);
+            const found = verified.find((m) => m.id === params.membershipId);
+            if (found?.institution?.district_name) {
+              const d = districts.find((x) => x.name.toLowerCase() === found.institution.district_name?.toLowerCase());
+              if (d) setSelectedDistrictId(d.id);
+            }
+          } else if (params.institutionId && verified.some((m) => m.institution_id === params.institutionId)) {
+            const found = verified.find((m) => m.institution_id === params.institutionId);
+            if (found) {
+              setSubmissionMode('INSTITUTIONAL');
+              setSelectedMembershipId(found.id);
+            }
+          }
+        }
+      })
+      .catch((e) => console.log('Error loading memberships in mobile report:', e));
+  }, [token, params, districts]);
 
   // 1. Load Districts on Mount
   useEffect(() => {
@@ -117,7 +157,6 @@ export default function NewReportWizard() {
           setDraftId(data.id);
           setTitle(data.title || '');
           setDescription(data.description || '');
-          if (data.category) setCategory(data.category);
           if (data.citizen_severity) {
             setSeverity(data.citizen_severity as CitizenSeverity);
           }
@@ -187,24 +226,36 @@ export default function NewReportWizard() {
       return;
     }
 
+    if (submissionMode === 'COMMUNITY' && !communityGroupName.trim()) {
+      setErrorMessage('Please enter the name of your community group, SHG, or collective.');
+      return;
+    }
+
+    const selectedMem = verifiedMemberships.find((m) => m.id === selectedMembershipId);
+    const draftPayload: any = {
+      title: title.trim(),
+      description: description.trim(),
+      citizen_severity: severity,
+    };
+    if (submissionMode === 'COMMUNITY') {
+      draftPayload.reporter_type = 'COMMUNITY';
+      draftPayload.community_group_name = communityGroupName.trim();
+    } else if (submissionMode === 'INSTITUTIONAL' && selectedMem) {
+      draftPayload.reporter_type = selectedMem.institution?.type || 'PRI';
+      draftPayload.institution_id = selectedMem.institution_id;
+      draftPayload.institution_membership_id = selectedMem.id;
+    } else {
+      draftPayload.reporter_type = 'INDIVIDUAL';
+    }
+
     setSavingStep(true);
     try {
       if (!draftId) {
-        const created = await challengesApi.createDraft({
-          title: title.trim(),
-          description: description.trim(),
-          category,
-          citizen_severity: severity,
-        });
+        const created = await challengesApi.createDraft(draftPayload);
         setDraftId(created.id);
         await draftStorage.saveActiveDraft(created.id, 2, title.trim());
       } else {
-        await challengesApi.updateDraft(draftId, {
-          title: title.trim(),
-          description: description.trim(),
-          category,
-          citizen_severity: severity,
-        });
+        await challengesApi.updateDraft(draftId, draftPayload);
         await draftStorage.saveActiveDraft(draftId, 2, title.trim());
       }
       setStep(2);
@@ -221,13 +272,12 @@ export default function NewReportWizard() {
     setSavingStep(true);
     try {
       await challengesApi.updateDraft(draftId, {
-        category,
         citizen_severity: severity,
       });
       await draftStorage.saveActiveDraft(draftId, 3, title.trim());
       setStep(3);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to update category.');
+      setErrorMessage(err.message || 'Failed to update community severity assessment.');
     } finally {
       setSavingStep(false);
     }
@@ -265,7 +315,7 @@ export default function NewReportWizard() {
     }
   };
 
-  // Step 4: Camera / Gallery Upload
+  // Step 4: Camera / Gallery Upload (Images & Videos)
   const handlePickMedia = async (useCamera: boolean) => {
     if (!draftId) return;
     setErrorMessage(null);
@@ -278,12 +328,12 @@ export default function NewReportWizard() {
         if (status !== 'granted') {
           Alert.alert(
             'Camera Permission Required',
-            'Please allow camera access to take photos of the civic problem.',
+            'Please allow camera access to capture evidence of the civic problem.',
           );
           return;
         }
         result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ImagePicker.MediaTypeOptions.All,
           allowsEditing: true,
           quality: 0.8,
         });
@@ -291,13 +341,13 @@ export default function NewReportWizard() {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
           Alert.alert(
-            'Photo Permission Required',
-            'Please allow photo library access to attach evidence photos.',
+            'Photo & Video Permission Required',
+            'Please allow photo and video access to attach evidence files.',
           );
           return;
         }
         result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ImagePicker.MediaTypeOptions.All,
           allowsEditing: true,
           quality: 0.8,
         });
@@ -307,18 +357,54 @@ export default function NewReportWizard() {
         const asset = result.assets[0];
         setUploadingEvidence(true);
 
+        const isVideo = asset.type === 'video' || asset.mimeType?.startsWith('video/');
+        const defaultExt = isVideo ? 'mp4' : 'jpg';
+        const defaultMime = isVideo ? 'video/mp4' : 'image/jpeg';
+
         const uploaded = await challengesApi.uploadEvidence(
           draftId,
           asset.uri,
-          asset.fileName || `evidence_${Date.now()}.jpg`,
-          asset.mimeType || 'image/jpeg',
-          'Citizen Evidence',
+          asset.fileName || `evidence_${Date.now()}.${defaultExt}`,
+          asset.mimeType || defaultMime,
+          isVideo ? 'Video Evidence' : 'Photo Evidence',
         );
 
         setEvidenceList((prev) => [...prev, uploaded]);
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to upload photo evidence.');
+      setErrorMessage(err.message || 'Failed to upload multimedia evidence.');
+    } finally {
+      setUploadingEvidence(false);
+    }
+  };
+
+  // Step 4: Supporting Document Upload (PDF / Docs)
+  const handlePickDocument = async () => {
+    if (!draftId) return;
+    setErrorMessage(null);
+
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const doc = result.assets[0];
+        setUploadingEvidence(true);
+
+        const uploaded = await challengesApi.uploadEvidence(
+          draftId,
+          doc.uri,
+          doc.name || `document_${Date.now()}.pdf`,
+          doc.mimeType || 'application/pdf',
+          doc.name || 'Supporting Document',
+        );
+
+        setEvidenceList((prev) => [...prev, uploaded]);
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to upload document.');
     } finally {
       setUploadingEvidence(false);
     }
@@ -352,16 +438,6 @@ export default function NewReportWizard() {
       setSubmitting(false);
     }
   };
-
-  const categoryOptions = [
-    'Water & Sanitation',
-    'Public Infrastructure & Roads',
-    'Agriculture & Soil Resilience',
-    'Rural Healthcare & Telemetry',
-    'Clean Energy & Biomass',
-    'Vocational Skills & Livelihood',
-    'Other Community Need',
-  ];
 
   const currentDistrictName =
     districts.find((d) => d.id === selectedDistrictId)?.name || 'Not Selected';
@@ -409,7 +485,7 @@ export default function NewReportWizard() {
           </View>
           <Text style={styles.successTitle}>Report Submitted Successfully!</Text>
           <Text style={styles.successSubtitle}>
-            Your civic report has been received and is entering AI-assisted analysis and community clustering for government review.
+            Your civic report has been received and is entering AI-assisted analysis and community clustering to open for university and research solutions.
           </Text>
 
           <Card style={styles.successCard}>
@@ -492,12 +568,124 @@ export default function NewReportWizard() {
                 Provide a clear title and details about the issue you are observing in your community.
               </Text>
 
+              {/* Voice Reporting Entrypoint Banner */}
+              <TouchableOpacity
+                style={styles.voiceShortcutBanner}
+                onPress={() => router.replace('/report/voice')}
+                activeOpacity={0.85}
+              >
+                <View style={styles.voiceShortcutIcon}>
+                  <Ionicons name="mic" size={18} color={theme.colors.textInverse} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.voiceShortcutTitle}>
+                    {t('voice.speakPrompt', 'Speak to Report in Your Mother Tongue')}
+                  </Text>
+                  <Text style={styles.voiceShortcutSubtitle}>
+                    {t('voice.preferVoiceHint', 'Tap to report by speaking naturally in Hindi, English, Santhali, or your dialect.')}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.colors.primary} />
+              </TouchableOpacity>
+
               {/* Multilingual Submission Assurance Banner */}
               <View style={styles.multilingualBanner}>
                 <Ionicons name="language" size={18} color={theme.colors.primary} />
                 <Text style={styles.multilingualBannerText}>
                   {t('wizard.input_language_hint')}
                 </Text>
+              </View>
+
+              {/* Submission Capacity Selector */}
+              <View style={{ marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' }}>
+                <Text style={{ fontSize: 11, fontWeight: 'bold', color: theme.colors.text, textTransform: 'uppercase', marginBottom: 8 }}>
+                  Submission Capacity
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
+                  <TouchableOpacity
+                    onPress={() => setSubmissionMode('INDIVIDUAL')}
+                    style={{
+                      flex: 1,
+                      padding: 8,
+                      borderRadius: 8,
+                      borderWidth: 1.5,
+                      borderColor: submissionMode === 'INDIVIDUAL' ? theme.colors.primary : '#CBD5E1',
+                      backgroundColor: submissionMode === 'INDIVIDUAL' ? '#EFF6FF' : '#FFFFFF',
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: 'bold', color: theme.colors.text }}>Individual</Text>
+                    <Text style={{ fontSize: 9, color: theme.colors.textMuted }}>Citizen</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => setSubmissionMode('COMMUNITY')}
+                    style={{
+                      flex: 1,
+                      padding: 8,
+                      borderRadius: 8,
+                      borderWidth: 1.5,
+                      borderColor: submissionMode === 'COMMUNITY' ? theme.colors.primary : '#CBD5E1',
+                      backgroundColor: submissionMode === 'COMMUNITY' ? '#EFF6FF' : '#FFFFFF',
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: 'bold', color: theme.colors.text }}>Community</Text>
+                    <Text style={{ fontSize: 9, color: theme.colors.textMuted }}>SHG / Collective</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSubmissionMode('INSTITUTIONAL');
+                      if (!selectedMembershipId && verifiedMemberships[0]) {
+                        setSelectedMembershipId(verifiedMemberships[0].id);
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: 8,
+                      borderRadius: 8,
+                      borderWidth: 1.5,
+                      borderColor: submissionMode === 'INSTITUTIONAL' ? theme.colors.primary : '#CBD5E1',
+                      backgroundColor: submissionMode === 'INSTITUTIONAL' ? '#EFF6FF' : '#FFFFFF',
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: 'bold', color: theme.colors.text }}>PRI / ULB</Text>
+                    <Text style={{ fontSize: 9, color: theme.colors.textMuted }}>Official Body</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {submissionMode === 'COMMUNITY' && (
+                  <View style={{ marginTop: 6 }}>
+                    <Input
+                      label="Community Group / Organization Name"
+                      placeholder="e.g. Mahila Mandal, Farmers Collective, Youth Club"
+                      value={communityGroupName}
+                      onChangeText={setCommunityGroupName}
+                      helperText="Specify the collective or community entity you represent."
+                    />
+                  </View>
+                )}
+
+                {submissionMode === 'INSTITUTIONAL' && (
+                  verifiedMemberships.length > 0 ? (
+                    <View style={{ marginTop: 4, padding: 8, borderRadius: 8, backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0' }}>
+                      <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#065F46' }}>
+                        ✓ Verified Local Body Representative
+                      </Text>
+                      <Text style={{ fontSize: 11, color: '#047857', marginTop: 2 }}>
+                        Submitting as {verifiedMemberships.find((m) => m.id === selectedMembershipId)?.designation || verifiedMemberships[0]?.designation} for {verifiedMemberships.find((m) => m.id === selectedMembershipId)?.institution?.name || verifiedMemberships[0]?.institution?.name} (LGD: {verifiedMemberships.find((m) => m.id === selectedMembershipId)?.institution?.lgd_code || verifiedMemberships[0]?.institution?.lgd_code})
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={{ marginTop: 4, padding: 8, borderRadius: 8, backgroundColor: '#FEF3C7', borderWidth: 1, borderColor: '#FDE68A' }}>
+                      <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#92400E' }}>
+                        Institutional Verification Required
+                      </Text>
+                      <Text style={{ fontSize: 11, color: '#B45309', marginTop: 2 }}>
+                        To submit with verified PRI/ULB authority, please complete institutional onboarding in Profile, or submit as Individual / Community Group.
+                      </Text>
+                    </View>
+                  )
+                )}
               </View>
 
               <Input
@@ -530,39 +718,29 @@ export default function NewReportWizard() {
             </View>
           )}
 
-          {/* STEP 2: Category & Severity */}
+          {/* STEP 2: Community Impact & Severity */}
           {step === 2 && (
             <View>
-              <Text style={styles.stepHeading}>Category & Severity</Text>
+              <Text style={styles.stepHeading}>Community Impact & Severity</Text>
               <Text style={styles.stepSubheading}>
-                Select the primary civic domain and your assessment of community disruption.
+                Assess how significantly this issue disrupts daily life, health, or local livelihood.
               </Text>
 
-              <Text style={styles.fieldLabel}>Civic Domain</Text>
-              <View style={styles.chipGrid}>
-                {categoryOptions.map((cat) => {
-                  const isSelected = category === cat;
-                  return (
-                    <TouchableOpacity
-                      key={cat}
-                      style={[styles.chip, isSelected && styles.chipActive]}
-                      onPress={() => setCategory(cat)}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          isSelected && styles.chipTextActive,
-                        ]}
-                      >
-                        {cat}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+              {/* AI Classification Assurance Notice */}
+              <View style={styles.aiNoticeBanner}>
+                <Ionicons name="sparkles" size={18} color={theme.colors.primary} />
+                <View style={styles.aiNoticeContent}>
+                  <Text style={styles.aiNoticeTitle}>
+                    Automated Civic Intelligence
+                  </Text>
+                  <Text style={styles.aiNoticeText}>
+                    Civic domain, technical categorization, and required institutional capabilities will be automatically structured by SamadhanSetu AI from your problem description upon submission.
+                  </Text>
+                </View>
               </View>
 
-              <Text style={[styles.fieldLabel, { marginTop: theme.spacing.lg }]}>
-                Community Severity Assessment
+              <Text style={styles.fieldLabel}>
+                Community Severity Assessment *
               </Text>
               <View style={styles.severityContainer}>
                 {[
@@ -735,12 +913,12 @@ export default function NewReportWizard() {
             </View>
           )}
 
-          {/* STEP 4: Photo / Video Evidence */}
+          {/* STEP 4: Photo / Video / Document Evidence */}
           {step === 4 && (
             <View>
-              <Text style={styles.stepHeading}>Attach Photo Evidence</Text>
+              <Text style={styles.stepHeading}>Attach Supporting Evidence</Text>
               <Text style={styles.stepSubheading}>
-                Photographic evidence validates ground reality and dramatically accelerates administrative review.
+                Photos, videos, and documents validate ground reality and accelerate university capability matching.
               </Text>
 
               <View style={styles.mediaButtonsRow}>
@@ -750,7 +928,7 @@ export default function NewReportWizard() {
                   disabled={uploadingEvidence}
                 >
                   <Ionicons name="camera" size={24} color={theme.colors.primary} />
-                  <Text style={styles.mediaOptionText}>Take Photo</Text>
+                  <Text style={styles.mediaOptionText}>Camera</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -759,46 +937,73 @@ export default function NewReportWizard() {
                   disabled={uploadingEvidence}
                 >
                   <Ionicons name="images" size={24} color={theme.colors.primary} />
-                  <Text style={styles.mediaOptionText}>Photo Gallery</Text>
+                  <Text style={styles.mediaOptionText}>Media Gallery</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.mediaOptionButton}
+                  onPress={handlePickDocument}
+                  disabled={uploadingEvidence}
+                >
+                  <Ionicons name="document-text" size={24} color={theme.colors.primary} />
+                  <Text style={styles.mediaOptionText}>Document</Text>
                 </TouchableOpacity>
               </View>
 
               {uploadingEvidence && (
                 <View style={styles.uploadingContainer}>
                   <ActivityIndicator size="small" color={theme.colors.primary} />
-                  <Text style={styles.uploadingText}>Uploading photo...</Text>
+                  <Text style={styles.uploadingText}>Uploading evidence file...</Text>
                 </View>
               )}
 
               {/* Uploaded Evidence Gallery */}
               <View style={styles.evidenceGrid}>
-                {evidenceList.map((ev) => (
-                  <View key={ev.id} style={styles.evidenceThumbnailContainer}>
-                    <Image
-                      source={{ uri: ev.url }}
-                      style={styles.evidenceThumbnail}
-                    />
-                    <TouchableOpacity
-                      style={styles.deleteThumbnailButton}
-                      onPress={() => handleDeleteEvidence(ev.id)}
-                    >
-                      <Ionicons name="close" size={14} color="#FFF" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
+                {evidenceList.map((ev) => {
+                  const isImage = !ev.mime_type || ev.mime_type.startsWith('image/') || ev.evidence_type === 'IMAGE';
+                  const isVideo = ev.mime_type?.startsWith('video/') || ev.evidence_type === 'VIDEO';
+                  const isAudio = ev.mime_type?.startsWith('audio/') || ev.evidence_type === 'AUDIO';
+                  return (
+                    <View key={ev.id} style={styles.evidenceThumbnailContainer}>
+                      {isImage ? (
+                        <Image
+                          source={{ uri: ev.url }}
+                          style={styles.evidenceThumbnail}
+                        />
+                      ) : (
+                        <View style={[styles.evidenceThumbnail, { backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', padding: 4 }]}>
+                          <Ionicons
+                            name={isVideo ? 'videocam' : isAudio ? 'musical-notes' : 'document-text'}
+                            size={28}
+                            color={theme.colors.primary}
+                          />
+                          <Text numberOfLines={1} style={{ fontSize: 9, color: theme.colors.textMuted, marginTop: 4 }}>
+                            {ev.title || (isVideo ? 'Video' : isAudio ? 'Audio' : 'Document')}
+                          </Text>
+                        </View>
+                      )}
+                      <TouchableOpacity
+                        style={styles.deleteThumbnailButton}
+                        onPress={() => handleDeleteEvidence(ev.id)}
+                      >
+                        <Ionicons name="close" size={14} color="#FFF" />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
               </View>
 
               {evidenceList.length === 0 && !uploadingEvidence && (
                 <View style={styles.noEvidenceNotice}>
-                  <Ionicons name="image-outline" size={24} color={theme.colors.textMuted} />
+                  <Ionicons name="attach-outline" size={24} color={theme.colors.textMuted} />
                   <Text style={styles.noEvidenceText}>
-                    No photos attached yet. Photos are optional but strongly recommended.
+                    No evidence attached yet. Photos, videos, or documents are optional but strongly recommended.
                   </Text>
                 </View>
               )}
 
               <Button
-                title={evidenceList.length > 0 ? 'Review & Submit' : 'Continue Without Photos'}
+                title={evidenceList.length > 0 ? 'Review & Submit' : 'Continue Without Evidence'}
                 onPress={() => setStep(5)}
                 size="lg"
                 style={styles.stepButton}
@@ -811,7 +1016,7 @@ export default function NewReportWizard() {
             <View>
               <Text style={styles.stepHeading}>Review Your Report</Text>
               <Text style={styles.stepSubheading}>
-                Please confirm the details below before submitting to the Government of Jharkhand portal.
+                Please confirm the details below before submitting to the SamadhanSetu Research & Problem Intelligence Platform.
               </Text>
 
               <Card style={styles.reviewCard}>
@@ -821,8 +1026,24 @@ export default function NewReportWizard() {
                 <View style={styles.reviewDivider} />
 
                 <View style={styles.reviewRow}>
-                  <Text style={styles.reviewLabel}>Category</Text>
-                  <Text style={styles.reviewValue}>{category}</Text>
+                  <Text style={styles.reviewLabel}>Submission Capacity</Text>
+                  <Text style={styles.reviewValue}>
+                    {submissionMode === 'COMMUNITY'
+                      ? `Community: ${communityGroupName}`
+                      : submissionMode === 'INSTITUTIONAL'
+                      ? `PRI/ULB: ${verifiedMemberships.find((m) => m.id === selectedMembershipId)?.institution?.name || 'Local Body'}`
+                      : 'Individual Citizen'}
+                  </Text>
+                </View>
+
+                <View style={styles.reviewRow}>
+                  <Text style={styles.reviewLabel}>Civic Classification</Text>
+                  <View style={styles.aiReviewBadge}>
+                    <Ionicons name="sparkles" size={12} color={theme.colors.primary} />
+                    <Text style={styles.aiReviewBadgeText}>
+                      AI-Derived upon submission
+                    </Text>
+                  </View>
                 </View>
 
                 <View style={styles.reviewRow}>
@@ -855,7 +1076,7 @@ export default function NewReportWizard() {
 
                 <View style={styles.reviewRow}>
                   <Text style={styles.reviewLabel}>Attached Evidence</Text>
-                  <Text style={styles.reviewValue}>{evidenceList.length} photo(s)</Text>
+                  <Text style={styles.reviewValue}>{evidenceList.length} file(s)</Text>
                 </View>
               </Card>
 
@@ -951,32 +1172,46 @@ const styles = StyleSheet.create({
     color: theme.colors.destructiveDark,
     lineHeight: 16,
   },
-  chipGrid: {
+  aiNoticeBanner: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: theme.colors.primary50,
+    borderWidth: 1,
+    borderColor: theme.colors.primaryLight,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.sm,
     marginBottom: theme.spacing.md,
   },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: theme.borderRadius.pill,
-    backgroundColor: theme.colors.card,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+  aiNoticeContent: {
+    flex: 1,
   },
-  chipActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primaryDark,
-  },
-  chipText: {
+  aiNoticeTitle: {
     fontSize: theme.typography.size.xs,
-    color: theme.colors.textSecondary,
-    fontWeight: theme.typography.weight.medium,
-  },
-  chipTextActive: {
-    color: theme.colors.textInverse,
     fontWeight: theme.typography.weight.bold,
+    color: theme.colors.primaryDark,
+    marginBottom: 2,
+  },
+  aiNoticeText: {
+    fontSize: theme.typography.size.xs,
+    color: theme.colors.primaryDark,
+    lineHeight: 17,
+  },
+  aiReviewBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: theme.colors.primary50,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: theme.borderRadius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.primaryLight,
+  },
+  aiReviewBadgeText: {
+    fontSize: 11,
+    fontWeight: theme.typography.weight.semibold,
+    color: theme.colors.primaryDark,
   },
   severityContainer: {
     gap: 8,
@@ -1274,5 +1509,35 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  voiceShortcutBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  voiceShortcutIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  voiceShortcutTitle: {
+    fontSize: theme.typography.size.sm,
+    fontWeight: theme.typography.weight.bold,
+    color: theme.colors.primary,
+    marginBottom: 2,
+  },
+  voiceShortcutSubtitle: {
+    fontSize: theme.typography.size.xs,
+    color: theme.colors.textMuted,
+    lineHeight: 16,
   },
 });

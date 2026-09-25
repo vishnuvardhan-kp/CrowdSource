@@ -265,3 +265,4 @@ export class ImpactVerificationDto {
 export * from './academic-member.dto';
 export * from './project-contribution.dto';
 export * from './innovation-outcome.dto';
+export * from './lifecycle.dto';

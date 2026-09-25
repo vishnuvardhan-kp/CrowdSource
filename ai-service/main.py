@@ -20,6 +20,8 @@ from app.schemas import (
     TranslateResponse,
     SupportedLanguage,
     SupportedLanguagesResponse,
+    AnalyzeImageRelevanceRequest,
+    ImageRelevanceResult,
 )
 from app.providers.factory import get_ai_provider
 from app.taxonomy import normalize_capabilities_batch
@@ -41,10 +43,18 @@ app.add_middleware(
 
 @app.get("/health")
 def health_check():
+    provider_type = settings.AI_PROVIDER.lower().strip()
+    is_available = True
+    status = "healthy"
+    if provider_type == "nvidia" and not settings.NVIDIA_API_KEY:
+        status = "degraded"
+        is_available = False
+
     return {
-        "status": "healthy",
+        "status": status,
         "service": "samadhansetu-ai-service",
         "provider": settings.AI_PROVIDER,
+        "provider_available": is_available,
         "configured_llm": settings.LLM_MODEL,
         "configured_embeddings": settings.EMBEDDING_MODEL,
         "configured_reranker": settings.RERANKER_MODEL,
@@ -81,7 +91,8 @@ async def analyze_challenge(request: AnalyzeChallengeRequest):
         return _challenge_analysis_cache[cache_key]
     provider = get_ai_provider()
     result = await provider.analyze_challenge(request)
-    _challenge_analysis_cache[cache_key] = result
+    if result.model_provider != "nvidia-fallback-mock" and result.confidence > 0:
+        _challenge_analysis_cache[cache_key] = result
     return result
 
 @app.post("/v1/ai/normalize-taxonomy", response_model=NormalizeCapabilitiesResponse)
@@ -226,4 +237,9 @@ async def translate_text(request: TranslateRequest):
         source_language=request.source_language,
         target_language=request.target_language,
     )
+
+@app.post("/v1/ai/analyze-image", response_model=ImageRelevanceResult)
+async def analyze_image_relevance(request: AnalyzeImageRelevanceRequest):
+    provider = get_ai_provider()
+    return await provider.analyze_image_relevance(request)
 

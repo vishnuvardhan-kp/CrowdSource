@@ -1020,6 +1020,23 @@ export class ImpactService {
           'PROJECT',
           assessment.project_id,
         );
+
+        const fullProj = await this.projectRepo.findOne({
+          where: { id: assessment.project_id },
+          relations: ['challenge'],
+        });
+        if (fullProj?.challenge?.submitted_by) {
+          await this.notifService?.notifyUser(
+            fullProj.challenge.submitted_by,
+            NotificationType.IMPACT_UPDATE,
+            `Real-World Impact Verified: ${project.title}`,
+            `The real-world outcomes and impact for your reported problem "${fullProj.challenge.title}" have been officially verified by government authorities. Status: IMPACT VERIFIED.`,
+            'PROJECT',
+            assessment.project_id,
+            fullProj.challenge.district_id,
+            fullProj.challenge.district,
+          );
+        }
       } catch (e) {
         this.logger.warn(`Failed to dispatch impact approval notification: ${e}`);
       }

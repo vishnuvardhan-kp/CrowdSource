@@ -29,7 +29,7 @@ export default function LoginScreen() {
     setErrorMessage(null);
 
     if (!email.trim()) {
-      setErrorMessage('Please enter your email address.');
+      setErrorMessage('Please enter your email or mobile number.');
       return;
     }
     if (!password) {
@@ -90,11 +90,11 @@ export default function LoginScreen() {
             ) : null}
 
             <Input
-              label="Email Address"
-              placeholder="citizen@example.com"
+              label="Email Address or Mobile Number"
+              placeholder="citizen@example.com or 9876543210"
               value={email}
               onChangeText={setEmail}
-              keyboardType="email-address"
+              keyboardType="default"
               autoCapitalize="none"
               autoCorrect={false}
             />
@@ -122,7 +122,7 @@ export default function LoginScreen() {
             >
               <Ionicons name="flash-outline" size={15} color={theme.colors.accentDark} />
               <Text style={styles.demoButtonText}>
-                Fill Demo Credentials (citizen@test.com)
+                Fill Demo Credentials (citizen@example.com)
               </Text>
             </TouchableOpacity>
           </View>

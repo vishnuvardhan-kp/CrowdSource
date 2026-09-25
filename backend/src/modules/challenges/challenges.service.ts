@@ -12,10 +12,10 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, MoreThanOrEqual } from 'typeorm';
+import { Repository, In, MoreThanOrEqual, DataSource } from 'typeorm';
 import { Challenge } from './entities/challenge.entity';
 import { ChallengeConfirmation } from './entities/challenge-confirmation.entity';
-import { ChallengeStatus, UserRole, NotificationType, VerificationStatus } from '../../common/enums';
+import { ChallengeStatus, UserRole, NotificationType, VerificationStatus, ReporterType } from '../../common/enums';
 import { User } from '../users/entities/user.entity';
 import { VerificationRecord } from '../verification/entities/verification-record.entity';
 import { JurisdictionService } from '../auth/services/jurisdiction.service';
@@ -32,6 +32,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { ProblemClustersService } from '../problem-clusters/problem-clusters.service';
 import { AiAnalysisService } from '../ai-analysis/ai-analysis.service';
 import { MatchingService } from '../reviews/matching.service';
+import { InstitutionMembershipsService } from '../institutions/services/institution-memberships.service';
 
 @Injectable()
 export class ChallengesService {
@@ -51,6 +52,7 @@ export class ChallengesService {
     private readonly evidenceService: EvidenceService,
     private readonly draftCleanupService: DraftCleanupService,
     private readonly jurisdictionService: JurisdictionService,
+    private readonly dataSource: DataSource,
     @Optional()
     private readonly notifService?: NotificationsService,
     @Optional()
@@ -61,6 +63,8 @@ export class ChallengesService {
     @Optional()
     @Inject(forwardRef(() => MatchingService))
     private readonly matchingService?: MatchingService,
+    @Optional()
+    private readonly institutionMembershipsService?: InstitutionMembershipsService,
   ) {
     this.maxDailySubmissions = parseInt(
       process.env.MAX_DAILY_CHALLENGE_SUBMISSIONS || '5',
@@ -91,6 +95,83 @@ export class ChallengesService {
       }
     }
 
+    // Zero-trust institutional authorization check
+    let reporterType = dto.reporter_type || ReporterType.INDIVIDUAL;
+    let institutionId: string | null = null;
+    let membershipId: string | null = null;
+    let verificationSnapshot: Record<string, any> | null = null;
+    let valResult: any = null;
+
+    if (
+      reporterType === ReporterType.PRI ||
+      reporterType === ReporterType.ULB ||
+      reporterType === ReporterType.GOVERNMENT_DEPARTMENT
+    ) {
+      if (!dto.institution_id) {
+        throw new BadRequestException(
+          `Official ${reporterType} submissions require an associated institution_id.`,
+        );
+      }
+      if (!this.institutionMembershipsService) {
+        throw new ForbiddenException(
+          'Institutional verification service is currently unavailable.',
+        );
+      }
+
+      valResult = await this.institutionMembershipsService.validateVerifiedMembership(
+        userId,
+        dto.institution_id,
+        dto.institution_membership_id,
+      );
+
+      if (!valResult.valid || !valResult.membership) {
+        throw new ForbiddenException(
+          valResult.error ||
+            'Institutional representative authority is not VERIFIED. Only verified representatives may submit official institutional challenges.',
+        );
+      }
+
+      const mem = valResult.membership;
+      institutionId = mem.institution_id;
+      membershipId = mem.id;
+
+      verificationSnapshot = {
+        institution_id: mem.institution_id,
+        institution_name: mem.institution?.name,
+        canonical_lgd_code: mem.institution?.lgd_code,
+        lgd_code: mem.institution?.lgd_code,
+        institution_type: mem.institution?.type,
+        institution_subtype: mem.institution?.subtype,
+        representative_name: user?.name,
+        representative_email: user?.email,
+        designation: mem.designation,
+        relationship: mem.relationship,
+        verified_relationship: mem.verified_relationship || mem.relationship,
+        authority_source: mem.authority_source,
+        authority_verification_source: mem.authority_source,
+        authority_verification_reference: mem.authority_verification_reference || (mem.metadata as any)?.reference || null,
+        verified_at: mem.verified_at,
+        verification_timestamp: mem.verified_at,
+        verified_by: mem.verified_by,
+        verifier_identity: mem.verified_by,
+        is_verified: true,
+        snapshot_taken_at: new Date().toISOString(),
+      };
+    } else if (reporterType === ReporterType.COMMUNITY) {
+      const groupName = dto.community_group_name?.trim() || 'Community Group / Collective';
+      verificationSnapshot = {
+        reporter_type: ReporterType.COMMUNITY,
+        community_group_name: groupName,
+        submitted_by_name: user?.name || null,
+        submitted_by_email: user?.email || null,
+        is_community_collective: true,
+        snapshot_taken_at: new Date().toISOString(),
+      };
+    }
+
+    const resolvedDistrictId = dto.district_id || valResult?.membership?.institution?.district_id || null;
+    const resolvedBlockId = dto.block_id || valResult?.membership?.institution?.block_id || null;
+
     const challenge = this.challengeRepo.create({
       title: dto.title,
       description: dto.description,
@@ -102,27 +183,62 @@ export class ChallengesService {
       translation_metadata: {},
       submitted_by: userId,
       status: ChallengeStatus.DRAFT,
-      district_id: dto.district_id || null,
-      block_id: dto.block_id || null,
+      reporter_type: reporterType,
+      institution_id: institutionId,
+      institution_membership_id: membershipId,
+      verification_snapshot: verificationSnapshot,
+      district_id: resolvedDistrictId,
+      block_id: resolvedBlockId,
       village_locality: dto.village_locality || null,
       location: dto.village_locality || null,
       citizen_severity: dto.citizen_severity || null,
       affected_population: dto.affected_population || null,
       latitude: dto.latitude || null,
       longitude: dto.longitude || null,
-      category: dto.category || 'General',
+      category: dto.category || (dto.domain) || 'General',
     });
 
     // Populate district and state strings if district_id provided
-    if (dto.district_id) {
-      const district = await this.locationsService.getDistrictById(dto.district_id);
+    if (resolvedDistrictId) {
+      const district = await this.locationsService.getDistrictById(resolvedDistrictId);
       if (district) {
         challenge.district = district.name;
         challenge.state = district.state;
       }
     }
 
-    return this.challengeRepo.save(challenge);
+    const saved = await this.challengeRepo.save(challenge);
+
+    // Attach voice recording audio evidence if passed from voice assistant
+    if (dto.audio_evidence_url && this.evidenceService) {
+      try {
+        await this.evidenceService.attachAudioEvidenceByUrl(
+          saved.id,
+          userId,
+          dto.audio_evidence_url,
+          'Citizen Voice Recording Evidence',
+        );
+      } catch (audioErr: any) {
+        this.logger.warn(`Failed to attach audio evidence to challenge ${saved.id}: ${audioErr.message}`);
+      }
+    }
+
+    // Pre-seed ChallengeAiAnalysis with voice-extracted domain/subdomain so they are
+    // immediately available even if the post-submission FastAPI AI call later times out.
+    if (dto.domain && this.aiAnalysisService) {
+      try {
+        await this.aiAnalysisService.preseedVoiceDomain(
+          saved.id,
+          dto.domain,
+          dto.sub_domain || null,
+          dto.category || dto.domain,
+        );
+      } catch (e: any) {
+        this.logger.warn(`Voice domain pre-seed skipped for challenge ${saved.id}: ${e.message}`);
+      }
+    }
+
+    return saved;
   }
 
   /**
@@ -195,6 +311,89 @@ export class ChallengesService {
       challenge.block_id = dto.block_id;
     }
 
+    if (dto.reporter_type !== undefined) {
+      if (
+        dto.reporter_type === ReporterType.PRI ||
+        dto.reporter_type === ReporterType.ULB ||
+        dto.reporter_type === ReporterType.GOVERNMENT_DEPARTMENT
+      ) {
+        const targetInstId = dto.institution_id || challenge.institution_id;
+        if (!targetInstId) {
+          throw new BadRequestException(`Official ${dto.reporter_type} submissions require an institution_id.`);
+        }
+        if (!this.institutionMembershipsService) {
+          throw new ForbiddenException('Institutional verification service is currently unavailable.');
+        }
+        const valResult = await this.institutionMembershipsService.validateVerifiedMembership(
+          userId,
+          targetInstId,
+          dto.institution_membership_id || challenge.institution_membership_id || undefined,
+        );
+        if (!valResult.valid || !valResult.membership) {
+          throw new ForbiddenException(valResult.error || 'Representative authority is not verified.');
+        }
+        const mem = valResult.membership;
+        challenge.reporter_type = dto.reporter_type;
+        challenge.institution_id = mem.institution_id;
+        challenge.institution_membership_id = mem.id;
+        const user = await this.userRepo.findOne({ where: { id: userId } });
+        challenge.verification_snapshot = {
+          institution_id: mem.institution_id,
+          institution_name: mem.institution?.name,
+          canonical_lgd_code: mem.institution?.lgd_code,
+          lgd_code: mem.institution?.lgd_code,
+          institution_type: mem.institution?.type,
+          institution_subtype: mem.institution?.subtype,
+          representative_name: user?.name,
+          representative_email: user?.email,
+          designation: mem.designation,
+          relationship: mem.relationship,
+          verified_relationship: mem.verified_relationship || mem.relationship,
+          authority_source: mem.authority_source,
+          authority_verification_source: mem.authority_source,
+          authority_verification_reference: mem.authority_verification_reference || (mem.metadata as any)?.reference || null,
+          verified_at: mem.verified_at,
+          verification_timestamp: mem.verified_at,
+          verified_by: mem.verified_by,
+          verifier_identity: mem.verified_by,
+          is_verified: true,
+          snapshot_taken_at: new Date().toISOString(),
+        };
+      } else if (dto.reporter_type === ReporterType.COMMUNITY) {
+        challenge.reporter_type = ReporterType.COMMUNITY;
+        challenge.institution_id = null as any;
+        challenge.institution_membership_id = null as any;
+        const user = await this.userRepo.findOne({ where: { id: userId } });
+        const groupName = dto.community_group_name?.trim() || (challenge.verification_snapshot as any)?.community_group_name || 'Community Group / Collective';
+        challenge.verification_snapshot = {
+          reporter_type: ReporterType.COMMUNITY,
+          community_group_name: groupName,
+          submitted_by_name: user?.name || null,
+          submitted_by_email: user?.email || null,
+          is_community_collective: true,
+          snapshot_taken_at: new Date().toISOString(),
+        };
+      } else {
+        challenge.reporter_type = dto.reporter_type;
+        challenge.institution_id = null as any;
+        challenge.institution_membership_id = null as any;
+        challenge.verification_snapshot = null as any;
+      }
+    }
+
+    if (dto.audio_evidence_url && this.evidenceService) {
+      try {
+        await this.evidenceService.attachAudioEvidenceByUrl(
+          challenge.id,
+          userId,
+          dto.audio_evidence_url,
+          'Citizen Voice Recording Evidence',
+        );
+      } catch (audioErr: any) {
+        this.logger.warn(`Failed to attach audio evidence in updateDraft for challenge ${challenge.id}: ${audioErr.message}`);
+      }
+    }
+
     return this.challengeRepo.save(challenge);
   }
 
@@ -235,103 +434,276 @@ export class ChallengesService {
    * Submits a draft challenge (transitions DRAFT -> SUBMITTED).
    * Enforces submission rate limits and mandatory field validation.
    */
-  async submitChallenge(id: string, userId: string): Promise<Challenge> {
-    const challenge = await this.challengeRepo.findOne({
-      where: { id },
-      relations: ['districtRef', 'blockRef', 'evidence'],
-    });
+  async submitChallenge(id: string, userId: string, correlationId?: string): Promise<Challenge> {
+    // 1. Rate Limiting Check before claiming transaction
+    const isDev = process.env.NODE_ENV !== 'production';
+    let bypassLimit = false;
 
-    if (!challenge) {
-      throw new NotFoundException(`Challenge with ID "${id}" not found.`);
-    }
+    if (isDev) {
+      const user = await this.userRepo.findOne({ where: { id: userId } });
+      const devBypassEmails = (
+        process.env.DEV_BYPASS_EMAILS ||
+        'citizen@dev.local,kamalvishnu54@gmail.com,shreenidhiu.24cse@kongu.edu,citizen@example.com'
+      )
+        .split(',')
+        .map((e) => e.trim().toLowerCase());
 
-    if (challenge.status !== ChallengeStatus.DRAFT) {
-      throw new BadRequestException('This challenge has already been submitted.');
-    }
-
-    if (challenge.submitted_by !== userId) {
-      throw new ForbiddenException('You can only submit your own draft challenge.');
-    }
-
-    // 1. Rate Limiting: Max submissions per user per 24 hours
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const recentSubmissionsCount = await this.challengeRepo.count({
-      where: {
-        submitted_by: userId,
-        status: In([
-          ChallengeStatus.SUBMITTED,
-          ChallengeStatus.UNDER_REVIEW,
-          ChallengeStatus.VALIDATED,
-          ChallengeStatus.REJECTED,
-        ]),
-        submitted_at: MoreThanOrEqual(oneDayAgo),
-      },
-    });
-
-    if (recentSubmissionsCount >= this.maxDailySubmissions) {
-      throw new HttpException(
-        `Daily challenge submission limit reached (maximum ${this.maxDailySubmissions} submissions per 24 hours).`,
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-
-    // 2. Minimum validation before submission
-    if (!challenge.title || challenge.title.trim().length < 5) {
-      throw new BadRequestException('A clear problem title (at least 5 characters) is required to submit.');
-    }
-    if (!challenge.description || challenge.description.trim().length < 10) {
-      throw new BadRequestException('A problem description (at least 10 characters) is required to submit.');
-    }
-    if (!challenge.district_id) {
-      throw new BadRequestException('District selection is required before submitting.');
-    }
-    if (!challenge.block_id) {
-      throw new BadRequestException('Block selection is required before submitting.');
-    }
-
-    // Sync district name if not populated
-    if (!challenge.district) {
-      const district = await this.locationsService.getDistrictById(challenge.district_id);
-      if (district) {
-        challenge.district = district.name;
-        challenge.state = district.state;
+      if (
+        user &&
+        (devBypassEmails.includes(user.email.toLowerCase()) ||
+          user.email.endsWith('@dev.local'))
+      ) {
+        bypassLimit = true;
       }
     }
 
-    // 3. Transition to SUBMITTED
-    challenge.status = ChallengeStatus.SUBMITTED;
-    challenge.submitted_at = new Date();
+    if (!bypassLimit) {
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const recentSubmissionsCount = await this.challengeRepo.count({
+        where: {
+          submitted_by: userId,
+          status: In([
+            ChallengeStatus.SUBMITTED,
+            ChallengeStatus.UNDER_REVIEW,
+            ChallengeStatus.VALIDATED,
+            ChallengeStatus.REJECTED,
+          ]),
+          submitted_at: MoreThanOrEqual(oneDayAgo),
+        },
+      });
 
-    const savedChallenge = await this.challengeRepo.save(challenge);
+      if (recentSubmissionsCount >= this.maxDailySubmissions) {
+        throw new HttpException(
+          `Daily challenge submission limit reached (maximum ${this.maxDailySubmissions} submissions per 24 hours).`,
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+    }
 
-    // 1. Automated AI Problem Intelligence Pipeline (bounded by 3000ms hard timeout inside aiAnalysisService)
+    // 2. Short atomic state claim (Lock row -> claim transition to PROCESSING -> COMMIT immediately)
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    let savedChallenge: Challenge;
+    let needsClustering = true;
+
+    try {
+      const challenge = await queryRunner.manager.findOne(Challenge, {
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!challenge) {
+        throw new NotFoundException(`Challenge with ID "${id}" not found.`);
+      }
+
+      if (challenge.submitted_by !== userId) {
+        throw new ForbiddenException('You can only submit your own draft challenge.');
+      }
+
+      if (challenge.status === ChallengeStatus.PROCESSING) {
+        // Concurrency Guard: Another concurrent request or process is actively processing this challenge
+        const lastUpdated = challenge.updated_at ? new Date(challenge.updated_at).getTime() : 0;
+        const submittedTime = challenge.submitted_at ? new Date(challenge.submitted_at).getTime() : 0;
+        const claimAgeMs = Date.now() - Math.max(lastUpdated, submittedTime);
+
+        if (claimAgeMs < 45000) {
+          // In-flight active claim: Commit lock and wait for completion rather than duplicate pipeline execution
+          await queryRunner.commitTransaction();
+          await queryRunner.release();
+
+          for (let i = 0; i < 30; i++) {
+            await new Promise((r) => setTimeout(r, 400));
+            const activeReload = await this.challengeRepo.findOne({
+              where: { id },
+              relations: ['districtRef', 'blockRef', 'evidence', 'aiAnalysis', 'cluster'],
+            });
+            if (activeReload && activeReload.status !== ChallengeStatus.PROCESSING) {
+              const res: any = activeReload;
+              if (res.status === ChallengeStatus.SUBMITTED || res.status === ChallengeStatus.UNDER_REVIEW) {
+                res.verification_display_status = 'Pending Government Verification';
+              }
+              return res;
+            }
+          }
+          // If still in processing after wait, return safe snapshot
+          const fallbackReload = await this.challengeRepo.findOne({
+            where: { id },
+            relations: ['districtRef', 'blockRef', 'evidence', 'aiAnalysis', 'cluster'],
+          });
+          const res: any = fallbackReload || challenge;
+          res.verification_display_status = 'Pending Government Verification';
+          return res;
+        } else {
+          // Stale PROCESSING claim (> 45s, likely from server restart): Reclaim and continue
+          this.logger.warn(`Recovering stale PROCESSING challenge ${id} (age: ${claimAgeMs}ms)`);
+          challenge.submitted_at = new Date();
+          savedChallenge = await queryRunner.manager.save(challenge);
+          await queryRunner.commitTransaction();
+        }
+      } else if (challenge.status !== ChallengeStatus.DRAFT) {
+        // Idempotency: If already in SUBMITTED, UNDER_REVIEW, or VALIDATED
+        if (
+          challenge.status === ChallengeStatus.SUBMITTED ||
+          challenge.status === ChallengeStatus.UNDER_REVIEW ||
+          challenge.status === ChallengeStatus.VALIDATED
+        ) {
+          if (challenge.cluster_id) {
+            await queryRunner.commitTransaction();
+            const reloaded = await this.challengeRepo.findOne({
+              where: { id },
+              relations: ['districtRef', 'blockRef', 'evidence', 'aiAnalysis', 'cluster'],
+            });
+            const result: any = reloaded || challenge;
+            result.verification_display_status = 'Pending Government Verification';
+            return result;
+          } else {
+            // Recovery: Interrupted before clustering finished in a previous run.
+            challenge.status = ChallengeStatus.PROCESSING;
+            savedChallenge = await queryRunner.manager.save(challenge);
+            needsClustering = true;
+            await queryRunner.commitTransaction();
+          }
+        } else {
+          throw new BadRequestException(`Challenge cannot be submitted in status "${challenge.status}".`);
+        }
+      } else {
+        // Mandatory field validation before submission
+        if (!challenge.title || challenge.title.trim().length < 5) {
+          throw new BadRequestException('A clear problem title (at least 5 characters) is required to submit.');
+        }
+        if (!challenge.description || challenge.description.trim().length < 10) {
+          throw new BadRequestException('A problem description (at least 10 characters) is required to submit.');
+        }
+        if (!challenge.district_id) {
+          throw new BadRequestException('District selection is required before submitting.');
+        }
+        if (!challenge.block_id) {
+          throw new BadRequestException('Block selection is required before submitting.');
+        }
+
+        // Zero-trust check: Re-verify representative authority if submitting officially
+        if (
+          challenge.reporter_type &&
+          challenge.reporter_type !== ReporterType.INDIVIDUAL &&
+          challenge.institution_id &&
+          this.institutionMembershipsService
+        ) {
+          const valResult = await this.institutionMembershipsService.validateVerifiedMembership(
+            userId,
+            challenge.institution_id,
+            challenge.institution_membership_id || undefined,
+          );
+          if (!valResult.valid) {
+            throw new ForbiddenException(
+              valResult.error ||
+                'Representative authorization has changed or is no longer verified. Only active verified representatives may submit official institutional challenges.',
+            );
+          }
+        }
+
+        if (!challenge.district) {
+          const district = await this.locationsService.getDistrictById(challenge.district_id);
+          if (district) {
+            challenge.district = district.name;
+            challenge.state = district.state;
+          }
+        }
+
+        // Atomically transition DRAFT -> PROCESSING
+        challenge.status = ChallengeStatus.PROCESSING;
+        challenge.submitted_at = new Date();
+        savedChallenge = await queryRunner.manager.save(challenge);
+        await queryRunner.commitTransaction();
+      }
+    } catch (claimErr) {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
+      throw claimErr;
+    } finally {
+      if (!queryRunner.isReleased) {
+        await queryRunner.release();
+      }
+    }
+
+    // 3. Pipeline execution outside of the database row lock
+    // 3A. Automated AI Problem Intelligence Pipeline
     try {
       if (this.aiAnalysisService) {
-        const analysis = await this.aiAnalysisService.analyzeChallenge(savedChallenge.id);
+        const analysis = await this.aiAnalysisService.analyzeChallenge(savedChallenge.id, correlationId);
         (savedChallenge as any).aiAnalysis = analysis;
       }
     } catch (aiErr: any) {
-      this.logger.warn(`AI structuring error on submission: ${aiErr.message}`);
+      this.logger.warn(`AI structuring notice on submission: ${aiErr.message}`);
     }
 
-    // 2. Concurrency-Safe Problem Clustering (with PostgreSQL Transaction Advisory Lock)
-    try {
-      if (this.clustersService) {
+    // 3B. Concurrency-Safe Problem Clustering (with PostgreSQL Transaction Advisory Lock)
+    if (needsClustering && this.clustersService) {
+      try {
         const cluster = await this.clustersService.clusterCitizenReport(savedChallenge.id);
         savedChallenge.cluster_id = cluster.id;
         savedChallenge.cluster = cluster;
+      } catch (clusterErr: any) {
+        this.logger.warn(`Clustering notice on submission: ${clusterErr.message}`);
       }
-    } catch (clusterErr: any) {
-      this.logger.warn(`Clustering error on submission: ${clusterErr.message}`);
     }
 
+    // 3C. Atomically finalize challenge status from PROCESSING to SUBMITTED
+    const finalizeRunner = this.dataSource.createQueryRunner();
+    await finalizeRunner.connect();
+    await finalizeRunner.startTransaction();
     try {
+      const chalToFinalize = await finalizeRunner.manager.findOne(Challenge, {
+        where: { id: savedChallenge.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (chalToFinalize && chalToFinalize.status === ChallengeStatus.PROCESSING) {
+        chalToFinalize.status = ChallengeStatus.SUBMITTED;
+        if (savedChallenge.cluster_id) {
+          chalToFinalize.cluster_id = savedChallenge.cluster_id;
+        }
+        savedChallenge = await finalizeRunner.manager.save(chalToFinalize);
+      }
+      await finalizeRunner.commitTransaction();
+    } catch (finErr: any) {
+      await finalizeRunner.rollbackTransaction();
+      this.logger.error(`Error finalizing challenge status: ${finErr.message}`);
+    } finally {
+      await finalizeRunner.release();
+    }
+
+    // 3D. Direct Architecture: Automated University Capability Matching
+    if (this.matchingService) {
+      try {
+        await this.matchingService.generateRecommendations(savedChallenge.id);
+      } catch (matchErr: any) {
+        this.logger.warn(`Capability matching notice on submission: ${matchErr.message}`);
+      }
+    }
+
+    // 3E. Dispatch notifications
+    try {
+      if (savedChallenge.submitted_by) {
+        await this.notifService?.notifyUser(
+          savedChallenge.submitted_by,
+          NotificationType.CHALLENGE_STATUS,
+          `Problem Submitted Successfully: ${savedChallenge.title}`,
+          `Your problem report has been analyzed by AI and matched with potential university solution providers. You will receive updates as university proposals arrive.`,
+          'CHALLENGE',
+          savedChallenge.id,
+          savedChallenge.district_id,
+          savedChallenge.district,
+        );
+      }
+
       if (savedChallenge.district_id || savedChallenge.district) {
         await this.notifService?.notifyDistrictOfficers(
           savedChallenge.district_id || savedChallenge.district,
           NotificationType.CHALLENGE_STATUS,
           `New Problem Requires Review: ${savedChallenge.title}`,
-          `A new societal problem has been submitted in your jurisdiction (${savedChallenge.district || 'Assigned District'}). Priority: ${savedChallenge.priority || 'MEDIUM'}. Status: Under Verification.`,
+          `A new societal problem has been submitted in your jurisdiction (${savedChallenge.district || 'Assigned District'}). Priority: ${savedChallenge.priority || 'MEDIUM'}. Open for civic monitoring and university solution proposals.`,
           'CHALLENGE',
           savedChallenge.id,
           savedChallenge.district_id,
@@ -349,7 +721,7 @@ export class ChallengesService {
 
     const result: any = reloaded || savedChallenge;
     if (result && (result.status === ChallengeStatus.SUBMITTED || result.status === ChallengeStatus.UNDER_REVIEW)) {
-      result.verification_display_status = 'Pending Government Verification';
+      result.verification_display_status = 'Open for University Solutions';
     }
     return result;
   }
@@ -375,6 +747,11 @@ export class ChallengesService {
       ChallengeStatus.SUBMITTED,
       ChallengeStatus.UNDER_REVIEW,
       ChallengeStatus.VALIDATED,
+      ChallengeStatus.MATCHING,
+      ChallengeStatus.MATCHED,
+      ChallengeStatus.IN_PROGRESS,
+      ChallengeStatus.COMPLETED,
+      ChallengeStatus.PROJECT_INITIATED,
     ];
 
     if (query.status && allowedStatuses.includes(query.status)) {
@@ -436,6 +813,12 @@ export class ChallengesService {
       processing_language: item.processing_language,
       translation_status: item.translation_status,
       translation_metadata: item.translation_metadata,
+      professional_title: item.professional_title,
+      professional_problem_statement: item.professional_problem_statement,
+      citizen_facts: item.citizen_facts || [],
+      platform_metadata: item.platform_metadata || {},
+      refinement_status: item.refinement_status,
+      refined_at: item.refined_at,
       district: item.district,
       state: item.state,
       village_locality: item.village_locality,
@@ -534,6 +917,12 @@ export class ChallengesService {
       processing_language: challenge.processing_language,
       translation_status: challenge.translation_status,
       translation_metadata: challenge.translation_metadata,
+      professional_title: challenge.professional_title,
+      professional_problem_statement: challenge.professional_problem_statement,
+      citizen_facts: challenge.citizen_facts || challenge.aiAnalysis?.citizen_facts || [],
+      platform_metadata: challenge.platform_metadata || challenge.aiAnalysis?.platform_metadata || {},
+      refinement_status: challenge.refinement_status,
+      refined_at: challenge.refined_at,
       district_id: challenge.district_id,
       block_id: challenge.block_id,
       district: challenge.district,
@@ -556,6 +945,7 @@ export class ChallengesService {
       validated_at: challenge.validated_at,
       rejection_reason: challenge.rejection_reason,
       cluster_id: challenge.cluster_id || null,
+      potential_cluster_id: challenge.potential_cluster_id || null,
       clustering_status: challenge.clustering_status || null,
       cluster: challenge.cluster
         ? {
@@ -581,6 +971,13 @@ export class ChallengesService {
             category: challenge.aiAnalysis.category || null,
             sub_category: challenge.aiAnalysis.sub_category || null,
             summary: challenge.aiAnalysis.summary,
+            professional_title: challenge.aiAnalysis.professional_title,
+            professional_problem_statement: challenge.aiAnalysis.professional_problem_statement,
+            citizen_facts: challenge.aiAnalysis.citizen_facts || challenge.citizen_facts || [],
+            platform_metadata: challenge.aiAnalysis.platform_metadata || challenge.platform_metadata || {},
+            key_facts: challenge.aiAnalysis.key_facts || challenge.aiAnalysis.citizen_facts || [],
+            refinement_status: challenge.aiAnalysis.refinement_status,
+            refined_at: challenge.aiAnalysis.refined_at,
             required_technologies: challenge.aiAnalysis.required_technologies || [],
             required_capabilities: challenge.aiAnalysis.required_capabilities || [],
             keywords: challenge.aiAnalysis.keywords || [],
@@ -603,7 +1000,9 @@ export class ChallengesService {
       confirmationsCount,
       hasConfirmed,
       isOwner,
+      submitter_id: challenge.submitted_by,
       submitter: {
+        id: challenge.submitted_by,
         name: isOwner ? challenge.submitter?.name || 'You' : 'Community Member',
       },
     };
@@ -635,6 +1034,12 @@ export class ChallengesService {
         processing_language: c.processing_language,
         translation_status: c.translation_status,
         translation_metadata: c.translation_metadata,
+        professional_title: c.professional_title,
+        professional_problem_statement: c.professional_problem_statement,
+        citizen_facts: c.citizen_facts || [],
+        platform_metadata: c.platform_metadata || {},
+        refinement_status: c.refinement_status,
+        refined_at: c.refined_at,
         status: c.status,
         verification_display_status:
           c.status === ChallengeStatus.VALIDATED
@@ -642,6 +1047,9 @@ export class ChallengesService {
             : c.status === ChallengeStatus.REJECTED
             ? 'Rejected'
             : 'Pending Government Verification',
+        cluster_id: c.cluster_id || null,
+        potential_cluster_id: c.potential_cluster_id || null,
+        clustering_status: c.clustering_status || null,
         district_id: c.district_id,
         block_id: c.block_id,
         districtName: c.districtRef?.name || c.district,
@@ -1024,14 +1432,18 @@ export class ChallengesService {
       targetLanguage,
     );
 
-    if (translationRes.translated_text) {
+    const effectiveTranslatedText =
+      translationRes.translated_text ||
+      (targetLanguage === 'en' ? challenge.normalized_text : null);
+
+    if (effectiveTranslatedText) {
       cachedTranslations[targetLanguage] = {
-        text: translationRes.translated_text,
-        confidence: translationRes.confidence,
-        provider: translationRes.provider,
-        model: translationRes.model,
+        text: effectiveTranslatedText,
+        confidence: translationRes.confidence || 0.85,
+        provider: translationRes.provider || 'pipeline_normalized',
+        model: translationRes.model || 'normalized_fallback',
         translated_at: new Date().toISOString(),
-        requires_review: translationRes.requires_review,
+        requires_review: translationRes.requires_review || false,
       };
       challenge.translation_metadata = {
         ...currentMeta,
@@ -1044,14 +1456,66 @@ export class ChallengesService {
       challenge_id: challenge.id,
       original_text: textToTranslate,
       original_language: challenge.original_language || 'auto',
-      translated_text: translationRes.translated_text,
-      translated_description: translationRes.translated_text,
+      translated_text: effectiveTranslatedText,
+      translated_description: effectiveTranslatedText,
       target_language: targetLanguage,
-      confidence: translationRes.confidence,
-      provider: translationRes.provider,
+      confidence: translationRes.confidence || 0.85,
+      provider: translationRes.provider || 'pipeline_normalized',
       cached: false,
-      requires_review: translationRes.requires_review,
+      requires_review: translationRes.requires_review || false,
       failure_reason: translationRes.failure_reason,
     };
   }
+
+  /**
+   * Development/test-only method to reset daily submission limits for a user.
+   * Shifts recent submissions older than 24 hours so rate limiting resets to 0.
+   */
+  async resetUserSubmissionLimits(
+    userId?: string,
+    email?: string,
+  ): Promise<{ success: boolean; message: string; count: number }> {
+    if (process.env.NODE_ENV === 'production') {
+      throw new ForbiddenException('Rate limit reset is only available in development and test environments.');
+    }
+
+    let targetUserId = userId;
+    if (email) {
+      const user = await this.userRepo.findOne({ where: { email } });
+      if (!user) {
+        throw new NotFoundException(`User with email "${email}" not found.`);
+      }
+      targetUserId = user.id;
+    }
+
+    if (!targetUserId) {
+      throw new BadRequestException('User ID or email must be provided to reset limits.');
+    }
+
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const twentyFiveHoursAgo = new Date(Date.now() - 25 * 60 * 60 * 1000);
+
+    const challenges = await this.challengeRepo.find({
+      where: {
+        submitted_by: targetUserId,
+        submitted_at: MoreThanOrEqual(oneDayAgo),
+      },
+    });
+
+    for (const challenge of challenges) {
+      challenge.submitted_at = twentyFiveHoursAgo;
+      await this.challengeRepo.save(challenge);
+    }
+
+    this.logger.log(
+      `[Dev] Reset daily submission limits for user ${targetUserId} (${challenges.length} challenges shifted to >24h ago)`,
+    );
+
+    return {
+      success: true,
+      message: `Successfully reset daily submission limit for user (${challenges.length} records shifted).`,
+      count: challenges.length,
+    };
+  }
 }
+

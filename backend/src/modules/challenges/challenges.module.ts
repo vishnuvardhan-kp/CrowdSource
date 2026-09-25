@@ -17,6 +17,7 @@ import { ProblemClustersModule } from '../problem-clusters/problem-clusters.modu
 import { AiAnalysisModule } from '../ai-analysis/ai-analysis.module';
 import { AuthModule } from '../auth/auth.module';
 import { ReviewsModule } from '../reviews/reviews.module';
+import { InstitutionsModule } from '../institutions/institutions.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { ReviewsModule } from '../reviews/reviews.module';
     NotificationsModule,
     ProblemClustersModule,
     AuthModule,
+    InstitutionsModule,
     forwardRef(() => AiAnalysisModule),
     forwardRef(() => ReviewsModule),
     JwtModule.registerAsync({

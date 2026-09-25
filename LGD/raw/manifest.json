@@ -1,0 +1,30 @@
+[
+  {
+    "original_zip_entry": "districtofSpecificState2026:09:23:22:44:32:839.xls",
+    "raw_filename": "districtofSpecificState2026-09-23-22-44-32-839.xls",
+    "byte_size": 28552,
+    "compressed_size": 2239,
+    "sha256": "8984ec7ab6b847fb99f5f005cad312f18e6e91df498a0319dc512a4d621e8e92"
+  },
+  {
+    "original_zip_entry": "priLbSpecificState2026:09:23:22:44:33:257.xls",
+    "raw_filename": "priLbSpecificState2026-09-23-22-44-33-257.xls",
+    "byte_size": 3640257,
+    "compressed_size": 117644,
+    "sha256": "e3538af12398feeb49dc0941d743f3b115c0f25dd46a6d5a73d6022112fea84b"
+  },
+  {
+    "original_zip_entry": "villageGramPanchayatMapping2026:09:23:22:44:39:072.xls",
+    "raw_filename": "villageGramPanchayatMapping2026-09-23-22-44-39-072.xls",
+    "byte_size": 46094399,
+    "compressed_size": 1094744,
+    "sha256": "8e54b56ca42f309f2f05f286a44c6fcdf8b3ef57d2c57ac9ce1d4e5e69800786"
+  },
+  {
+    "original_zip_entry": "blockofspecificState2026:09:23:22:44:39:462.xls",
+    "raw_filename": "blockofspecificState2026-09-23-22-44-39-462.xls",
+    "byte_size": 182417,
+    "compressed_size": 6023,
+    "sha256": "c60e2d53a1638575b8ce6bd680294f31932f8579220adfe11f384838511e08fc"
+  }
+]

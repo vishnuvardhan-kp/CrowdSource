@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Put,
+  Post,
   Param,
   Body,
   UseGuards,
@@ -18,7 +19,15 @@ export class ConfirmAvailabilityDto {
 
   @IsOptional()
   @IsNumber()
+  capacity?: number;
+
+  @IsOptional()
+  @IsNumber()
   ttl_days?: number;
+
+  @IsOptional()
+  @IsNumber()
+  ttlDays?: number;
 }
 
 @Controller('organizations/:id/availability')
@@ -44,10 +53,31 @@ export class AvailabilityController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ConfirmAvailabilityDto,
   ) {
+    const cap = dto.available_capacity ?? dto.capacity;
+    const ttl = dto.ttl_days ?? dto.ttlDays;
     return this.availabilityService.confirmAvailability(
       id,
-      dto.available_capacity,
-      dto.ttl_days,
+      cap,
+      ttl,
+    );
+  }
+
+  /**
+   * POST /api/organizations/:id/availability/confirm
+   * Alias for confirming active capacity and renewing TTL.
+   */
+  @Post('confirm')
+  @UseGuards(JwtAuthGuard)
+  async confirmAvailabilityPost(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ConfirmAvailabilityDto,
+  ) {
+    const cap = dto.available_capacity ?? dto.capacity;
+    const ttl = dto.ttl_days ?? dto.ttlDays;
+    return this.availabilityService.confirmAvailability(
+      id,
+      cap,
+      ttl,
     );
   }
 }

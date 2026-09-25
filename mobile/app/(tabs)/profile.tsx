@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,10 +16,20 @@ import { Card } from '../../src/components/common/Card';
 import { Button } from '../../src/components/common/Button';
 import { Badge } from '../../src/components/common/Badge';
 import { theme } from '../../src/constants/theme';
+import { institutionsApi, InstitutionMembership } from '../../src/api/institutions';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const [memberships, setMemberships] = useState<InstitutionMembership[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    institutionsApi
+      .getMyMemberships()
+      .then((data) => setMemberships(Array.isArray(data) ? data : []))
+      .catch((e) => console.log('Error loading memberships:', e));
+  }, [user]);
 
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out of SamadhanSetu?', [
@@ -120,6 +130,66 @@ export default function ProfileScreen() {
               <Text style={styles.infoValue}>{user.role || 'Citizen'}</Text>
             </View>
           </View>
+        </Card>
+
+        {/* Institutional Representation */}
+        <Card style={styles.infoCard}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <Text style={styles.sectionHeading}>Institutional Representation (PRI / ULB)</Text>
+            <TouchableOpacity onPress={() => router.push('/(auth)/institution-onboard')}>
+              <Text style={{ fontSize: 11, color: theme.colors.primary, fontWeight: 'bold' }}>+ Apply</Text>
+            </TouchableOpacity>
+          </View>
+
+          {memberships.length > 0 ? (
+            memberships.map((m) => {
+              const isVerified = m.authority_status === 'VERIFIED';
+              return (
+                <View
+                  key={m.id}
+                  style={{
+                    padding: 10,
+                    borderRadius: theme.borderRadius.md,
+                    backgroundColor: isVerified ? '#ECFDF5' : '#FEF3C7',
+                    borderWidth: 1,
+                    borderColor: isVerified ? '#A7F3D0' : '#FDE68A',
+                    marginBottom: 8,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.colors.text }}>
+                      {m.institution?.name}
+                    </Text>
+                    <Badge
+                      label={isVerified ? 'VERIFIED' : m.authority_status}
+                      variant={isVerified ? 'emerald' : 'amber'}
+                      size="sm"
+                    />
+                  </View>
+                  <Text style={{ fontSize: 11, color: theme.colors.textMuted, marginTop: 2 }}>
+                    Designation: {m.designation} • LGD: {m.institution?.lgd_code}
+                  </Text>
+                  {isVerified && (
+                    <Text style={{ fontSize: 10, color: '#047857', fontWeight: 'bold', marginTop: 4 }}>
+                      ✓ SamadhanSetu Verified Institutional Representative
+                    </Text>
+                  )}
+                </View>
+              );
+            })
+          ) : (
+            <View style={{ paddingVertical: 6 }}>
+              <Text style={{ fontSize: 12, color: theme.colors.textMuted, marginBottom: 8 }}>
+                Are you an elected Mukhiya, Panchayat Secretary, or Municipal Councillor? Apply to represent your local body.
+              </Text>
+              <Button
+                title="Get Verified for Panchayat / ULB"
+                variant="outline"
+                onPress={() => router.push('/(auth)/institution-onboard')}
+                style={{ paddingVertical: 8 }}
+              />
+            </View>
+          )}
         </Card>
 
         {/* Civic Information */}

@@ -13,6 +13,10 @@ import { ProblemCluster } from './entities/problem-cluster.entity';
 import { Challenge } from '../challenges/entities/challenge.entity';
 import { ChallengeEvidence } from '../challenges/entities/challenge-evidence.entity';
 import {
+  EntityEmbedding,
+  EntityEmbeddingType,
+} from '../ai-analysis/entities/entity-embedding.entity';
+import {
   ProblemClusterStatus,
   ChallengePriority,
   CitizenSeverity,
@@ -46,6 +50,8 @@ export class ProblemClustersService {
     private readonly challengeRepo: Repository<Challenge>,
     @InjectRepository(ChallengeEvidence)
     private readonly evidenceRepo: Repository<ChallengeEvidence>,
+    @InjectRepository(EntityEmbedding)
+    private readonly embeddingRepo: Repository<EntityEmbedding>,
     private readonly dataSource: DataSource,
     @Optional()
     private readonly notifService?: NotificationsService,
@@ -77,7 +83,7 @@ export class ProblemClustersService {
         throw new NotFoundException(`Challenge with ID "${challengeId}" not found.`);
       }
 
-      // If already clustered, return its cluster
+      // Idempotency: If already clustered, return its cluster immediately
       if (challenge.cluster_id) {
         const existingCluster = await queryRunner.manager.findOne(ProblemCluster, {
           where: { id: challenge.cluster_id },
@@ -97,54 +103,96 @@ export class ProblemClustersService {
       // 3. Attempt AI Semantic Analysis with bounded 3-second timeout
       const aiExtraction = await this.extractAiFeaturesWithFallback(challenge);
 
-      // 4. Find candidate clusters in the same district
-      const candidateClusters = await queryRunner.manager.find(ProblemCluster, {
-        where: {
-          district: challenge.district,
-          status: In([
+      // 4. Retrieve or generate 2048-dim vector embedding for incoming challenge
+      const challengeEmbedding = await this.getOrGenerateChallengeEmbedding(
+        challenge,
+        queryRunner,
+      );
+
+      // 5. Find candidate clusters in the same district
+      const candidateClusters = await queryRunner.manager
+        .createQueryBuilder(ProblemCluster, 'pc')
+        .where('LOWER(TRIM(pc.district)) = LOWER(TRIM(:district))', {
+          district: challenge.district || 'General',
+        })
+        .andWhere('pc.status IN (:...statuses)', {
+          statuses: [
             ProblemClusterStatus.AWAITING_GOVERNMENT_VERIFICATION,
             ProblemClusterStatus.VALIDATED,
             ProblemClusterStatus.OPEN_FOR_SOLUTIONS,
             ProblemClusterStatus.COLLABORATION,
-          ]),
-        },
-        order: { created_at: 'DESC' },
-      });
+            ProblemClusterStatus.PROJECT_INITIATED,
+            ProblemClusterStatus.RESOLVED,
+          ],
+        })
+        .orderBy('pc.created_at', 'DESC')
+        .take(50)
+        .getMany();
 
-      // 5. Evaluate similarity and location for each candidate
+      // 6. Evaluate multi-signal similarity for each candidate
       let bestMatch: {
         cluster: ProblemCluster;
-        similarity: number;
-        confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+        evalResult: {
+          sSem: number;
+          sSemOrigin: number;
+          sSemCentroid: number;
+          sLex: number;
+          sCat: number;
+          sGeo: number;
+          sFinal: number;
+          distanceKm: number | null;
+          pGps: number | null;
+          aAdmin: number;
+          antiChainViolated: boolean;
+        };
       } | null = null;
 
       for (const candidate of candidateClusters) {
-        // Strict Location Gate
-        const locationCompatible = this.isLocationCompatible(challenge, candidate);
-        if (!locationCompatible) {
-          continue; // Location incompatibility strictly prevents merge
+        // District Isolation Guard
+        if (
+          challenge.district &&
+          candidate.district &&
+          challenge.district.trim().toLowerCase() !== candidate.district.trim().toLowerCase()
+        ) {
+          continue;
         }
 
-        // Semantic & Text Similarity Calculation
-        const similarity = this.calculateSimilarity(challenge, candidate);
+        const evalResult = await this.evaluateSimilarityDetailed(
+          challenge,
+          candidate,
+          queryRunner,
+          challengeEmbedding,
+        );
 
-        if (similarity >= 0.75) {
-          bestMatch = { cluster: candidate, similarity, confidence: 'HIGH' };
-          break; // Found strong match
-        } else if (similarity >= 0.50 && (!bestMatch || similarity > bestMatch.similarity)) {
-          bestMatch = { cluster: candidate, similarity, confidence: 'MEDIUM' };
+        if (!bestMatch || evalResult.sFinal > bestMatch.evalResult.sFinal) {
+          bestMatch = { cluster: candidate, evalResult };
         }
       }
 
-      // 6. Apply Clustering Decision
-      if (bestMatch && bestMatch.confidence === 'HIGH') {
+      // 7. Apply Multi-Signal Decision Thresholds:
+      // S_final >= 0.75 -> CLUSTERED (High confidence auto-association)
+      // 0.55 <= S_final < 0.75 -> POTENTIAL_MATCH (Medium confidence human review)
+      // S_final < 0.55 -> INDEPENDENT (Low confidence or novel problem)
+      if (
+        bestMatch &&
+        bestMatch.evalResult.sFinal >= 0.75 &&
+        !bestMatch.evalResult.antiChainViolated
+      ) {
         // HIGH CONFIDENCE: Auto-associate with existing cluster
         const cluster = bestMatch.cluster;
         challenge.cluster_id = cluster.id;
         challenge.clustering_status = ClusteringStatus.CLUSTERED;
         challenge.potential_cluster_id = null as any;
-        if (cluster.status === ProblemClusterStatus.VALIDATED) {
+        if (
+          cluster.status === ProblemClusterStatus.VALIDATED ||
+          cluster.status === ProblemClusterStatus.OPEN_FOR_SOLUTIONS ||
+          cluster.status === ProblemClusterStatus.COLLABORATION ||
+          cluster.status === ProblemClusterStatus.PROJECT_INITIATED
+        ) {
           challenge.status = ChallengeStatus.VALIDATED;
+          challenge.validated_at = cluster.verified_at || new Date();
+        } else if (cluster.status === ProblemClusterStatus.RESOLVED) {
+          challenge.status = ChallengeStatus.COMPLETED;
           challenge.validated_at = cluster.verified_at || new Date();
         }
         await queryRunner.manager.save(challenge);
@@ -154,13 +202,17 @@ export class ProblemClustersService {
 
         await queryRunner.commitTransaction();
         return (await this.clusterRepo.findOne({ where: { id: cluster.id } }))!;
-      } else if (bestMatch && bestMatch.confidence === 'MEDIUM') {
+      } else if (
+        bestMatch &&
+        bestMatch.evalResult.sFinal >= 0.55 &&
+        !bestMatch.evalResult.antiChainViolated
+      ) {
         // MEDIUM CONFIDENCE: Mark as POTENTIAL_MATCH for human review
         const cluster = bestMatch.cluster;
         challenge.potential_cluster_id = cluster.id;
         challenge.clustering_status = ClusteringStatus.POTENTIAL_MATCH;
 
-        // Also provisionally assign an independent cluster so citizen has a valid cluster reference
+        // Provisionally assign an independent cluster record so citizen has a valid reference
         const newCluster = await this.createNewClusterRecord(challenge, aiExtraction, queryRunner);
         challenge.cluster_id = newCluster.id;
         await queryRunner.manager.save(challenge);
@@ -188,52 +240,14 @@ export class ProblemClustersService {
   }
 
   /**
-   * Evaluates physical location compatibility.
-   * Gating Rules:
-   * 1. District MUST match.
-   * 2. If both have GPS coordinates, Haversine distance MUST be <= 8 km.
-   * 3. If no GPS, village/locality or block must be compatible.
-   */
-  private isLocationCompatible(challenge: Challenge, cluster: ProblemCluster): boolean {
-    if (challenge.district && cluster.district) {
-      if (challenge.district.trim().toLowerCase() !== cluster.district.trim().toLowerCase()) {
-        return false;
-      }
-    }
-
-    // Coordinate proximity check if GPS available on both
-    if (
-      challenge.latitude != null &&
-      challenge.longitude != null &&
-      cluster.latitude != null &&
-      cluster.longitude != null
-    ) {
-      const distanceKm = this.calculateHaversineDistance(
-        Number(challenge.latitude),
-        Number(challenge.longitude),
-        Number(cluster.latitude),
-        Number(cluster.longitude),
-      );
-      // Beyond 8km in civic terms is a separate localized issue
-      if (distanceKm > 8.0) {
-        return false;
-      }
-    }
-
-    // Block check: if both specify blocks and they differ, consider them separate
-    if (challenge.block_id && cluster.block_id) {
-      if (challenge.block_id !== cluster.block_id) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  /**
    * Calculates Haversine distance in kilometers between two coordinates.
    */
-  private calculateHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  public calculateHaversineDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
     const R = 6371; // Earth radius in km
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
     const dLon = ((lon2 - lon1) * Math.PI) / 180;
@@ -248,57 +262,427 @@ export class ProblemClustersService {
   }
 
   /**
-   * Computes hybrid similarity between a citizen report and an existing cluster.
+   * Unicode-aware multilingual lexical tokenization.
+   * Retains Devanagari, Ol Chiki, Latin, digits, and all Unicode alphabetic scripts.
+   * Filters short tokens (< 2 characters) while preserving short words like जल, पुल.
    */
-  private calculateSimilarity(challenge: Challenge, cluster: ProblemCluster): number {
-    const text1 = `${challenge.title} ${challenge.description}`.toLowerCase();
-    const text2 = `${cluster.title} ${cluster.description}`.toLowerCase();
+  public tokenizeUnicode(text: string): Set<string> {
+    if (!text) return new Set();
+    const words = text.toLowerCase().match(/[\p{L}\p{N}]+/gu) || [];
+    return new Set(words.filter((w) => w.length >= 2));
+  }
 
-    // 1. Keyword / Token Jaccard Similarity
-    const words1 = new Set(
-      text1
-        .replace(/[^a-z0-9\s]/g, '')
-        .split(/\s+/)
-        .filter((w) => w.length > 3),
-    );
-    const words2 = new Set(
-      text2
-        .replace(/[^a-z0-9\s]/g, '')
-        .split(/\s+/)
-        .filter((w) => w.length > 3),
-    );
-
-    let intersectionCount = 0;
-    for (const w of words1) {
-      if (words2.has(w)) intersectionCount++;
+  /**
+   * Cosine similarity between two unit-normalized or arbitrary vectors.
+   * Clamped to [0.0, 1.0].
+   */
+  public cosineSimilarity(vec1: number[], vec2: number[]): number {
+    if (!vec1 || !vec2 || vec1.length !== vec2.length || vec1.length === 0) {
+      return 0.0;
     }
+    let dot = 0.0;
+    let norm1 = 0.0;
+    let norm2 = 0.0;
+    for (let i = 0; i < vec1.length; i++) {
+      dot += vec1[i] * vec2[i];
+      norm1 += vec1[i] * vec1[i];
+      norm2 += vec2[i] * vec2[i];
+    }
+    const denom = Math.sqrt(norm1) * Math.sqrt(norm2);
+    if (denom === 0) return 0.0;
+    const sim = dot / denom;
+    return Math.max(0.0, Math.min(1.0, sim));
+  }
 
-    const unionCount = new Set([...words1, ...words2]).size;
-    const jaccard = unionCount > 0 ? intersectionCount / unionCount : 0;
+  /**
+   * Geographic Intelligence:
+   * Continuous exponential GPS decay P_gps(d) = exp(-(d-1)/4)
+   * Administrative hierarchy: same locality = 1.0, same block = 0.70, cross-block = 0.20
+   * Cross-block distance gate: if block1 !== block2 and d > 5.0 km, S_geo = 0.0
+   * Discrepancy safeguard: if d > 15.0 km, clamp S_geo <= 0.10
+   */
+  public calculateGeographicScore(
+    challenge: Challenge,
+    candidate: ProblemCluster,
+  ): {
+    geoScore: number;
+    distanceKm: number | null;
+    pGps: number | null;
+    aAdmin: number;
+  } {
+    let distanceKm: number | null = null;
+    let pGps: number | null = null;
 
-    // 2. Locality Bonus: matching landmark or village
-    let localityBonus = 0;
-    if (challenge.village_locality && cluster.village_locality) {
-      if (
-        challenge.village_locality.trim().toLowerCase() ===
-        cluster.village_locality.trim().toLowerCase()
-      ) {
-        localityBonus = 0.25;
+    if (
+      challenge.latitude != null &&
+      challenge.longitude != null &&
+      candidate.latitude != null &&
+      candidate.longitude != null
+    ) {
+      distanceKm = this.calculateHaversineDistance(
+        Number(challenge.latitude),
+        Number(challenge.longitude),
+        Number(candidate.latitude),
+        Number(candidate.longitude),
+      );
+      if (distanceKm <= 1.0) {
+        pGps = 1.0;
+      } else {
+        pGps = Math.exp(-(distanceKm - 1.0) / 4.0);
       }
     }
 
-    // 3. Category match bonus
-    let categoryBonus = 0;
-    if (challenge.category && cluster.category) {
-      const c1 = challenge.category.toLowerCase().trim();
-      const c2 = cluster.category.toLowerCase().trim();
-      if (c1 === c2 || c1.includes(c2) || c2.includes(c1)) {
-        categoryBonus = 0.10;
+    // Administrative hierarchy score
+    let aAdmin = 0.20; // Default: same district, cross-block
+    const challengeLoc = (challenge.village_locality || '').trim().toLowerCase();
+    const candidateLoc = (candidate.village_locality || '').trim().toLowerCase();
+    const challengeBlock = (challenge.block_id || challenge.blockRef?.name || '').trim().toLowerCase();
+    const candidateBlock = (candidate.block_id || candidate.block || '').trim().toLowerCase();
+
+    const isSameBlock = Boolean(
+      challengeBlock && candidateBlock && challengeBlock === candidateBlock,
+    );
+    const isSameLocality = Boolean(challengeLoc && candidateLoc && challengeLoc === candidateLoc);
+
+    if (isSameLocality) {
+      aAdmin = 1.0;
+    } else if (isSameBlock) {
+      aAdmin = 0.70;
+    } else {
+      aAdmin = 0.20;
+    }
+
+    // Cross-block distance gate:
+    // If in different blocks and GPS distance > 5.0 km, physical problem cannot be the same
+    if (!isSameBlock && challengeBlock && candidateBlock && distanceKm != null && distanceKm > 5.0) {
+      return {
+        geoScore: 0.0,
+        distanceKm,
+        pGps,
+        aAdmin,
+      };
+    }
+
+    // Discrepancy safeguard: if GPS > 15.0 km, clamp geoScore <= 0.10
+    if (distanceKm != null && distanceKm > 15.0) {
+      const rawGeo = pGps != null ? 0.60 * pGps + 0.40 * aAdmin : aAdmin;
+      return {
+        geoScore: Math.min(0.10, rawGeo),
+        distanceKm,
+        pGps,
+        aAdmin,
+      };
+    }
+
+    let geoScore: number;
+    if (pGps != null) {
+      geoScore = 0.60 * pGps + 0.40 * aAdmin;
+    } else {
+      // Missing GPS on either side: use administrative score
+      geoScore = aAdmin;
+    }
+
+    return {
+      geoScore: Math.max(0.0, Math.min(1.0, geoScore)),
+      distanceKm,
+      pGps,
+      aAdmin,
+    };
+  }
+
+  /**
+   * Unicode-aware multilingual lexical similarity (Jaccard).
+   * Cross-evaluates title, normalized_text, description, and original native script.
+   */
+  public calculateLexicalSimilarity(
+    challenge: Challenge,
+    candidate: ProblemCluster,
+    memberChallenges: Challenge[] = [],
+  ): number {
+    const challengeTexts = [
+      challenge.title,
+      challenge.normalized_text,
+      challenge.description,
+      challenge.original_text,
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    const candidateTexts = [
+      candidate.title,
+      candidate.description,
+      ...memberChallenges.map(
+        (m) => `${m.title} ${m.normalized_text || ''} ${m.description} ${m.original_text || ''}`,
+      ),
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    const set1 = this.tokenizeUnicode(challengeTexts);
+    const set2 = this.tokenizeUnicode(candidateTexts);
+
+    let intersection = 0;
+    for (const token of set1) {
+      if (set2.has(token)) intersection++;
+    }
+    const union = new Set([...set1, ...set2]).size;
+    return union > 0 ? intersection / union : 0.0;
+  }
+
+  /**
+   * Category and Context Taxonomy score.
+   */
+  public calculateCategoryScore(challenge: Challenge, candidate: ProblemCluster): number {
+    const c1 = (challenge.category || '').trim().toLowerCase();
+    const c2 = (candidate.category || '').trim().toLowerCase();
+    if (!c1 || !c2) return 0.50;
+    if (c1 === c2) return 1.0;
+    if (c1.includes(c2) || c2.includes(c1)) return 0.70;
+    return 0.0;
+  }
+
+  /**
+   * Retrieves or generates 2048-dim embedding for challenge.
+   */
+  public async getOrGenerateChallengeEmbedding(
+    challenge: Challenge,
+    queryRunner: any,
+  ): Promise<number[] | null> {
+    const manager = queryRunner?.manager || this.dataSource.manager;
+    const existing = await manager.findOne(EntityEmbedding, {
+      where: {
+        entity_id: challenge.id,
+        entity_type: EntityEmbeddingType.CHALLENGE,
+        is_active: true,
+      },
+    });
+
+    if (existing?.embedding && Array.isArray(existing.embedding) && existing.embedding.length > 0) {
+      return existing.embedding;
+    }
+
+    // Fallback on-the-fly embedding generation if not already present
+    try {
+      const descToEmbed = challenge.normalized_text || challenge.description;
+      const sourceText = `Title: ${challenge.title}. Description: ${descToEmbed}. Category: ${challenge.category || 'General'}`;
+      const res = await fetch(`${this.aiServiceUrl}/v1/ai/embeddings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          texts: [sourceText],
+          entity_type: 'challenge',
+          entity_id: challenge.id,
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.embeddings?.[0]?.embedding) {
+          const vector = data.embeddings[0].embedding;
+          try {
+            const existingEmb = await manager.findOne(EntityEmbedding, {
+              where: {
+                entity_id: challenge.id,
+                entity_type: EntityEmbeddingType.CHALLENGE,
+                embedding_version: 'v1.0',
+              },
+            });
+            if (!existingEmb) {
+              await manager.save(EntityEmbedding, {
+                entity_id: challenge.id,
+                entity_type: EntityEmbeddingType.CHALLENGE,
+                embedding_version: 'v1.0',
+                model_provider: data.model_provider || 'nvidia',
+                model_name: data.model_name || 'nvidia/nemotron-3-embed-1b',
+                model_version: '1.0',
+                dimensions: vector.length,
+                source_text: sourceText,
+                source_text_hash: '',
+                embedding: vector,
+                is_active: true,
+              });
+            }
+          } catch (persistErr: any) {
+            this.logger.warn(
+              `Could not persist on-the-fly embedding for challenge ${challenge.id}: ${persistErr.message}`,
+            );
+          }
+          return vector;
+        }
+      }
+    } catch (e: any) {
+      this.logger.warn(
+        `Could not generate on-the-fly embedding for challenge ${challenge.id}: ${e.message}`,
+      );
+    }
+    return null;
+  }
+
+  /**
+   * Detailed multi-signal similarity evaluation between a challenge and a candidate cluster.
+   * Multi-Signal Formula:
+   * S_final = 0.40 * S_semantic + 0.20 * S_lexical + 0.15 * S_category_context + 0.25 * S_geo
+   */
+  public async evaluateSimilarityDetailed(
+    challenge: Challenge,
+    candidate: ProblemCluster,
+    queryRunner?: any,
+    cachedChallengeEmbedding?: number[] | null,
+  ): Promise<{
+    sSem: number;
+    sSemOrigin: number;
+    sSemCentroid: number;
+    sLex: number;
+    sCat: number;
+    sGeo: number;
+    sFinal: number;
+    distanceKm: number | null;
+    pGps: number | null;
+    aAdmin: number;
+    antiChainViolated: boolean;
+  }> {
+    const manager = queryRunner?.manager || this.dataSource.manager;
+
+    // 1. Geographic Signal
+    const geoResult = this.calculateGeographicScore(challenge, candidate);
+
+    // 2. Fetch member challenges of candidate
+    const memberChallenges = await manager.find(Challenge, {
+      where: { cluster_id: candidate.id },
+      order: { created_at: 'ASC' },
+      select: ['id', 'title', 'description', 'normalized_text', 'original_text', 'created_at'],
+    });
+
+    // 3. Lexical Signal (Unicode-aware multilingual)
+    const sLex = this.calculateLexicalSimilarity(challenge, candidate, memberChallenges);
+
+    // 4. Category & Context Signal
+    const sCat = this.calculateCategoryScore(challenge, candidate);
+
+    // 5. Semantic Signal (2048-dim embeddings)
+    let challengeEmbedding = cachedChallengeEmbedding;
+    if (challengeEmbedding === undefined) {
+      challengeEmbedding = await this.getOrGenerateChallengeEmbedding(challenge, queryRunner);
+    }
+
+    const memberIds = memberChallenges.map((m) => m.id);
+    const memberEmbeddings =
+      memberIds.length > 0
+        ? await manager.find(EntityEmbedding, {
+            where: {
+              entity_id: In(memberIds),
+              entity_type: EntityEmbeddingType.CHALLENGE,
+              is_active: true,
+            },
+          })
+        : [];
+
+    const embMap = new Map<string, number[]>();
+    for (const me of memberEmbeddings) {
+      if (me.embedding && Array.isArray(me.embedding) && me.embedding.length > 0) {
+        embMap.set(me.entity_id, me.embedding);
       }
     }
 
-    const baseScore = jaccard * 0.70 + localityBonus + categoryBonus;
-    return Math.min(Math.max(baseScore, 0.0), 1.0);
+    let originEmbedding: number[] | null = null;
+    for (const m of memberChallenges) {
+      if (embMap.has(m.id)) {
+        originEmbedding = embMap.get(m.id)!;
+        break;
+      }
+    }
+
+    let centroidEmbedding: number[] | null = null;
+    const allVectors = Array.from(embMap.values());
+    if (allVectors.length > 0) {
+      const dim = allVectors[0].length;
+      const sum = new Array(dim).fill(0);
+      for (const vec of allVectors) {
+        for (let d = 0; d < dim; d++) {
+          sum[d] += vec[d];
+        }
+      }
+      const norm = Math.hypot(...sum);
+      if (norm > 0) {
+        centroidEmbedding = sum.map((x) => x / norm);
+      }
+    }
+
+    let sSem = 0.0;
+    let sSemOrigin = 0.0;
+    let sSemCentroid = 0.0;
+    let antiChainViolated = false;
+
+    if (challengeEmbedding && centroidEmbedding) {
+      sSemCentroid = this.cosineSimilarity(challengeEmbedding, centroidEmbedding);
+      sSem = sSemCentroid;
+
+      if (originEmbedding) {
+        sSemOrigin = this.cosineSimilarity(challengeEmbedding, originEmbedding);
+      } else {
+        sSemOrigin = sSemCentroid;
+      }
+
+      // Anti-chain protection check:
+      // If candidate already has 2 or more reports, ensure coherence with founding origin report
+      if (memberChallenges.length >= 2) {
+        if (sSemOrigin < 0.55) {
+          antiChainViolated = true;
+          this.logger.warn(
+            `Anti-chain coherence protection triggered for challenge ${challenge.id} against cluster ${candidate.id}: origin similarity ${sSemOrigin.toFixed(3)} < 0.55`,
+          );
+        }
+      }
+    } else {
+      // Fallback: If vector embedding not available, use lexical similarity as proxy
+      sSem = sLex;
+      sSemOrigin = sLex;
+      sSemCentroid = sLex;
+    }
+
+    // 6. Multi-Signal Formula
+    let sFinal = 0.40 * sSem + 0.20 * sLex + 0.15 * sCat + 0.25 * geoResult.geoScore;
+    sFinal = Math.max(0.0, Math.min(1.0, sFinal));
+
+    // Cross-block distance gate & physical distance safeguard:
+    // If locations are in different blocks and > 5.0 km apart, or > 15 km apart within district,
+    // they cannot be the same localized physical problem (prevents Case 10 false positives)
+    const challengeBlock = (challenge.block_id || challenge.blockRef?.name || '').trim().toLowerCase();
+    const candidateBlock = (candidate.block_id || candidate.block || '').trim().toLowerCase();
+    const isSameBlock = Boolean(
+      challengeBlock && candidateBlock && challengeBlock === candidateBlock,
+    );
+
+    if (
+      !isSameBlock &&
+      challengeBlock &&
+      candidateBlock &&
+      geoResult.distanceKm != null &&
+      geoResult.distanceKm > 5.0
+    ) {
+      sFinal = Math.min(sFinal, 0.49);
+    } else if (geoResult.distanceKm != null && geoResult.distanceKm > 15.0) {
+      sFinal = Math.min(sFinal, 0.49);
+    }
+
+    // If anti-chain coherence is violated, cap score below potential match threshold
+    if (antiChainViolated) {
+      sFinal = Math.min(sFinal, 0.45);
+    }
+
+    return {
+      sSem,
+      sSemOrigin,
+      sSemCentroid,
+      sLex,
+      sCat,
+      sGeo: geoResult.geoScore,
+      sFinal,
+      distanceKm: geoResult.distanceKm,
+      pGps: geoResult.pGps,
+      aAdmin: geoResult.aAdmin,
+      antiChainViolated,
+    };
   }
 
   /**
@@ -336,7 +720,7 @@ export class ProblemClustersService {
           district: challenge.district,
           state: challenge.state,
         }),
-        signal: AbortSignal.timeout(3000), // 3-second hard bound
+        signal: AbortSignal.timeout(60000), // Bounded 60-second timeout for LLM inference
       });
 
       if (response.ok) {
@@ -403,8 +787,8 @@ export class ProblemClustersService {
       priority_score: priorityEval.priorityScore,
       priority: priorityEval.priority,
       priority_reasons: priorityEval.reasons,
-      status: ProblemClusterStatus.AWAITING_GOVERNMENT_VERIFICATION,
-      government_verification_status: 'PENDING',
+      status: ProblemClusterStatus.OPEN_FOR_SOLUTIONS,
+      government_verification_status: 'NOT_REQUIRED',
       ai_confidence: aiData.confidence,
       ai_processing_status: aiData.status,
       ai_reasoning: {
@@ -466,8 +850,14 @@ export class ProblemClustersService {
     if (reportCount > 1) {
       await queryRunner.manager.update(
         Challenge,
-        { cluster_id: clusterId, clustering_status: ClusteringStatus.INDEPENDENT },
+        { cluster_id: clusterId },
         { clustering_status: ClusteringStatus.CLUSTERED },
+      );
+    } else if (reportCount === 1) {
+      await queryRunner.manager.update(
+        Challenge,
+        { cluster_id: clusterId, clustering_status: ClusteringStatus.CLUSTERED },
+        { clustering_status: ClusteringStatus.INDEPENDENT },
       );
     }
   }
@@ -648,35 +1038,61 @@ export class ProblemClustersService {
    * Single verification step: Validates the cluster AND all linked citizen reports.
    */
   async verifyCluster(id: string, reviewerId: string): Promise<ProblemCluster> {
-    const cluster = await this.clusterRepo.findOne({
-      where: { id },
-      relations: ['reports'],
-    });
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    if (!cluster) {
-      throw new NotFoundException(`ProblemCluster with ID "${id}" not found.`);
+    let savedCluster: ProblemCluster;
+    let cluster: ProblemCluster | null = null;
+    try {
+      cluster = await queryRunner.manager.findOne(ProblemCluster, {
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!cluster) {
+        throw new NotFoundException(`ProblemCluster with ID "${id}" not found.`);
+      }
+
+      cluster.reports = await queryRunner.manager.find(Challenge, {
+        where: { cluster_id: id },
+      });
+
+      // Idempotency: If already VALIDATED, commit and return cluster
+      if (cluster.status === ProblemClusterStatus.VALIDATED) {
+        await queryRunner.commitTransaction();
+        return (await this.clusterRepo.findOne({ where: { id }, relations: ['reports'] }))!;
+      }
+
+      const verifiedAt = cluster.verified_at || new Date();
+      cluster.status = ProblemClusterStatus.VALIDATED;
+      cluster.government_verification_status = 'VERIFIED';
+      cluster.verified_at = verifiedAt;
+      cluster.verified_by = reviewerId;
+      cluster.rejection_reason = null as any;
+
+      savedCluster = await queryRunner.manager.save(cluster);
+
+      // Update all underlying citizen reports to VALIDATED atomically within same transaction
+      await queryRunner.manager.update(
+        Challenge,
+        { cluster_id: id },
+        {
+          status: ChallengeStatus.VALIDATED,
+          validated_at: verifiedAt,
+        },
+      );
+
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
     }
 
-    const verifiedAt = cluster.verified_at || new Date();
-    cluster.status = ProblemClusterStatus.VALIDATED;
-    cluster.government_verification_status = 'VERIFIED';
-    cluster.verified_at = verifiedAt;
-    cluster.verified_by = reviewerId;
-    cluster.rejection_reason = null as any;
-
-    const savedCluster = await this.clusterRepo.save(cluster);
-
-    // Update all underlying citizen reports to VALIDATED
-    await this.challengeRepo.update(
-      { cluster_id: id },
-      {
-        status: ChallengeStatus.VALIDATED,
-        validated_at: verifiedAt,
-      },
-    );
-
     // Post-verification capability matching for verified reports
-    if (this.matchingService) {
+    if (this.matchingService && cluster) {
       for (const r of cluster.reports || []) {
         try {
           await this.matchingService.generateRecommendations(r.id);
@@ -688,15 +1104,34 @@ export class ProblemClustersService {
 
     // Dispatch scoped notifications
     try {
-      if (cluster.district) {
-        await this.notifService?.notifyDistrictOfficers(
-          cluster.district,
-          NotificationType.CHALLENGE_STATUS,
-          `Problem Verified: ${cluster.title}`,
-          `Problem cluster "${cluster.title}" in ${cluster.district} was verified and opened for solutions.`,
-          'PROBLEM_CLUSTER',
-          cluster.id,
-        );
+      if (cluster) {
+        // 1. Notify original citizen reporters that their problem has been verified
+        for (const r of cluster.reports || []) {
+          if (r.submitted_by) {
+            await this.notifService?.notifyUser(
+              r.submitted_by,
+              NotificationType.CHALLENGE_STATUS,
+              `Your Reported Problem Has Been Verified: ${r.title}`,
+              `Good news! Your reported problem has been verified by government authorities and opened for solution proposals.`,
+              'CHALLENGE',
+              r.id,
+              cluster.district_id,
+              cluster.district,
+            );
+          }
+        }
+
+        // 2. Notify district officers
+        if (cluster.district) {
+          await this.notifService?.notifyDistrictOfficers(
+            cluster.district,
+            NotificationType.CHALLENGE_STATUS,
+            `Problem Verified: ${cluster.title}`,
+            `Problem cluster "${cluster.title}" in ${cluster.district} was verified and opened for solutions.`,
+            'PROBLEM_CLUSTER',
+            cluster.id,
+          );
+        }
       }
     } catch (e) {
       this.logger.warn(`Failed to send cluster verification notification: ${e}`);
@@ -713,7 +1148,10 @@ export class ProblemClustersService {
     reviewerId: string,
     dto: RejectProblemClusterDto,
   ): Promise<ProblemCluster> {
-    const cluster = await this.clusterRepo.findOne({ where: { id } });
+    const cluster = await this.clusterRepo.findOne({
+      where: { id },
+      relations: ['reports'],
+    });
     if (!cluster) {
       throw new NotFoundException(`ProblemCluster with ID "${id}" not found.`);
     }
@@ -737,6 +1175,26 @@ export class ProblemClustersService {
         rejection_reason: dto.reason.trim(),
       },
     );
+
+    // Notify citizens of rejection reason
+    for (const r of cluster.reports || []) {
+      if (r.submitted_by) {
+        try {
+          await this.notifService?.notifyUser(
+            r.submitted_by,
+            NotificationType.CHALLENGE_STATUS,
+            `Problem Verification Update: ${r.title}`,
+            `Your reported problem was reviewed by authorities. Status: Not verified. Reason: ${dto.reason.trim()}`,
+            'CHALLENGE',
+            r.id,
+            cluster.district_id,
+            cluster.district,
+          );
+        } catch (notifErr: any) {
+          this.logger.warn(`Failed to notify citizen ${r.submitted_by}: ${notifErr.message}`);
+        }
+      }
+    }
 
     return savedCluster;
   }
@@ -836,6 +1294,11 @@ export class ProblemClustersService {
         id: r.id,
         title: r.title,
         description: r.description,
+        original_text: r.original_text,
+        original_language: r.original_language,
+        normalized_text: r.normalized_text,
+        status: r.status,
+        clustering_status: r.clustering_status,
         citizen_severity: r.citizen_severity,
         village_locality: r.village_locality,
         submitted_at: r.submitted_at,

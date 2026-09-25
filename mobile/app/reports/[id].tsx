@@ -116,8 +116,12 @@ export default function ReportDetailScreen() {
 
   const isSubmitted =
     report.status !== 'DRAFT';
-  const isValidated =
-    report.status === 'VALIDATED' || report.status === 'PROJECT_INITIATED';
+  const isOpenForSolutions =
+    report.status === 'VALIDATED' ||
+    report.status === 'MATCHING' ||
+    report.status === 'MATCHED' ||
+    report.status === 'IN_PROGRESS' ||
+    report.status === 'PROJECT_INITIATED';
   const isRejected =
     report.status === 'REJECTED';
 
@@ -208,7 +212,7 @@ export default function ReportDetailScreen() {
             <View
               style={[
                 styles.stepLine,
-                isValidated && styles.stepLineActive,
+                isOpenForSolutions && styles.stepLineActive,
               ]}
             />
 
@@ -217,7 +221,7 @@ export default function ReportDetailScreen() {
               <View
                 style={[
                   styles.stepCircle,
-                  isValidated
+                  isOpenForSolutions
                     ? styles.stepCircleActive
                     : isRejected
                     ? styles.stepCircleRejected
@@ -226,22 +230,22 @@ export default function ReportDetailScreen() {
               >
                 <Ionicons
                   name={
-                    isValidated
-                      ? 'shield-checkmark'
+                    isOpenForSolutions
+                      ? 'school-outline'
                       : isRejected
                       ? 'close'
-                      : 'shield-outline'
+                      : 'time-outline'
                   }
                   size={14}
                   color={
-                    isValidated || isRejected
+                    isOpenForSolutions || isRejected
                       ? '#FFF'
                       : theme.colors.textMuted
                   }
                 />
               </View>
               <Text style={styles.stepLabel}>
-                {isValidated ? 'Validated' : isRejected ? 'Rejected' : 'Gov Review'}
+                {isOpenForSolutions ? 'Open for Solutions' : isRejected ? 'Rejected' : 'In Processing'}
               </Text>
             </View>
           </View>
@@ -356,6 +360,25 @@ export default function ReportDetailScreen() {
 
         {/* Problem Title & Description with Multilingual Controls */}
         <Card style={styles.detailCard}>
+          {/* Reporter Capacity Badge if Community or PRI/ULB */}
+          {(report.verification_snapshot?.community_group_name || report.community_group_name || report.reporter_type === 'COMMUNITY' || report.verification_snapshot?.capacity_type === 'COMMUNITY_COLLECTIVE') && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF3C7', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, marginBottom: 12, borderWidth: 1, borderColor: '#FDE68A' }}>
+              <Ionicons name="people" size={14} color="#B45309" style={{ marginRight: 6 }} />
+              <Text style={{ fontSize: 12, fontWeight: '600', color: '#92400E' }}>
+                Community Group: {report.verification_snapshot?.community_group_name || report.community_group_name || 'Community Collective'}
+              </Text>
+            </View>
+          )}
+
+          {(report.verification_snapshot?.lgd_code || report.reporter_type === 'PRI' || report.reporter_type === 'ULB') && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#ECFDF5', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, marginBottom: 12, borderWidth: 1, borderColor: '#A7F3D0' }}>
+              <Ionicons name="business" size={14} color="#065F46" style={{ marginRight: 6 }} />
+              <Text style={{ fontSize: 12, fontWeight: '600', color: '#065F46' }}>
+                Verified Local Body: {report.verification_snapshot?.institution_name || 'PRI / ULB'} {report.verification_snapshot?.lgd_code ? `(LGD: ${report.verification_snapshot.lgd_code})` : ''}
+              </Text>
+            </View>
+          )}
+
           {/* Header row with language indicators and translation actions */}
           <View style={styles.langHeaderRow}>
             <View style={styles.langBadge}>
@@ -550,10 +573,10 @@ export default function ReportDetailScreen() {
           ) : null}
         </Card>
 
-        {/* Evidence Photos */}
+        {/* Evidence Section */}
         <Card style={styles.detailCard}>
           <View style={styles.sectionHeaderRow}>
-            <Ionicons name="images" size={18} color={theme.colors.primary} />
+            <Ionicons name="attach" size={18} color={theme.colors.primary} />
             <Text style={styles.sectionTitle}>
               Attached Evidence ({report.evidence?.length || 0})
             </Text>
@@ -561,19 +584,72 @@ export default function ReportDetailScreen() {
 
           {report.evidence && report.evidence.length > 0 ? (
             <View style={styles.evidenceGrid}>
-              {report.evidence.map((ev) => (
-                <TouchableOpacity
-                  key={ev.id}
-                  style={styles.evidenceItem}
-                  onPress={() => setSelectedPhoto(ev.url)}
-                >
-                  <Image source={{ uri: ev.url }} style={styles.evidenceImage} />
-                </TouchableOpacity>
-              ))}
+              {report.evidence.map((ev) => {
+                const isImage = !ev.mime_type || ev.mime_type.startsWith('image/') || ev.evidence_type === 'IMAGE';
+                const isVideo = ev.mime_type?.startsWith('video/') || ev.evidence_type === 'VIDEO';
+                const isAudio = ev.mime_type?.startsWith('audio/') || ev.evidence_type === 'AUDIO';
+
+                if (isImage) {
+                  return (
+                    <TouchableOpacity
+                      key={ev.id}
+                      style={styles.evidenceItem}
+                      onPress={() => setSelectedPhoto(ev.url)}
+                    >
+                      <Image source={{ uri: ev.url }} style={styles.evidenceImage} />
+                    </TouchableOpacity>
+                  );
+                }
+
+                return (
+                  <View
+                    key={ev.id}
+                    style={[
+                      styles.evidenceItem,
+                      {
+                        backgroundColor: isAudio ? '#FEF3C7' : isVideo ? '#EDE9FE' : '#F1F5F9',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        padding: 6,
+                        borderWidth: 1,
+                        borderColor: isAudio ? '#FDE68A' : isVideo ? '#DDD6FE' : '#E2E8F0',
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name={isVideo ? 'videocam' : isAudio ? 'musical-notes' : 'document-text'}
+                      size={24}
+                      color={isAudio ? '#B45309' : isVideo ? '#6D28D9' : theme.colors.primary}
+                    />
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        fontSize: 10,
+                        fontWeight: '600',
+                        color: theme.colors.text,
+                        marginTop: 4,
+                        textAlign: 'center',
+                      }}
+                    >
+                      {ev.title || (isVideo ? 'Video' : isAudio ? 'Audio Evidence' : 'Document')}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 8,
+                        color: theme.colors.textMuted,
+                        marginTop: 2,
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {isAudio ? 'Audio' : isVideo ? 'Video' : 'Document'}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           ) : (
             <Text style={styles.noEvidenceText}>
-              No photographic evidence was attached to this report.
+              No supporting evidence was attached to this report.
             </Text>
           )}
         </Card>

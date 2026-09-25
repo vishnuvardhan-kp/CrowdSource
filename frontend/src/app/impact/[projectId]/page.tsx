@@ -271,7 +271,7 @@ export default function ImpactWorkspacePage() {
 
   // Submit Assessment for Government Verification
   const handleSubmitVerification = async () => {
-    if (!confirm("Are you sure you want to submit this Impact Assessment for government verification? It will be locked during review.")) {
+    if (!confirm("Are you sure you want to submit this Impact Assessment for administrative certification? It will be locked during review.")) {
       return;
     }
     try {
@@ -290,7 +290,7 @@ export default function ImpactWorkspacePage() {
         throw new Error(errData.message || "Submission failed");
       }
 
-      setSuccessMessage("Impact Assessment submitted for government verification!");
+      setSuccessMessage("Impact Assessment submitted for administrative certification!");
       await fetchImpactData();
     } catch (err: any) {
       setError(err.message);
@@ -554,7 +554,7 @@ export default function ImpactWorkspacePage() {
                   className="inline-flex items-center gap-2 px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-lg shadow-md transition disabled:opacity-50"
                 >
                   <ShieldCheck className="h-4 w-4" />
-                  Submit for Government Verification
+                  Submit for Administrative Certification
                 </button>
               )}
             </div>
@@ -841,60 +841,106 @@ export default function ImpactWorkspacePage() {
                   No impact metrics added yet
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
-                  At least one structured metric is required before submitting for government verification.
+                  At least one structured metric is required before submitting for administrative certification.
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-slate-700">
-                  <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
-                    <tr>
-                      <th className="py-2.5 px-3">Category</th>
-                      <th className="py-2.5 px-3">Metric Name</th>
-                      <th className="py-2.5 px-3">Baseline</th>
-                      <th className="py-2.5 px-3">Target</th>
-                      <th className="py-2.5 px-3">Actual Achieved</th>
-                      <th className="py-2.5 px-3">Unit</th>
-                      <th className="py-2.5 px-3">Measurement Method</th>
-                      {canEdit && <th className="py-2.5 px-3 text-right">Actions</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {metrics.map((m) => (
-                      <tr key={m.id} className="hover:bg-slate-50/80">
-                        <td className="py-2.5 px-3 font-semibold text-slate-800">
-                          {m.metric_category.replace(/_/g, " ")}
-                        </td>
-                        <td className="py-2.5 px-3 font-medium text-slate-900">
-                          {m.metric_name}
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-600">
-                          {m.baseline_value || "—"}
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-600">
-                          {m.target_value || "—"}
-                        </td>
-                        <td className="py-2.5 px-3 font-bold text-emerald-700">
-                          {m.actual_value}
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-600">{m.unit}</td>
-                        <td className="py-2.5 px-3 text-slate-500">
-                          {m.measurement_method}
-                        </td>
+              <div>
+                {/* Mobile Card Representation (< md) */}
+                <div className="block md:hidden space-y-3">
+                  {metrics.map((m) => (
+                    <div key={m.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2 text-xs">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                            {m.metric_category.replace(/_/g, " ")}
+                          </span>
+                          <h4 className="font-bold text-slate-900 text-sm break-words">{m.metric_name}</h4>
+                        </div>
                         {canEdit && (
-                          <td className="py-2.5 px-3 text-right">
-                            <button
-                              onClick={() => handleDeleteMetric(m.id)}
-                              className="text-rose-600 hover:text-rose-800 font-semibold"
-                            >
-                              Delete
-                            </button>
-                          </td>
+                          <button
+                            onClick={() => handleDeleteMetric(m.id)}
+                            className="text-rose-600 hover:text-rose-800 font-semibold p-1 shrink-0"
+                          >
+                            Delete
+                          </button>
                         )}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 bg-white p-2.5 rounded-lg border border-slate-200/80 text-center">
+                        <div className="min-w-0">
+                          <span className="text-[10px] text-slate-500 block">Baseline</span>
+                          <span className="font-medium text-slate-700 break-words">{m.baseline_value || "-"}</span>
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-[10px] text-slate-500 block">Target</span>
+                          <span className="font-medium text-slate-700 break-words">{m.target_value || "-"}</span>
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-[10px] text-slate-500 block">Actual</span>
+                          <span className="font-bold text-emerald-700 break-words">{m.actual_value} {m.unit}</span>
+                        </div>
+                      </div>
+                      {m.measurement_method && (
+                        <div className="text-[11px] text-slate-500 break-words">
+                          <span className="font-medium text-slate-600">Method:</span> {m.measurement_method}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop Tabular Matrix (>= md) */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="min-w-full text-left text-xs text-slate-700">
+                    <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                      <tr>
+                        <th className="py-2.5 px-3">Category</th>
+                        <th className="py-2.5 px-3">Metric Name</th>
+                        <th className="py-2.5 px-3">Baseline</th>
+                        <th className="py-2.5 px-3">Target</th>
+                        <th className="py-2.5 px-3">Actual Achieved</th>
+                        <th className="py-2.5 px-3">Unit</th>
+                        <th className="py-2.5 px-3">Measurement Method</th>
+                        {canEdit && <th className="py-2.5 px-3 text-right">Actions</th>}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {metrics.map((m) => (
+                        <tr key={m.id} className="hover:bg-slate-50/80">
+                          <td className="py-2.5 px-3 font-semibold text-slate-800">
+                            {m.metric_category.replace(/_/g, " ")}
+                          </td>
+                          <td className="py-2.5 px-3 font-medium text-slate-900">
+                            {m.metric_name}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-600">
+                            {m.baseline_value || "-"}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-600">
+                            {m.target_value || "-"}
+                          </td>
+                          <td className="py-2.5 px-3 font-bold text-emerald-700">
+                            {m.actual_value}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-600">{m.unit}</td>
+                          <td className="py-2.5 px-3 text-slate-500">
+                            {m.measurement_method}
+                          </td>
+                          {canEdit && (
+                            <td className="py-2.5 px-3 text-right">
+                              <button
+                                onClick={() => handleDeleteMetric(m.id)}
+                                className="text-rose-600 hover:text-rose-800 font-semibold"
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
@@ -931,7 +977,7 @@ export default function ImpactWorkspacePage() {
                   No evidence uploaded yet
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
-                  At least one impact evidence document is required before submitting for government verification.
+                  At least one impact evidence document is required before submitting for administrative certification.
                 </p>
               </div>
             ) : (
@@ -1199,15 +1245,15 @@ export default function ImpactWorkspacePage() {
 
       {/* CREATE IMPACT ASSESSMENT MODAL */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl border border-slate-200 my-8">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-5 sm:p-6 space-y-5 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <h3 className="text-lg font-bold text-slate-900">
+              <h3 className="text-lg font-bold text-slate-900 break-words">
                 Initiate Impact Assessment
               </h3>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold"
+                className="text-slate-400 hover:text-slate-600 font-bold p-1"
               >
                 ✕
               </button>
@@ -1270,7 +1316,7 @@ export default function ImpactWorkspacePage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
                     Beneficiaries Reached
@@ -1345,18 +1391,18 @@ export default function ImpactWorkspacePage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-3 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-semibold"
+                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-semibold text-center"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submittingAction}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold disabled:opacity-50"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold disabled:opacity-50 text-center"
                 >
                   Create Assessment
                 </button>
@@ -1369,14 +1415,14 @@ export default function ImpactWorkspacePage() {
       {/* ADD METRIC MODAL */}
       {showMetricModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <h3 className="text-lg font-bold text-slate-900">
+              <h3 className="text-lg font-bold text-slate-900 break-words">
                 Add Structured Impact Metric
               </h3>
               <button
                 onClick={() => setShowMetricModal(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold"
+                className="text-slate-400 hover:text-slate-600 font-bold p-1"
               >
                 ✕
               </button>
@@ -1419,7 +1465,7 @@ export default function ImpactWorkspacePage() {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
                     Baseline
@@ -1431,7 +1477,7 @@ export default function ImpactWorkspacePage() {
                     onChange={(e) =>
                       setMetricForm({ ...metricForm, baseline_value: e.target.value })
                     }
-                    className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
                 </div>
 
@@ -1446,7 +1492,7 @@ export default function ImpactWorkspacePage() {
                     onChange={(e) =>
                       setMetricForm({ ...metricForm, target_value: e.target.value })
                     }
-                    className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
                 </div>
 
@@ -1462,7 +1508,7 @@ export default function ImpactWorkspacePage() {
                     onChange={(e) =>
                       setMetricForm({ ...metricForm, actual_value: e.target.value })
                     }
-                    className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -1502,18 +1548,18 @@ export default function ImpactWorkspacePage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-3 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setShowMetricModal(false)}
-                  className="px-3 py-1.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-semibold"
+                  className="px-3 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-semibold text-center"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submittingAction}
-                  className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold disabled:opacity-50"
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold disabled:opacity-50 text-center"
                 >
                   Save Metric
                 </button>
@@ -1526,14 +1572,14 @@ export default function ImpactWorkspacePage() {
       {/* UPLOAD EVIDENCE MODAL */}
       {showEvidenceModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <h3 className="text-lg font-bold text-slate-900">
+              <h3 className="text-lg font-bold text-slate-900 break-words">
                 Upload Impact Evidence
               </h3>
               <button
                 onClick={() => setShowEvidenceModal(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold"
+                className="text-slate-400 hover:text-slate-600 font-bold p-1"
               >
                 ✕
               </button>
@@ -1573,7 +1619,7 @@ export default function ImpactWorkspacePage() {
                   onChange={(e) =>
                     setEvidenceFile(e.target.files ? e.target.files[0] : null)
                   }
-                  className="w-full p-2 border border-slate-300 rounded-lg focus:outline-none"
+                  className="w-full p-2 border border-slate-300 rounded-lg focus:outline-none file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-slate-100 file:text-slate-700"
                 />
               </div>
 
@@ -1590,18 +1636,18 @@ export default function ImpactWorkspacePage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-3 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setShowEvidenceModal(false)}
-                  className="px-3 py-1.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-semibold"
+                  className="px-3 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-semibold text-center"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submittingAction}
-                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold disabled:opacity-50"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold disabled:opacity-50 text-center"
                 >
                   Upload Evidence
                 </button>

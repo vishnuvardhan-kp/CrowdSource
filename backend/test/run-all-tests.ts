@@ -75,8 +75,17 @@ async function main() {
     // 16. Run Post-Phase-9 Multilingual End-to-End Suite
     await runCommand('npx', ['ts-node', 'test/verify-multilingual-e2e.ts']);
 
+    // 17. Run University Experience & Full Lifecycle Notifications Suite
+    await runCommand('npx', ['ts-node', '-r', 'tsconfig-paths/register', 'test/verify-university-lifecycle-notifications.ts']);
+
+    // 18. Run Research Intelligence Recommendation Subsystem tests
+    await runCommand('npx', ['ts-node', '-r', 'tsconfig-paths/register', 'test/test-research-intelligence.ts']);
+
+    // 19. Run Voice Module Integration tests
+    await runCommand('npx', ['ts-node', '-r', 'tsconfig-paths/register', 'test/test-voice-module.ts']);
+
     console.log('\n============================================================');
-    console.log('🏆 ALL TEST SUITES PASSED! Phase 2-9.1 & Post-Phase-9 Multilingual Support 100% VERIFIED!');
+    console.log('🏆 ALL TEST SUITES PASSED! Voice Module & Research Intelligence 100% VERIFIED!');
     console.log('============================================================\n');
   } catch (err: any) {
     console.error('\n❌ Test execution encountered an error:', err.message);

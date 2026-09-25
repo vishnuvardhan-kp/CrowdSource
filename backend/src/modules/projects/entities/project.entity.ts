@@ -47,6 +47,14 @@ export class Project {
   @JoinColumn({ name: 'cluster_id' })
   cluster: ProblemCluster;
 
+  @Index()
+  @Column({ type: 'uuid', nullable: true })
+  proposed_solution_id: string | null;
+
+  @ManyToOne('ProposedSolution', { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'proposed_solution_id' })
+  proposedSolution: any;
+
   @Column({ type: 'varchar', length: 255 })
   title: string;
 

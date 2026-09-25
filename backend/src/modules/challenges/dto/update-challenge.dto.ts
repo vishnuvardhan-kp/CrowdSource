@@ -7,9 +7,30 @@ import {
   IsEnum,
   IsNumber,
 } from 'class-validator';
-import { CitizenSeverity } from '../../../common/enums';
+import { CitizenSeverity, ReporterType } from '../../../common/enums';
 
 export class UpdateChallengeDto {
+  @IsOptional()
+  @IsEnum(ReporterType, { message: 'reporter_type must be INDIVIDUAL, COMMUNITY, PRI, ULB, or GOVERNMENT_DEPARTMENT.' })
+  reporter_type?: ReporterType;
+
+  @IsOptional()
+  @IsUUID('4', { message: 'institution_id must be a valid UUID.' })
+  institution_id?: string;
+
+  @IsOptional()
+  @IsUUID('4', { message: 'institution_membership_id must be a valid UUID.' })
+  institution_membership_id?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  community_group_name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  audio_evidence_url?: string;
   @IsOptional()
   @IsString()
   @MinLength(5, { message: 'Title must be at least 5 characters long.' })

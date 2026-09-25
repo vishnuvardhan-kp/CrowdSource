@@ -84,7 +84,7 @@ export default function ReportsScreen() {
         <View style={styles.centerContainer}>
           <EmptyState
             title="Sign In Required"
-            description="Sign in with your citizen account to track your submitted reports and their government review progress."
+            description="Sign in with your citizen account to track your submitted reports and their solution progress."
             iconName="lock-closed-outline"
             actionTitle="Sign In"
             onAction={() => router.push('/(auth)/login')}

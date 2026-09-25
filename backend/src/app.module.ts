@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -23,6 +23,10 @@ import { EoisModule } from './modules/eois/eois.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ProblemClustersModule } from './modules/problem-clusters/problem-clusters.module';
+import { ResearchIntelligenceModule } from './modules/research-intelligence/research-intelligence.module';
+import { VoiceModule } from './modules/voice/voice.module';
+import { SolutionsModule } from './modules/solutions/solutions.module';
+import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 
 @Module({
   imports: [
@@ -49,9 +53,17 @@ import { ProblemClustersModule } from './modules/problem-clusters/problem-cluste
     ProjectsModule,
     ImpactModule,
     EoisModule,
+    SolutionsModule,
     NotificationsModule,
     AnalyticsModule,
     ProblemClustersModule,
+    ResearchIntelligenceModule,
+    VoiceModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+  }
+}
+

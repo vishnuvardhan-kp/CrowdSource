@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Query,
+  Param,
+  ParseUUIDPipe,
   UseGuards,
 } from '@nestjs/common';
 import { AnalyticsService, AnalyticsFilters } from './analytics.service';
@@ -61,6 +63,14 @@ export class AnalyticsController {
     return this.analyticsService.getDistrictsAnalytics(user, filters);
   }
 
+  @Get('problem-hotspots')
+  async getProblemHotspots(
+    @Query() filters: AnalyticsFilters,
+    @CurrentUser() user: any,
+  ) {
+    return this.analyticsService.getProblemHotspots(user, filters);
+  }
+
   @Get('problem-clusters')
   async getProblemClusters(
     @Query() filters: AnalyticsFilters,
@@ -99,5 +109,21 @@ export class AnalyticsController {
     @CurrentUser() user: any,
   ) {
     return this.analyticsService.getInnovationOutcomes(user, filters);
+  }
+
+  @Get('resolution-journeys')
+  async getResolutionJourneys(
+    @Query() filters: AnalyticsFilters,
+    @CurrentUser() user: any,
+  ) {
+    return this.analyticsService.getResolutionJourneysList(user, filters);
+  }
+
+  @Get('resolution-journey/:challengeId')
+  async getResolutionJourney(
+    @Param('challengeId', ParseUUIDPipe) challengeId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.analyticsService.getProblemResolutionJourney(challengeId, user);
   }
 }
