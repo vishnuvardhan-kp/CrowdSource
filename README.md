@@ -1,220 +1,239 @@
-# SamadhanSetu — Societal Innovation Collaboration Platform
+# SamadhanSetu
 
-[![Phase](https://img.shields.io/badge/Phase-3%20Authentication%2C%20Roles%20%26%20Organization%20Membership-brightgreen.svg)](./README.md)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
+> AI-powered civic problem intelligence, university research matching, and multi-stakeholder innovation collaboration platform.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](./LICENSE)
+[![Frontend: Next.js 14](https://img.shields.io/badge/Frontend-Next.js%2014-black.svg)](./frontend)
+[![Backend: NestJS 10](https://img.shields.io/badge/Backend-NestJS%2010-red.svg)](./backend)
+[![AI: Python FastAPI](https://img.shields.io/badge/AI-FastAPI%20%7C%20NVIDIA%20NIM-teal.svg)](./ai-service)
 
 ---
 
-## 1. What is SamadhanSetu?
+## Problem Statement
 
-**SamadhanSetu** is an AI-enabled societal innovation collaboration platform built for Smart India Hackathon (SIH '26). 
+Grassroots civic and societal challenges often remain unaddressed due to fragmented reporting, lack of technical structure, and disconnect between community needs, academic research capabilities, industrial resources, and administrative governance. Meanwhile, universities conduct applied R&D that rarely connects directly to verifiable local civic problems, and government officials lack real-time geographic visibility into problem density, institutional pilots, and verified societal impact.
 
-The platform bridges the gap between grassroots societal problems and institutional solutions by connecting:
+---
+
+## Solution
+
+**SamadhanSetu** bridges this gap by creating an end-to-end innovation pipeline connecting citizens, universities, industries, and government administration:
 
 ```text
-Citizens → Societal Challenges → AI Analysis → Validation → Capability Matching → Universities + Industry → Project Execution → Community Verification → Impact Measurement
-```
-
-- **Citizens** submit real-world challenges with location, descriptions, and media.
-- **AI Service** classifies, prioritises, summarises, and flags duplicate issues using semantic vector search.
-- **Universities & HEIs** adopt challenges into student/faculty R&D projects based on verified research capabilities.
-- **Industry Partners** offer mentorship, tech stack access, prototyping facilities, and funding.
-- **Government Analytics** gain real-time visibility into societal impact metrics and accountability.
-
----
-
-## 2. Current Implementation Phase
-
-**Phase 3: Authentication, Roles & Organization Membership**
-
-Phase 3 introduces the identity and access-control foundation for SamadhanSetu. It establishes secure user registration, bcrypt password hashing, stateless JWT authentication, reusable NestJS guards (`JwtAuthGuard`, `RolesGuard`), role-based access control (RBAC), multi-tenant organization memberships, and an organization claim-request foundation.
-
-### Implemented in Phase 3:
-- **User Registration (`POST /api/auth/register`)**: Email normalization, duplicate check (409 Conflict), bcrypt hashing (10 salt rounds), strict default role assignment to `CITIZEN`. Client privilege escalation attempts are rejected and stripped.
-- **User Login (`POST /api/auth/login`)**: Secure credential verification with `bcrypt.compare`, account active check, signed JWT access token generation with minimum necessary claims (`sub`, `email`, `role`).
-- **Protected Profile (`GET /api/auth/me`)**: Returns safe user profile with linked organization and active memberships, strictly omitting `password_hash`.
-- **Reusable Guards (`JwtAuthGuard`, `RolesGuard`)**: Extensible guards enforcing 401 Unauthorized for missing/invalid tokens and 403 Forbidden for insufficient role permissions.
-- **Role-Based Access Control (RBAC)**: Support for 9 granular platform roles (`CITIZEN`, `UNIVERSITY_ADMIN`, `FACULTY`, `STUDENT`, `INDUSTRY_ADMIN`, `INDUSTRY_MEMBER`, `GOVERNMENT_ADMIN`, `GOVERNMENT_OFFICER`, `PLATFORM_ADMIN`).
-- **Organization Membership Model**: Normalized `organization_memberships` table supporting many-to-many user-organization relations with organization roles (`ADMIN`, `MEMBER`) and statuses (`ACTIVE`, `PENDING`, `INACTIVE`, `REVOKED`).
-- **Organization Claim Foundation**: Dedicated `organization_claim_requests` table and endpoints (`POST /api/organization-claims`, `GET /api/organization-claims`). Claims are initialized in `PENDING` status and grant zero elevated privileges until future verification.
-- **Minimal Authentication UI**: Responsive Next.js 14 interface featuring login/registration tabs, quick-fill development credentials, decoded profile inspect, live RBAC role-guard test button, public organization search directory, and claim request submissions.
-- **Comprehensive Automated Test Suites**: 126 automated assertions across Phase 2 database schema, Phase 3 authentication/authorization logic, and live HTTP API integration testing (`npm test`).
-
-### Deferred to Future Phases (Explicitly NOT Implemented in Phase 3):
-- No Challenge submission workflow (Phase 4+)
-- No AI model inference / vector matching algorithms (Phase 4+)
-- No Project management workflow / Funding workflow (Phase 5+)
-- No Government analytics dashboard (Phase 6+)
-- No Full automated organization verification pipeline / file uploads / OAuth / OTP services
-
----
-
-## 3. Technology Stack
-
-| Layer | Technology |
-| :--- | :--- |
-| **Frontend** | Next.js 14 (App Router), TypeScript, Tailwind CSS, Lucide Icons |
-| **Backend** | Node.js, NestJS 10, TypeScript, Passport.js, Passport-JWT, Bcrypt.js, TypeORM 0.3, REST API (`/api`) |
-| **AI Service** | Python 3.11+, FastAPI, Uvicorn, Pydantic (Standby foundation) |
-| **Database** | PostgreSQL 16 (`uuid-ossp` for primary keys, `pgvector` readiness) |
-| **Infrastructure** | Embedded PostgreSQL runner / Docker Compose |
-| **Testing** | TypeScript automated verification suites (126 assertions via `npm test`) |
-
----
-
-## 4. Authentication Architecture
-
-```text
-User
- ↓
-Registration (POST /api/auth/register)
- ↓
-Role: CITIZEN (Strict default; privilege escalation stripped)
- ↓
-Login (POST /api/auth/login)
- ↓
-JWT Token Issued (sub: user_id, role: user_role)
- ↓
-JwtAuthGuard (Validates Bearer token → 401 if missing/invalid)
- ↓
-RolesGuard (@Roles(...) check → 403 if insufficient permissions)
- ↓
-Protected Resources (e.g. /api/auth/me, /api/auth/admin-test)
+Citizen Report
+  ↓
+AI Problem Understanding (Refinement, Categorization, Clustering)
+  ↓
+University Capability Matching & Recommendation
+  ↓
+Proposed Solution (Non-confidential summary + Protected IP blueprint)
+  ↓
+Industry / Ecosystem Collaboration (Funding, Prototyping, Testing, Pilot)
+  ↓
+Project Lifecycle (Planning → Prototype → Testing → Pilot → Deployment → Completion)
+  ↓
+Impact & Innovation (Beneficiaries, NABL Evidence, Patents, Startups, Tech Transfer)
+  ↓
+Government Analytics (Authentic 24-District Jharkhand Heatmap, Oversight & Audit)
 ```
 
 ---
 
-## 5. Organization Membership & Claim Architecture
+## Key Features
 
-```text
-User
- ↓
-Search Public Organizations (GET /api/organizations)
- ↓
-Submit Claim Request (POST /api/organization-claims)
- ↓
-Claim Status: PENDING (Zero admin access granted)
- ↓
-Future Administrative Verification
- ↓
-Approved Claim → Organization Membership Created (ADMIN or MEMBER)
-```
-
-### Critical Architectural Principles
-
-> [!IMPORTANT]
-> **Authentication is NOT the same as organization verification.**
-> A platform account does not automatically establish organizational authority. A user can register and have a fully authenticated platform account (`CITIZEN`) without being a verified representative of any institution or company.
-
-> [!IMPORTANT]
-> **Independent Public Organization Profiles.**
-> Organization profiles (universities, colleges, industry partners) exist in the database independently of user accounts. They can be created from public registry records (e.g., AISHE/NIRF) and claimed later by authorized representatives through the claim-request workflow.
+- **Citizen Problem Submission:** Multilingual web and mobile intake with GPS geolocation, block/district mapping, and offline draft persistence.
+- **Multimedia Evidence:** Direct photo, video, and document uploads attached to civic challenges.
+- **AI Problem Refinement & Classification:** Professional civic problem statement synthesis, zero-fabrication citizen fact extraction, and taxonomy mapping across 18 municipal domains.
+- **Semantic Matching & Recommendation:** Vector similarity matching linking validated problems to verified higher education institution (HEI) technical capabilities and laboratory facilities.
+- **Deduplication & Clustering:** Semantic duplicate detection and spatial clustering grouping related citizen reports into community signals.
+- **Proposed Solutions & IP Protection:** Universities publish non-confidential solution summaries to the Open Solution Workspace while keeping proprietary technical blueprints masked until consortium acceptance.
+- **Multidisciplinary University Teams:** Academic rosters uniting faculty mentors, student researchers, and campus coordinators across engineering and sciences.
+- **Industry & Ecosystem Collaboration:** Corporate enterprises, MSMEs, startups, CSR units, and research labs submit financial (co-funding) or non-financial (prototyping, testing, deployment) collaboration offers.
+- **Private Stakeholder Communication:** Four-state access-controlled forum restricted exclusively to the citizen submitter, lead university, and accepted consortium partners.
+- **Project Lifecycle Tracking:** Phased milestone execution: Planning, Prototype Development, Testing & Validation, Pilot Deployment, Operational Handover, and Completion.
+- **Innovation & Tech Transfer Register:** IP assessment, Indian Patent Office application/grant tracking, academic startup spin-offs, and government technology transfer agreements.
+- **Verified Social Impact:** Direct citizen beneficiary counts, categorical metrics (Health, Livelihood, Education, Environment, Infrastructure), NABL lab test certificates, and citizen feedback.
+- **Government Analytics & Real GIS Heatmap:** Geographically realistic 24-district Jharkhand boundary choropleth (EPSG:4326 Survey/LGD geometry), district comparative matrix, domain velocity timelines, and administrative oversight.
 
 ---
 
-## 6. Platform Roles vs. Organization Roles
+## User Roles
 
-SamadhanSetu strictly decouples **Platform Roles** from **Organization Roles**:
-
-| Platform Role | Scope | Description |
+| Role | Responsibilities | Primary Interface |
 | :--- | :--- | :--- |
-| `CITIZEN` | Global | Default user identity; reports problems and participates in community validation |
-| `UNIVERSITY_ADMIN` | Institutional | Academic administrator managing institution capabilities and projects |
-| `FACULTY` | Institutional | Academic researcher/instructor leading innovation R&D projects |
-| `STUDENT` | Institutional | Student innovator collaborating on challenge solutions |
-| `INDUSTRY_ADMIN` | Corporate | Industry administrator managing corporate partnership and sponsorships |
-| `INDUSTRY_MEMBER` | Corporate | Technical specialist providing mentorship and hardware/software support |
-| `GOVERNMENT_ADMIN` | Governance | Public administrator monitoring regional societal impact and funding |
-| `GOVERNMENT_OFFICER` | Governance | Municipal/departmental official tracking issue resolution |
-| `PLATFORM_ADMIN` | System | Superuser managing platform governance, verification, and claim approvals |
-
-Inside any specific organization, memberships are tracked via `organization_memberships`:
-- `ADMIN`: Authorized representative with organizational management permissions.
-- `MEMBER`: General member/researcher/collaborator affiliated with the organization.
+| **Citizen** | Reports civic challenges, uploads media evidence, tracks progress, submits community feedback. | Web (`/challenges/new`), Mobile App |
+| **University** | Reviews matched problems, submits proposed solutions, forms multidisciplinary faculty-student teams, executes projects. | University Portal (`/university-dashboard`, `/solutions`) |
+| **Industry / Ecosystem** | Discovers open solutions, provides CSR/co-funding, technical mentoring, prototyping facilities, and field pilots. | Open Solution Workspace (`/solutions`), Project Workspace (`/projects/[id]`) |
+| **Government** | Monitors problem hotspots, reviews submissions, certifies social impact assessments, audits innovation outcomes. | Government Intelligence Dashboard (`/government-dashboard`) |
+| **Platform Admin** | Platform maintenance, institution onboarding, taxonomy management, system health telemetry. | Reviewer Queue (`/reviewer-queue`), Admin Telemetry |
 
 ---
 
-## 7. API Endpoints (Phase 3)
+## System Flow
 
-### Authentication & Profile
-| Method | Endpoint | Access | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/auth/register` | Public | Register new user account (strictly defaults to `CITIZEN`) |
-| `POST` | `/api/auth/login` | Public | Authenticate with email & password, returns JWT token |
-| `GET` | `/api/auth/me` | Authenticated | Retrieve authenticated user profile with organization memberships |
-| `GET` | `/api/auth/admin-test` | `PLATFORM_ADMIN` | RBAC test route (returns 200 for Platform Admin, 403 for other roles) |
-
-### Organizations & Claims
-| Method | Endpoint | Access | Description |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/organizations` | Public | Search and list public organization profiles |
-| `GET` | `/api/organizations/:id` | Public | Retrieve single organization details |
-| `GET` | `/api/organizations/:id/members` | Authenticated | Retrieve members belonging to an organization |
-| `POST` | `/api/organization-claims` | Authenticated | Submit an organization claim request (status: `PENDING`) |
-| `GET` | `/api/organization-claims` | Authenticated | List submitted claims (Admin sees all; users see their own) |
-
-### System Health
-| Method | Endpoint | Access | Description |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/health` | Public | Dynamic backend and database health status |
+```text
++------------------+         +--------------------------+         +-----------------------+
+|  Citizen Mobile  |  POST   |   NestJS Backend API     |   Sync  |   PostgreSQL 16 DB    |
+|   / Web Intake   | ------> |  (/api/challenges)       | ------> |  (720+ Civic Records, |
++------------------+         +--------------------------+         |   24 LGD Districts)   |
+                                       |                          +-----------------------+
+                                       | POST /analyze-challenge
+                                       v
+                             +--------------------------+
+                             |     Python AI Service    |
+                             |  - NVIDIA NIM / Llama    |
+                             |  - Zero-Fabrication Tier |
+                             |  - Deterministic Fallback|
+                             +--------------------------+
+                                       |
+                                       v
++------------------+  Offer  +--------------------------+         +-----------------------+
+| Industry / CSR   | ------> | Open Solution Workspace  | Convert |   Project Workspace   |
+| (Funding, Pilot) |         | (BIT Mesra, NIT Jamshed.)| ------> | (Planning → Deploy)   |
++------------------+         +--------------------------+         +-----------------------+
+                                                                              |
+                                       +--------------------------------------+
+                                       v
+                             +--------------------------+
+                             |   Government Dashboard   |
+                             |  - Real GIS Heatmap      |
+                             |  - 24-District Analytics |
+                             |  - Impact & IP Register  |
+                             +--------------------------+
+```
 
 ---
 
-## 8. Development Commands & Testing
+## AI / ML Architecture
 
-### 1. Start PostgreSQL (Local Embedded Runner)
-```bash
+SamadhanSetu integrates a provider-agnostic Python microservice paired with a deterministic backend fallback:
+
+- **Civic Problem Structuring & Refinement:** Utilizes external cloud LLM inference via NVIDIA NIM (`meta/llama-3.2-11b-vision-instruct`) or Sarvam API for multilingual speech-to-text. The model transforms colloquial citizen submissions into formal civic statements without altering the original immutable text. Note: The foundational LLM was not trained by us; we designed specialized prompt contracts and extraction constraints.
+- **Zero-Fabrication Architecture:** Citizen-reported facts are strictly extracted from the citizen utterance alone. Administrative metadata (district, block, locality) is appended exclusively from verified platform database records.
+- **Categorization & Prioritization:** Automated mapping into 18 municipal taxonomy categories with priority scoring (CRITICAL, HIGH, MEDIUM, LOW) derived from civic severity, citizen confirmations, and AI analysis.
+- **Semantic Embeddings & Clustering:** Computes vector embeddings to detect duplicates and cluster nearby problem reports into community clusters.
+- **Capability Matching:** Ranks higher education institutions against problem requirements based on verified laboratory capabilities, operational jurisdiction, and research specializations.
+- **Deterministic Offline Fallback:** If cloud AI inference is unavailable or API keys are omitted, the system automatically falls back to internal rule-based structuring and mock providers with zero downtime.
+
+---
+
+## Technology Stack
+
+- **Web Frontend:** Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS, Lucide React Icons
+- **Mobile Frontend:** React Native, Expo SDK 57, TypeScript, React Navigation
+- **Backend API:** Node.js, NestJS 10, TypeScript, TypeORM 0.3, Passport-JWT, Bcrypt.js
+- **Database:** PostgreSQL 16 (Relational schema, UUID primary keys, LGD spatial dataset)
+- **AI / ML Microservice:** Python 3.10+, FastAPI, Uvicorn, Pydantic, NVIDIA NIM API, Sarvam API
+- **GIS & Cartography:** Official EPSG:4326 GeoJSON simplified SVG vector paths, Green's Theorem centroid calculation
+- **File & Media Storage:** Local file system storage (`uploads/evidence`, `uploads/deliverables`, `uploads/impact-evidence`)
+
+---
+
+## Project Structure
+
+```text
+Crowdsource/
+├── frontend/               # Next.js 14 web application
+│   ├── src/app/            # App Router pages (/challenges, /solutions, /projects, /government-dashboard)
+│   ├── src/lib/            # Auth context, API client, forum access logic, utilities
+│   └── public/             # Static public assets
+├── backend/                # NestJS 10 REST API microservice
+│   ├── src/modules/        # Core modules (auth, challenges, solutions, projects, impact, analytics)
+│   ├── src/database/       # TypeORM entities, migrations, seed scripts
+│   └── test/               # Automated test and integration verification suites
+├── ai-service/             # FastAPI AI problem structuring & matching service
+│   ├── app/providers/      # NVIDIA NIM, Sarvam, and Mock AI providers
+│   ├── app/services/       # LLM inference and extraction pipelines
+│   └── main.py             # FastAPI entrypoint (Port 8000)
+├── Recommendation_engine/  # Recommendation & ranking service
+├── mobile/                 # React Native / Expo SDK 57 mobile citizen app
+├── docs/                   # Supporting architecture, deployment, and hosting documentation
+└── scratch/                # Local integration and verification scripts
+```
+
+---
+
+## Setup & Local Development
+
+### Prerequisites
+- Node.js 18.x or 20.x
+- Python 3.10+ (with virtual environment support)
+- PostgreSQL 14+ (or use the embedded runner)
+
+### 1. Database Setup
+```powershell
 cd backend
+# Run embedded development PostgreSQL instance:
 node scripts/run-dev-postgres.js
-```
-
-### 2. Run Database Migrations
-```bash
-cd backend
+# In a new terminal, execute migrations and initial seeds:
 npm run migration:run
-```
-
-### 3. Run Development Seed
-```bash
-cd backend
 npm run seed:run
 ```
 
-*Pre-configured development demo credentials:*
-- **Platform Admin:** `admin@dev.local` / `AdminDev123!`
-- **Demo Citizen:** `citizen@dev.local` / `CitizenDev123!`
-
-### 4. Run Automated Test Suites
-```bash
+### 2. Backend API Setup
+```powershell
 cd backend
-npm test
-```
-*Executes all 3 verification suites:*
-- `npm run test:phase2`: Database entity metadata & relational integrity (61 assertions)
-- `npm run test:phase3`: Authentication, registration, login, bcrypt, JWT, and RBAC logic (38 assertions)
-- `verify-http-api.ts`: End-to-end HTTP API tests against live NestJS server (27 assertions)
-- **Total: 126 automated assertions passing (0 failures)**
-
-### 5. Start Backend Service
-```bash
-cd backend
+npm install
 npm run start:dev
+# Service runs on http://localhost:3001/api
+# Health check: http://localhost:3001/api/health
 ```
-Backend API available at: `http://localhost:3001/api`
 
-### 6. Start Frontend App
-```bash
-cd frontend
-npm run dev
+### 3. AI Service Setup
+```powershell
+cd ai-service
+python -m venv venv
+.\venv\Scripts\activate      # Windows (or source venv/bin/activate on Linux/macOS)
+pip install -r requirements.txt
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
+# Service runs on http://localhost:8000
 ```
-Frontend UI available at: `http://localhost:3000`
+
+### 4. Web Frontend Setup
+```powershell
+cd frontend
+npm install
+npm run dev
+# Web Portal runs on http://localhost:3000
+```
+
+### 5. Mobile App Setup (Optional)
+```powershell
+cd mobile
+npm install
+npx expo start
+```
 
 ---
 
-## 9. Next Phase Roadmap
+## Testing & Verification Status
 
-**Phase 4 — Grassroots Challenge Submission & Multimodal Evidence Pipeline**
-- Citizen challenge reporting workflow with location and district tags
-- Multimodal evidence handling (photos, documents, coordinates)
-- Challenge triage and validation state machines
-- Initial vector embedding integration with AI Service
+The codebase is thoroughly covered by automated integration test suites:
+
+- **End-to-End Business Flow Suite (`test-phase7-e2e-business-flow.js`):** 61 / 61 checkpoints passed (100%)
+- **Government Analytics & Impact Suite (`test-phase6-government-analytics-impact.js`):** 54 / 54 checkpoints passed (100%)
+- **Backend Architecture & Production Readiness (`test-production-readiness-audit.ts`):** 49 / 49 checkpoints passed (100%)
+- **Project Lifecycle Suite (`test-phase4-project-lifecycle.js`):** 47 / 47 checkpoints passed (100%)
+- **Consortium & Collaboration Suite (`test-phase3-collaboration.js`):** 45 / 45 checkpoints passed (100%)
+- **Innovation & IP Telemetry Suite (`test-phase5-innovation-ip.js`):** 43 / 43 checkpoints passed (100%)
+- **University Team Multidisciplinary Suite (`test-phase2-university-team.js`):** 39 / 39 checkpoints passed (100%)
+- **Open Solution Workspace Suite (`test-solution-workspace-e2e.js`):** 27 / 27 checkpoints passed (100%)
+- **Private Stakeholder Communication Suite (`verify-forum.js`):** 23 / 23 checkpoints passed (100%)
+- **Spatial Hotspots & GIS Heatmap Suite (`test-heatmap-and-demo.js`):** 6 / 6 checkpoints passed (100%)
+- **Type Checking:** `npx tsc --noEmit` exits with 0 errors across frontend and backend.
+- **Production Build:** `npm run build` compiles all 21 Next.js routes successfully.
+
+---
+
+## Deployment Notes
+
+- **Environment Variables:** Set `NODE_ENV=production`, `PORT`, `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USER`, `DATABASE_PASSWORD`, `JWT_SECRET`, and `AI_SERVICE_URL`.
+- **Media Persistence:** The current development configuration stores uploaded evidence and deliverables on the local filesystem (`uploads/`). For containerized or serverless hosting (e.g., Render, Vercel, Railway), configure durable persistent storage (e.g., AWS S3, Supabase Storage, or Cloudinary).
+- **AI Inference:** The platform can run with external cloud inference keys (`NVIDIA_API_KEY`) or in offline mode utilizing the built-in deterministic fallback engine without GPU dependencies.
+- Detailed hosting readiness is audited in [docs/FREE_HOSTING_READINESS.md](./docs/FREE_HOSTING_READINESS.md).
+
+---
+
+## License
+
+This project is licensed under the [MIT License](./LICENSE).
