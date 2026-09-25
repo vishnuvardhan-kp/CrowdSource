@@ -238,7 +238,7 @@ export function VoiceReportScreen({
         setState('asking');
       }
     } catch (err: any) {
-      console.error('[VoiceReportScreen] handleStopRecording error:', err);
+      console.warn('[VoiceReportScreen] handleStopRecording error:', err?.message || err);
       setErrorMessage(err.message || t('voice.genericError', 'Failed to analyze voice recording'));
       setState('error');
     }
@@ -798,6 +798,8 @@ export function VoiceReportScreen({
                 style={[styles.textInput, { backgroundColor: theme.colors.background, borderColor: theme.colors.border, color: theme.colors.text }]}
                 value={editedTitle}
                 onChangeText={setEditedTitle}
+                multiline={true}
+                numberOfLines={2}
               />
 
               <Text style={[styles.fieldLabel, { color: theme.colors.textSecondary, marginTop: 12 }]}>
@@ -1014,7 +1016,7 @@ export function VoiceReportScreen({
             <Text style={[styles.mainSubtext, { color: theme.colors.textSecondary }]}>
               {t(
                 'voice.successMsg',
-                'Your voice complaint has been structured, translated, and registered in the SamadhanSetu portal.',
+                'Your voice complaint has been structured, translated, and registered in the ResolvIN portal.',
               )}
             </Text>
 
@@ -1060,6 +1062,23 @@ export function VoiceReportScreen({
               <Ionicons name="refresh" size={22} color="#FFFFFF" />
               <Text style={styles.recordButtonText}>
                 {t('voice.tryAgain', 'Try Again')}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.secondaryButton, { borderColor: theme.colors.primary, marginTop: 12 }]}
+              onPress={() => {
+                if (onCancel) {
+                  onCancel();
+                } else {
+                  router.back();
+                }
+              }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="create-outline" size={18} color={theme.colors.primary} />
+              <Text style={[styles.secondaryButtonText, { color: theme.colors.primary }]}>
+                {t('voice.manualEntry', 'Enter Problem Manually')}
               </Text>
             </TouchableOpacity>
           </View>

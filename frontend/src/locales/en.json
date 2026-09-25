@@ -67,7 +67,7 @@
     "hero_title_1": "Real Problems.",
     "hero_title_2": "Real People.",
     "hero_title_3": "Real Solutions.",
-    "hero_desc": "SamadhanSetu bridges the gap between grassroots community challenges and the universities, research laboratories, industries, and startups equipped with the verified capabilities to solve them.",
+    "hero_desc": "ResolvIN bridges the gap between grassroots community challenges and the universities, research laboratories, industries, and startups equipped with the verified capabilities to solve them.",
     "report_problem_cta": "Report a Problem",
     "explore_challenges_cta": "Explore Challenges",
     "trust_notice": "Open to all citizens, village panchayats, research faculties, and industrial partners.",
@@ -81,7 +81,7 @@
     "metric_passports": "Active Capability Passports",
     "metric_review": "Transparent Government Review",
     "pipeline_badge": "The Collaboration Pipeline",
-    "how_it_works": "How SamadhanSetu Works",
+    "how_it_works": "How ResolvIN Works",
     "how_it_works_desc": "A transparent, accountable workflow transforming unstructured citizen reports into validated institutional research and community deployment.",
     "step1_title": "Grassroots Problem Intake",
     "step1_desc": "Citizens, village panchayats, and community leaders document verified societal challenges with photos and location telemetry.",
@@ -99,7 +99,7 @@
     "explore_domain": "Explore Challenges",
     "participation_badge": "Multi-Stakeholder Participation",
     "participation_title": "How Will You Participate?",
-    "participation_desc": "SamadhanSetu provides dedicated workspaces tailored to your institutional role and societal responsibility.",
+    "participation_desc": "ResolvIN provides dedicated workspaces tailored to your institutional role and societal responsibility.",
     "role_citizen_title": "Citizens & Communities",
     "role_citizen_desc": "Report real problems from your district. Validate shared community issues and track progress toward solutions.",
     "role_citizen_badge": "Grassroots Voice",
@@ -122,7 +122,7 @@
     "footer_stakeholders": "Stakeholders",
     "footer_governance": "Governance & Trust",
     "footer_governance_text": "All problem submissions are subject to district reviewer validation. AI matching inferences are provided as decision support for human reviewers.",
-    "footer_copyright": "© 2026 SamadhanSetu. All rights reserved."
+    "footer_copyright": "© 2026 ResolvIN. All rights reserved."
   },
   "auth": {
     "back_to_home": "Back to Home",
@@ -169,12 +169,6 @@
     "register_btn": "Create Account",
     "signing_in": "Signing in...",
     "creating_account": "Creating account...",
-    "quick_demo_logins": "Quick Demo Accounts (1-Click Switch)",
-    "demo_citizen": "Citizen (Mobile/Web)",
-    "demo_officer": "District Nodal Officer",
-    "demo_university": "University Dean / Researcher",
-    "demo_industry": "Industry Tech Lead",
-    "demo_admin": "Platform Admin",
     "already_signed_in": "You are currently signed in as"
   },
   "challenges": {

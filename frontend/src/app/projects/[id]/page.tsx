@@ -479,7 +479,7 @@ export default function ProjectWorkspacePage() {
   const [pilotOrg, setPilotOrg] = useState("");
   const [pilotDuration, setPilotDuration] = useState<number>(30);
   const [pilotCohort, setPilotCohort] = useState<number>(100);
-  const [pilotScale, setPilotScale] = useState("COMMUNITY_FIELD_DEMO");
+  const [pilotScale, setPilotScale] = useState("COMMUNITY_FIELD_DEPLOYMENT");
   const [pilotObjectives, setPilotObjectives] = useState("");
   const [pilotFeedback, setPilotFeedback] = useState("");
 
@@ -2199,7 +2199,7 @@ export default function ProjectWorkspacePage() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-semibold text-stone-900">Isolated Deliverables Vault</h3>
-                <p className="text-xs text-stone-500">Formal project outputs, test data, prototype specifications, and certificates strictly quarantined from capability records.</p>
+                <p className="text-xs text-stone-500">Formal project outputs, empirical validation data, engineering specifications, and certificates strictly quarantined from capability records.</p>
               </div>
               {project.status === "ACTIVE" && (
                 <button

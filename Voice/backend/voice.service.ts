@@ -119,7 +119,7 @@ export class VoiceService {
         type: normalizedMimeType,
       });
       formData.append('file', blob, file.originalname || 'recording.m4a');
-      formData.append('model', 'saarika:v2.5');
+      formData.append('model', 'saaras:v3');
 
       const byteLength = file.size || file.buffer.length;
       this.logger.log(
@@ -303,7 +303,7 @@ export class VoiceService {
       );
     }
 
-    const systemPrompt = `You are the SamadhanSetu Problem Intelligence AI for citizen civic reports.
+    const systemPrompt = `You are the ResolvIN Problem Intelligence AI for citizen civic reports.
 Analyze citizen speech and extract structured facts strictly without hallucination.
 
 CRITICAL ARCHITECTURAL RULES:

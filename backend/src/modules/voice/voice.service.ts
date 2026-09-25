@@ -158,32 +158,27 @@ export class VoiceService {
 
     const startTime = Date.now();
     try {
-      const formData = new FormData();
-      const blob = new Blob([new Uint8Array(file.buffer)], {
-        type: normalizedMimeType,
-      });
-      formData.append('file', blob, file.originalname || 'recording.m4a');
-      formData.append('model', 'saarika:v2.5');
+      let sttData: any = null;
+      try {
+        sttData = await this.invokeSarvamSttWithRetry(
+          file.buffer,
+          file.originalname || 'recording.m4a',
+          normalizedMimeType,
+        );
+      } catch (sttErr: any) {
+        if (sttErr instanceof BadRequestException) throw sttErr;
 
-      const sttResponse = await fetch('https://api.sarvam.ai/speech-to-text', {
-        method: 'POST',
-        headers: {
-          'api-subscription-key': this.sarvamApiKey,
-        },
-        body: formData,
-        signal: AbortSignal.timeout(45000),
-      });
+        this.logger.error(
+          `Sarvam STT failed: ${sttErr.message}`,
+          sttErr.stack,
+        );
 
-      if (!sttResponse.ok) {
-        const errText = await sttResponse.text();
-        this.logger.error(`Sarvam STT failed with HTTP ${sttResponse.status}: ${errText}`);
         throw new BadRequestException(
-          `Sarvam Speech-to-Text service error (${sttResponse.status}): ${errText}`,
+          'Unable to transcribe voice recording. Please speak clearly into your microphone and try recording again.',
         );
       }
 
-      const sttData: any = await sttResponse.json();
-      const transcript = (sttData.transcript || '').trim();
+      const transcript = (sttData?.transcript || '').trim();
 
       if (!transcript) {
         throw new BadRequestException(
@@ -208,28 +203,12 @@ export class VoiceService {
       let englishTranslation = transcript;
       if (langPrefix !== 'en') {
         try {
-          const transResponse = await fetch('https://api.sarvam.ai/translate', {
-            method: 'POST',
-            headers: {
-              'api-subscription-key': this.sarvamApiKey,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              input: transcript,
-              source_language_code: languageCode,
-              target_language_code: 'en-IN',
-              speaker_gender: 'Male',
-              mode: 'formal',
-              model: 'mayura:v1',
-            }),
-            signal: AbortSignal.timeout(30000),
-          });
-
-          if (transResponse.ok) {
-            const transData: any = await transResponse.json();
-            if (transData.translated_text) {
-              englishTranslation = transData.translated_text.trim();
-            }
+          const transData = await this.invokeSarvamTranslateWithRetry(
+            transcript,
+            languageCode,
+          );
+          if (transData?.translated_text) {
+            englishTranslation = transData.translated_text.trim();
           }
         } catch (transErr: any) {
           this.logger.warn(`Sarvam translation fallback to original transcript: ${transErr.message}`);
@@ -427,7 +406,7 @@ export class VoiceService {
       return this.generateMockTurnAnalysis(dto);
     }
 
-    const systemPrompt = `You are the SamadhanSetu Problem Intelligence AI for citizen civic reports.
+    const systemPrompt = `You are the ResolvIN Problem Intelligence AI for citizen civic reports.
 Analyze citizen speech and extract structured facts strictly without hallucination.
 
 CRITICAL ARCHITECTURAL RULES:
@@ -1076,5 +1055,132 @@ Return ONLY a valid JSON object matching this schema:
     }
 
     throw lastError || new Error('NVIDIA Llama inference failed after 2 attempts.');
+  }
+
+  /**
+   * Invokes Sarvam Speech-to-Text API with retry and socket-reset resilience.
+   */
+  private async invokeSarvamSttWithRetry(
+    buffer: Buffer,
+    fileName: string,
+    mimeType: string,
+    maxAttempts = 3,
+  ): Promise<any> {
+    const transientStatuses = new Set([500, 502, 503, 504, 429]);
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const formData = new FormData();
+        const blob = new Blob([new Uint8Array(buffer)], { type: mimeType });
+        formData.append('file', blob, fileName);
+        formData.append('model', 'saaras:v3');
+
+        const response = await fetch('https://api.sarvam.ai/speech-to-text', {
+          method: 'POST',
+          headers: {
+            'api-subscription-key': this.sarvamApiKey,
+          },
+          body: formData,
+          signal: AbortSignal.timeout(45000),
+        });
+
+        if (response.ok) {
+          return await response.json();
+        }
+
+        const errText = await response.text();
+        const isTransient = transientStatuses.has(response.status);
+
+        if (isTransient && attempt < maxAttempts) {
+          const delayMs = attempt * 750;
+          this.logger.warn(
+            `Transient Sarvam STT error (${response.status}). Retrying attempt ${attempt + 1}/${maxAttempts} in ${delayMs}ms...`,
+          );
+          await this.sleep(delayMs);
+          continue;
+        }
+
+        if (response.status === 400) {
+          this.logger.warn(`Sarvam STT rejected audio (HTTP 400): ${errText}`);
+          throw new BadRequestException(
+            'No intelligible speech was recognized in the recording. Please speak clearly and record again.',
+          );
+        }
+
+        throw new Error(`Sarvam STT failed with HTTP ${response.status}: ${errText}`);
+      } catch (err: any) {
+        if (err instanceof BadRequestException) throw err;
+        lastError = err;
+        const causeDetail = (err as any).cause?.code || (err as any).cause?.message || err.message || '';
+        this.logger.warn(
+          `Sarvam STT attempt ${attempt}/${maxAttempts} failed: ${err.message} (${causeDetail})`,
+        );
+
+        if (attempt < maxAttempts) {
+          const delayMs = attempt * 750;
+          await this.sleep(delayMs);
+          continue;
+        }
+      }
+    }
+
+    throw lastError || new Error('Sarvam STT failed after all retry attempts.');
+  }
+
+  /**
+   * Invokes Sarvam Translate API with retry resilience.
+   */
+  private async invokeSarvamTranslateWithRetry(
+    transcript: string,
+    sourceLanguageCode: string,
+    maxAttempts = 2,
+  ): Promise<any> {
+    const transientStatuses = new Set([500, 502, 503, 504, 429]);
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const response = await fetch('https://api.sarvam.ai/translate', {
+          method: 'POST',
+          headers: {
+            'api-subscription-key': this.sarvamApiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            input: transcript,
+            source_language_code: sourceLanguageCode,
+            target_language_code: 'en-IN',
+            speaker_gender: 'Male',
+            mode: 'formal',
+            model: 'mayura:v1',
+          }),
+          signal: AbortSignal.timeout(30000),
+        });
+
+        if (response.ok) {
+          return await response.json();
+        }
+
+        const errText = await response.text();
+        const isTransient = transientStatuses.has(response.status);
+
+        if (isTransient && attempt < maxAttempts) {
+          const delayMs = 500;
+          await this.sleep(delayMs);
+          continue;
+        }
+
+        throw new Error(`Sarvam translation failed (${response.status}): ${errText}`);
+      } catch (err: any) {
+        lastError = err;
+        if (attempt < maxAttempts) {
+          await this.sleep(500);
+          continue;
+        }
+      }
+    }
+
+    throw lastError || new Error('Sarvam translation failed after retry attempts.');
   }
 }

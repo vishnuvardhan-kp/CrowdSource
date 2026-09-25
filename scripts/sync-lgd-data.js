@@ -1,7 +1,7 @@
 /**
- * SamadhanSetu — Authoritative Local Government Directory (LGD) Synchronizer
+ * ResolvIN — Authoritative Local Government Directory (LGD) Synchronizer
  * 
- * Synchronizes official Government of India LGD datasets into the SamadhanSetu database.
+ * Synchronizes official Government of India LGD datasets into the ResolvIN database.
  * 
  * Principles & Guarantees:
  *  - LGD Code is the immutable canonical identity of local bodies.
@@ -37,7 +37,7 @@ const PROCESSED_DIR = path.join(LGD_DIR, 'processed');
 
 async function syncLgdData() {
   console.log('================================================================');
-  console.log('🏛️  SAMADHANSETU — AUTHORITATIVE LGD DATASET SYNCHRONIZATION');
+  console.log('🏛️  RESOLVIN — AUTHORITATIVE LGD DATASET SYNCHRONIZATION');
   console.log('Source: Ministry of Panchayati Raj / Govt of India LGD Portal');
   console.log('State: Jharkhand (State Code: 20)');
   console.log('================================================================\n');
@@ -101,7 +101,7 @@ async function syncLgdData() {
   });
 
   await client.connect();
-  console.log('🔌 Connected to SamadhanSetu database.');
+  console.log('🔌 Connected to ResolvIN database.');
 
   try {
     // 4. Inspect Existing Database Records (Reconciliation)

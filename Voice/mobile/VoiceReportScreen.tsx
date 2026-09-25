@@ -652,6 +652,8 @@ export function VoiceReportScreen({
                 style={[styles.textInput, { backgroundColor: activeTheme.colors.background, borderColor: activeTheme.colors.border, color: activeTheme.colors.text }]}
                 value={editedTitle}
                 onChangeText={setEditedTitle}
+                multiline={true}
+                numberOfLines={2}
               />
 
               <Text style={[styles.fieldLabel, { color: activeTheme.colors.textSecondary, marginTop: 12 }]}>
@@ -877,7 +879,7 @@ export function VoiceReportScreen({
             <Text style={[styles.mainSubtext, { color: activeTheme.colors.textSecondary }]}>
               {t(
                 'voice.successMsg',
-                'Your voice complaint has been structured, translated, and registered in the SamadhanSetu portal.',
+                'Your voice complaint has been structured, translated, and registered in the ResolvIN portal.',
               )}
             </Text>
 

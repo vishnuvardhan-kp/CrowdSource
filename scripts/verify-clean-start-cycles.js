@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * SamadhanSetu — 5 Consecutive Clean-Start Verification Cycles
+ * ResolvIN — 5 Consecutive Clean-Start Verification Cycles
  * 
  * Verifies that the platform repeatedly reaches the EXACT same healthy, deterministic state:
  *  - Cycle 1: Citizen Journey, AI Structuring, Spatial Clustering & Gov Verification + Recommendations
@@ -68,7 +68,7 @@ async function runCycle(cycleNum) {
 
 async function main() {
   console.log('========================================================================');
-  console.log('🛡️  SAMADHANSETU 5 CONSECUTIVE CLEAN-START CYCLES VERIFICATION');
+  console.log('🛡️  RESOLVIN 5 CONSECUTIVE CLEAN-START CYCLES VERIFICATION');
   console.log('========================================================================\n');
 
   const totalStart = Date.now();

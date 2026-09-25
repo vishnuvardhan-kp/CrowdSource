@@ -45,7 +45,7 @@ class NvidiaAIProvider(BaseAIProvider):
         with strict JSON mode prompt to extract structured problem intelligence.
         """
         system_prompt = (
-            "You are an expert civic problem intelligence analyzer for SamadhanSetu, a national problem-solving platform.\n"
+            "You are an expert civic problem intelligence analyzer for ResolvIN, a national problem-solving platform.\n"
             "Analyze the citizen challenge and return ONLY valid JSON matching this schema:\n"
             "{\n"
             '  "professional_title": "Professional, concise civic problem title (e.g. \'Seasonal Potable Water Supply Scarcity\') WITHOUT location suffix, without sensationalism or emotional language.",\n'

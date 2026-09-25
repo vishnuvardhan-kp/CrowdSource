@@ -251,7 +251,7 @@ export default function Home() {
               </h1>
 
               <p className="text-base sm:text-lg text-stone-600 max-w-2xl leading-relaxed">
-                SamadhanSetu bridges the gap between grassroots community challenges and the universities, research laboratories, industries, and startups equipped with the verified capabilities to solve them.
+                ResolvIN bridges the gap between grassroots community challenges and the universities, research laboratories, industries, and startups equipped with the verified capabilities to solve them.
               </p>
 
               {/* Action Buttons */}
@@ -362,7 +362,7 @@ export default function Home() {
               The Collaboration Pipeline
             </span>
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-stone-900">
-              How SamadhanSetu Works
+              How ResolvIN Works
             </h2>
             <p className="text-sm text-stone-600">
               A transparent, accountable workflow transforming unstructured citizen reports into validated institutional research and community deployment.
@@ -630,7 +630,7 @@ export default function Home() {
               How Will You Participate?
             </h2>
             <p className="text-sm text-stone-600">
-              SamadhanSetu provides dedicated workspaces tailored to your institutional role and societal responsibility.
+              ResolvIN provides dedicated workspaces tailored to your institutional role and societal responsibility.
             </p>
           </div>
 
@@ -678,9 +678,9 @@ export default function Home() {
           <div className="md:col-span-5 space-y-3">
             <div className="flex items-center gap-2 text-white font-bold text-base">
               <div className="h-7 w-7 rounded-lg bg-emerald-700 flex items-center justify-center text-xs font-black">
-                SS
+                RI
               </div>
-              <span>SamadhanSetu</span>
+              <span>ResolvIN</span>
             </div>
             <p className="text-stone-400 text-xs max-w-sm leading-relaxed">
               An initiative supported by the Government of Jharkhand to connect grassroots citizen problems with higher education institutions, specialized laboratories, and enterprise innovators.
@@ -715,7 +715,7 @@ export default function Home() {
               All problem submissions are subject to district reviewer validation. AI matching inferences are provided as decision support for human reviewers.
             </p>
             <div className="pt-2 text-stone-500 text-[11px]">
-              © 2026 SamadhanSetu. All rights reserved.
+              © 2026 ResolvIN. All rights reserved.
             </div>
           </div>
         </div>

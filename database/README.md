@@ -1,7 +1,7 @@
-# SamadhanSetu — Database Layer (Phase 1)
+# ResolvIN — Database Layer (Phase 1)
 
 ## Overview
-This directory contains the database setup and infrastructure configuration for SamadhanSetu.
+This directory contains the database setup and infrastructure configuration for ResolvIN.
 
 ## Technical Architecture
 - **DBMS**: PostgreSQL 16

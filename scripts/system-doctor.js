@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * SamadhanSetu — System Health & Environment Doctor
+ * ResolvIN — System Health & Environment Doctor
  * 
  * Performs 11 diagnostic checkpoints to verify platform readiness:
  *  1. Node.js runtime version (>= 20)
@@ -430,7 +430,7 @@ async function checkLiveServiceContracts() {
 // -----------------------------------------------------------------------------
 function summarizeResults() {
   console.log('\n========================================================================');
-  console.log('🩺 SAMADHANSETU PLATFORM HEALTH VERDICT');
+  console.log('🩺 RESOLVIN PLATFORM HEALTH VERDICT');
   console.log('========================================================================');
 
   const fails = results.filter(r => r.status === 'FAIL');
@@ -458,7 +458,7 @@ function summarizeResults() {
 
 async function run() {
   console.log('========================================================================');
-  console.log('🩺 SAMADHANSETU SYSTEM DOCTOR — ENVIRONMENT & READINESS DIAGNOSTIC');
+  console.log('🩺 RESOLVIN SYSTEM DOCTOR — ENVIRONMENT & READINESS DIAGNOSTIC');
   console.log('========================================================================\n');
 
   checkNodeVersion();

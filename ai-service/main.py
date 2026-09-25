@@ -28,7 +28,7 @@ from app.taxonomy import normalize_capabilities_batch
 from app.reindex import start_reindex_job, get_reindex_status
 
 app = FastAPI(
-    title="SamadhanSetu AI Problem Intelligence & Matching Service",
+    title="ResolvIN AI Problem Intelligence & Matching Service",
     version="1.0.0",
     description="Provider-agnostic AI inference microservice supporting NVIDIA NIM and deterministic mock providers.",
 )
@@ -52,7 +52,7 @@ def health_check():
 
     return {
         "status": status,
-        "service": "samadhansetu-ai-service",
+        "service": "resolvin-ai-service",
         "provider": settings.AI_PROVIDER,
         "provider_available": is_available,
         "configured_llm": settings.LLM_MODEL,

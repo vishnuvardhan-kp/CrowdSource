@@ -1,4 +1,4 @@
--- SamadhanSetu Database Initialization (Phase 1 Setup)
+-- ResolvIN Database Initialization (Phase 1 Setup)
 
 -- Enable vector extension for semantic search and AI embeddings (pgvector)
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -14,5 +14,5 @@ CREATE TABLE IF NOT EXISTS _system_meta (
 );
 
 INSERT INTO _system_meta (key, value)
-VALUES ('phase', '1'), ('system_name', 'SamadhanSetu')
+VALUES ('phase', '1'), ('system_name', 'ResolvIN')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP;

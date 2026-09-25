@@ -12,20 +12,35 @@ export const DATABASE_CONNECTION = 'DATABASE_CONNECTION';
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
+        const databaseUrl = configService.get<string>('DATABASE_URL');
         const host = configService.get<string>('DATABASE_HOST', 'localhost');
         const port = configService.get<number>('DATABASE_PORT', 5432);
         const username = configService.get<string>('DATABASE_USER', 'postgres');
         const password = configService.get<string>('DATABASE_PASSWORD', 'postgres_password');
         const database = configService.get<string>('DATABASE_NAME', 'samadhan_setu');
         const isDev = configService.get<string>('NODE_ENV', 'development') === 'development';
+        const isSsl =
+          configService.get<string>('DATABASE_SSL') === 'true' ||
+          (Boolean(databaseUrl) && databaseUrl.includes('sslmode=require'));
+
+        const conn = databaseUrl
+          ? {
+              type: 'postgres' as const,
+              url: databaseUrl,
+              ssl: isSsl ? { rejectUnauthorized: false } : false,
+            }
+          : {
+              type: 'postgres' as const,
+              host,
+              port,
+              username,
+              password,
+              database,
+              ssl: isSsl ? { rejectUnauthorized: false } : false,
+            };
 
         return {
-          type: 'postgres',
-          host,
-          port,
-          username,
-          password,
-          database,
+          ...conn,
           entities: ALL_ENTITIES,
           synchronize: false, // Migrations manage database schema
           logging: isDev ? ['error', 'warn'] : false,

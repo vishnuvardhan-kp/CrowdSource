@@ -1291,11 +1291,6 @@ export default function ChallengeDetailPage() {
                           Confidence: {Math.round(aiAnalysis.confidence * 100)}%
                         </span>
                       )}
-                      {aiAnalysis.model_name && (
-                        <span className="rounded-lg bg-white border border-stone-200 px-2.5 py-1 text-[11px] font-mono text-stone-600">
-                          Model: {aiAnalysis.model_name}
-                        </span>
-                      )}
                     </div>
 
                     <div className="p-4 rounded-xl bg-white border border-stone-200 text-xs sm:text-sm text-stone-700 leading-relaxed space-y-1 shadow-2xs">

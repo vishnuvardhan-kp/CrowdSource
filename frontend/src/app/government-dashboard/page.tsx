@@ -594,7 +594,7 @@ export default function GovernmentDashboardPage() {
                     Government Intelligence Dashboard
                   </h1>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
-                    SamadhanSetu
+                    ResolvIN
                   </span>
                 </div>
                 <p className="text-xs text-stone-500 mt-0.5">

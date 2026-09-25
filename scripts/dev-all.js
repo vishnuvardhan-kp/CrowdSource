@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * SamadhanSetu — Unified Development Orchestrator (dev:all)
+ * ResolvIN — Unified Development Orchestrator (dev:all)
  * 
  * Orchestrates platform startup in strict topological dependency order:
  *  1. Port safety & conflict resolution
@@ -24,6 +24,7 @@ const BACKEND_DIR = path.join(ROOT_DIR, 'backend');
 const FRONTEND_DIR = path.join(ROOT_DIR, 'frontend');
 const MOBILE_DIR = path.join(ROOT_DIR, 'mobile');
 const AI_DIR = path.join(ROOT_DIR, 'ai-service');
+const REC_DIR = path.join(ROOT_DIR, 'Recommendation_engine');
 
 const spawnedProcesses = [];
 let isShuttingDown = false;
@@ -104,7 +105,7 @@ function killProcessTree(pid) {
 async function cleanup() {
   if (isShuttingDown) return;
   isShuttingDown = true;
-  console.log('\n🛑 Initiating graceful shutdown of all SamadhanSetu services...');
+  console.log('\n🛑 Initiating graceful shutdown of all ResolvIN services...');
 
   for (const { name, proc } of spawnedProcesses.reverse()) {
     if (proc && proc.pid) {
@@ -128,7 +129,7 @@ process.on('exit', () => {
 // -----------------------------------------------------------------------------
 async function checkPorts() {
   log('PRE-FLIGHT', 'Checking ports for stale listeners...');
-  const ports = [5432, 8000, 3001, 3000, 8081];
+  const ports = [5432, 8000, 8001, 3001, 3000, 8081];
   for (const port of ports) {
     const active = await isPortOpen('127.0.0.1', port);
     if (active) {
@@ -197,6 +198,38 @@ async function startAiService() {
 }
 
 // -----------------------------------------------------------------------------
+// Step 3b: Start Research Recommendation Engine Service (Port 8001)
+// -----------------------------------------------------------------------------
+async function startRecommendationEngine() {
+  const isUp = await pollUrl('http://127.0.0.1:8001/health', 1500, 500);
+  if (isUp) {
+    log('REC-ENGINE', 'Recommendation Engine is already active on port 8001. Reusing existing instance.');
+    return;
+  }
+
+  log('REC-ENGINE', 'Starting Recommendation Engine on port 8001...');
+  const venvPythonWin = path.join(AI_DIR, 'venv', 'Scripts', 'python.exe');
+  const venvPythonUnix = path.join(AI_DIR, 'venv', 'bin', 'python');
+  const pythonPath = fs.existsSync(venvPythonWin) ? venvPythonWin : (fs.existsSync(venvPythonUnix) ? venvPythonUnix : 'python');
+
+  const recProc = spawn(pythonPath, ['-m', 'uvicorn', 'service:app', '--host', '127.0.0.1', '--port', '8001'], {
+    cwd: REC_DIR,
+    stdio: ['inherit', 'pipe', 'pipe'],
+  });
+
+  recProc.stdout.on('data', (d) => process.stdout.write(`[REC] ${d.toString()}`));
+  recProc.stderr.on('data', (d) => process.stderr.write(`[REC-ERR] ${d.toString()}`));
+  spawnedProcesses.push({ name: 'Recommendation Engine', proc: recProc });
+
+  const ready = await pollUrl('http://127.0.0.1:8001/health', 45000, 1500);
+  if (!ready) {
+    log('REC-ENGINE', '⚠️ Recommendation Engine slow to initialize (downloading/loading FAISS indexes). Proceeding in background.');
+    return;
+  }
+  log('REC-ENGINE', '✅ Recommendation Engine is ready at http://127.0.0.1:8001.');
+}
+
+// -----------------------------------------------------------------------------
 // Step 4: Start NestJS Backend API
 // -----------------------------------------------------------------------------
 async function startBackend() {
@@ -258,7 +291,7 @@ function startFrontendAndMobile() {
 // -----------------------------------------------------------------------------
 async function main() {
   console.log('========================================================================');
-  console.log('🚀 SAMADHANSETU UNIFIED PLATFORM ORCHESTRATOR');
+  console.log('🚀 RESOLVIN UNIFIED PLATFORM ORCHESTRATOR');
   console.log('========================================================================\n');
 
   try {
@@ -269,7 +302,7 @@ async function main() {
     startFrontendAndMobile();
 
     console.log('\n========================================================================');
-    console.log('🌟 SAMADHANSETU PLATFORM IS FULLY OPERATIONAL');
+    console.log('🌟 RESOLVIN PLATFORM IS FULLY OPERATIONAL');
     console.log('========================================================================');
     console.log('  🗄️  PostgreSQL Database:  localhost:5432');
     console.log('  🤖 FastAPI AI Service:    http://127.0.0.1:8000');

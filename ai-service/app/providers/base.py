@@ -15,7 +15,7 @@ from ..schemas import (
 class BaseAIProvider(ABC):
     """
     Abstract Base Class for AI inference providers.
-    Allows SamadhanSetu to decouple business logic from specific AI hosting environments.
+    Allows ResolvIN to decouple business logic from specific AI hosting environments.
     """
 
     @property

@@ -114,7 +114,20 @@ export class ReviewsService {
           allowedOrgIds.add(directUser.organization_id);
         }
 
-        recommendations = recommendations.filter((r) => allowedOrgIds.has(r.organization_id));
+        let userRecs = recommendations.filter((r) => allowedOrgIds.has(r.organization_id));
+
+        // If no pre-existing recommendation was persisted for this user's organization,
+        // dynamically evaluate the user's institution against this challenge via the real matching engine!
+        if (userRecs.length === 0 && allowedOrgIds.size > 0) {
+          for (const orgId of allowedOrgIds) {
+            const dynamicRec = await this.matchingService.evaluateOrganizationForChallenge(challengeId, orgId);
+            if (dynamicRec && (dynamicRec.total_score >= 30 || dynamicRec.capability_match_score > 0)) {
+              userRecs.push(dynamicRec);
+            }
+          }
+        }
+
+        recommendations = userRecs;
       }
     }
 

@@ -604,12 +604,6 @@ export default function CapabilityPassportPage() {
                   {formatVerificationStatus(org.verification_status)}
                 </span>
               )}
-
-              {org.is_demo && (
-                <span className="rounded-lg bg-stone-100 px-2 py-0.5 text-[10px] font-mono text-stone-500 border border-stone-200">
-                  Demo Record
-                </span>
-              )}
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight break-words">

@@ -30,7 +30,7 @@ export class HealthService {
     const appName =
       this.configService.get<string>('APP_NAME') ||
       this.configService.get<string>('app.appName') ||
-      'SamadhanPlatform';
+      'ResolvIN';
 
     const serviceSlug = `${appName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-backend`;
 

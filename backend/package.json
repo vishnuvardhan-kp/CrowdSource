@@ -1,8 +1,8 @@
 {
   "name": "samadhan-setu-backend",
   "version": "1.0.0",
-  "description": "SamadhanSetu NestJS Backend Service",
-  "author": "SamadhanSetu Team",
+  "description": "ResolvIN NestJS Backend Service",
+  "author": "ResolvIN Team",
   "private": true,
   "license": "MIT",
   "scripts": {
@@ -17,9 +17,12 @@
     "migration:create": "typeorm migration:create",
     "migration:generate": "typeorm-ts-node-commonjs -d src/database/data-source.ts migration:generate",
     "migration:run": "typeorm-ts-node-commonjs -d src/database/data-source.ts migration:run",
+    "migration:run:prod": "typeorm migration:run -d dist/database/data-source.js",
     "migration:revert": "typeorm-ts-node-commonjs -d src/database/data-source.ts migration:revert",
     "schema:drop": "typeorm-ts-node-commonjs -d src/database/data-source.ts schema:drop",
     "seed:run": "ts-node src/database/seeds/minimal-dev-seed.ts",
+    "seed:run:prod": "node dist/database/seeds/minimal-dev-seed.js",
+    "seed:solutions": "node scripts/update-solutions-seed.js",
     "test": "ts-node test/run-all-tests.ts",
     "test:phase2": "ts-node test/verify-database.ts",
     "test:phase3": "ts-node test/verify-auth.ts",

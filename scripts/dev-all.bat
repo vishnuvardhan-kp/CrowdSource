@@ -1,8 +1,8 @@
 @echo off
 REM ========================================================================
-REM SamadhanSetu — Unified Development Orchestrator Launcher
+REM ResolvIN — Unified Development Orchestrator Launcher
 REM ========================================================================
-title SamadhanSetu Platform Services
+title ResolvIN Platform Services
 node "%~dp0system-doctor.js"
 if %ERRORLEVEL% NEQ 0 (
   echo.
@@ -12,5 +12,5 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 echo.
-echo Starting all SamadhanSetu services in dependency order...
+echo Starting all ResolvIN services in dependency order...
 node "%~dp0dev-all.js"

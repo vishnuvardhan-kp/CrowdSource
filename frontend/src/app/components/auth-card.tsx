@@ -519,10 +519,10 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
       <div className="text-center space-y-2 pb-2">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold tracking-wide uppercase mb-1">
           <Sparkles className="w-3.5 h-3.5" />
-          SamadhanSetu Portal
+          ResolvIN Portal
         </div>
         <h2 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight">
-          How will you use SamadhanSetu?
+          How will you use ResolvIN?
         </h2>
         <p className="text-xs sm:text-sm text-stone-600 max-w-xl mx-auto">
           Connect real societal problems with the people and institutions capable of solving them.
@@ -841,7 +841,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
             {/* Switch to Register link */}
             <div className="text-center pt-2">
               <p className="text-xs text-stone-500">
-                New to SamadhanSetu?{" "}
+                New to ResolvIN?{" "}
                 <button
                   type="button"
                   onClick={() => {

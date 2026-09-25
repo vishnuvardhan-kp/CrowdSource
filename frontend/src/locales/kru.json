@@ -67,7 +67,7 @@
     "hero_title_1": "सच्ची मुश्किल।",
     "hero_title_2": "सच्चे आलो।",
     "hero_title_3": "सच्चा उपाय।",
-    "hero_desc": "समाधानसेतु पद्दी-खेद्दर ता मुश्किलन विश्वविद्यालय आउर रिसर्च लैब गने जोड़ई।",
+    "hero_desc": "ResolvIN पद्दी-खेद्दर ता मुश्किलन विश्वविद्यालय आउर रिसर्च लैब गने जोड़ई।",
     "report_problem_cta": "समस्या दर्ज केना",
     "explore_challenges_cta": "मुश्किलन ईरा",
     "trust_notice": "हूर्मि प्रजा, पद्दी पंचायत आउर संस्थानन खातिर उघरल रई।",
@@ -81,7 +81,7 @@
     "metric_passports": "चलू ताकत पासपोर्ट",
     "metric_review": "साफ सरकारी जाँच",
     "pipeline_badge": "संगी काज डहरे",
-    "how_it_works": "समाधानसेतु एकसे काज नन्नी",
+    "how_it_works": "ResolvIN एकसे काज नन्नी",
     "how_it_works_desc": "साफ-सुथरा आउर जिम्मेवार काज जे प्रजा ता मुश्किलन उपाय में बदलोई।",
     "step1_title": "1. पद्दी ता मुश्किल दर्ज कमना",
     "step1_desc": "प्रजा आउर पंचायत ता आलो फोटो संगे मुश्किलन दर्ज नन्नर।",
@@ -99,7 +99,7 @@
     "explore_domain": "मुश्किल ईरा",
     "participation_badge": "हूर्मिन ता साझीदारी",
     "participation_title": "नींम एकसे संगे मनिअर?",
-    "participation_desc": "समाधानसेतु निंगहाई काज आउर जिम्मेवारी लेखे अखड़ा चीई।",
+    "participation_desc": "ResolvIN निंगहाई काज आउर जिम्मेवारी लेखे अखड़ा चीई।",
     "role_citizen_title": "प्रजा आउर समाज",
     "role_citizen_desc": "अपन ज़िला ता असल मुश्किल दर्ज केना। समाज ता मुश्किल पक्का मना आउर उपाय ईरा।",
     "role_citizen_badge": "पद्दी ता सड़ा",
@@ -122,7 +122,7 @@
     "footer_stakeholders": "साझीदार",
     "footer_governance": "शासन आउर बिस्वास",
     "footer_governance_text": "हूर्मि मुश्किलन ज़िला अफसर जाँचर। AI मिलान खाली मदद खातिर रई।",
-    "footer_copyright": "© 2026 समाधानसेतु। हूर्मि हक सुरक्षित।"
+    "footer_copyright": "© 2026 ResolvIN। हूर्मि हक सुरक्षित।"
   },
   "auth": {
     "back_to_home": "मुंद्दा पता किच्चा",
@@ -169,12 +169,6 @@
     "register_btn": "पुन्ना खाता कमना",
     "signing_in": "कोरआ लग्गी...",
     "creating_account": "खाता कमआ लग्गी...",
-    "quick_demo_logins": "डेमो खाता मन (1-क्लिक)",
-    "demo_citizen": "प्रजा (मोबाइल/वेब)",
-    "demo_officer": "ज़िला नोडल अफसर",
-    "demo_university": "यूनिवर्सिटी डीन / रिसर्चर",
-    "demo_industry": "उद्योग टेक हेड",
-    "demo_admin": "प्लेटफॉर्म एडमिन",
     "already_signed_in": "नींम अक्कुन ई रूपे कोरका रहअ"
   },
   "challenges": {

@@ -1,6 +1,6 @@
-# SamadhanSetu — Project Documentation
+# ResolvIN — Project Documentation
 
-SamadhanSetu is a technology-enabled societal innovation collaboration platform that connects real-world societal problems with institutions, innovators, industries, startups, MSMEs, CSR organizations, and government stakeholders.
+ResolvIN is a technology-enabled societal innovation collaboration platform that connects real-world societal problems with institutions, innovators, industries, startups, MSMEs, CSR organizations, and government stakeholders.
 
 ## Project Phases
 
@@ -26,7 +26,7 @@ SamadhanSetu is a technology-enabled societal innovation collaboration platform 
 
 ## Current Development Status
 
-The **SamadhanSetu** platform is fully implemented, audited, and verified through **Phase 5.5B**:
+The **ResolvIN** platform is fully implemented, audited, and verified through **Phase 5.5B**:
 - **302 automated backend assertions** passing across 7 test suites via `npm test` (`run-all-tests.ts`).
 - **21 automated authentication & role UX checks** passing via `test/test-auth-ux-flows.ts`.
 - **19 AI service unit assertions** passing via `test_ai_service.py`.

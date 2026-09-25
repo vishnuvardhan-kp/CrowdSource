@@ -153,7 +153,7 @@ export default function InstitutionOnboardScreen() {
       await institutionsApi.uploadEvidence(createdMembershipId, {
         evidence_type: evidenceType,
         document_name: documentName,
-        document_url: `https://storage.samadhansetu.gov.in/evidence/${encodeURIComponent(documentName)}`,
+        document_url: `https://storage.resolvin.gov.in/evidence/${encodeURIComponent(documentName)}`,
       });
 
       setStep(5);

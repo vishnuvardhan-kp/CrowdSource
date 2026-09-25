@@ -1,4 +1,4 @@
-# SamadhanSetu — Platform Startup Guide
+# ResolvIN — Platform Startup Guide
 
 This guide provides simple, step-by-step instructions to start all **4 platform services**: the **PostgreSQL Database**, **NestJS Backend API**, **Next.js Web Portal**, and the **Expo SDK 57 Mobile Application**.
 

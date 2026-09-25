@@ -388,6 +388,214 @@ export async function runRealEcosystemSeed() {
   }
 
   // -------------------------------------------------------------
+  // 3b. National Institute of Technology, Jamshedpur - NATIONAL HEI
+  // -------------------------------------------------------------
+  let nitJsr = await orgRepo.findOne({ where: { name: 'National Institute of Technology, Jamshedpur' } });
+  if (!nitJsr) {
+    nitJsr = orgRepo.create({
+      name: 'National Institute of Technology, Jamshedpur',
+      organization_type: OrganizationType.INSTITUTION,
+      geographic_reach: GeographicReach.NATIONAL,
+      is_demo: false,
+      description:
+        'Premier Institute of National Importance in Adityapur, Jamshedpur, specializing in electrical engineering, smart microgrids, power telemetry, and IoT sensor systems.',
+      district: 'East Singhbhum',
+      state: 'Jharkhand',
+      website: 'https://www.nitjsr.ac.in',
+      email: 'dean.research@nitjsr.ac.in',
+      phone: '+91-657-2282231',
+      address: 'Adityapur, Jamshedpur, East Singhbhum, Jharkhand 831014',
+      verification_status: VerificationStatus.VERIFIED,
+      is_claimed: true,
+      available_capacity: 5,
+      availability_status: 'AVAILABLE',
+    });
+    nitJsr = await orgRepo.save(nitJsr);
+
+    const nitProfile = await instProfileRepo.save(
+      instProfileRepo.create({
+        organization_id: nitJsr.id,
+        institution_code: 'NIT-JSR-001',
+        institution_category: 'Institute of National Importance',
+        established_year: 1960,
+      }),
+    );
+
+    const eeDept = await deptRepo.save(
+      deptRepo.create({
+        institution_id: nitProfile.id,
+        name: 'Department of Electrical Engineering',
+        code: 'EED',
+      }),
+    );
+
+    await labRepo.save(
+      labRepo.create({
+        institution_id: nitProfile.id,
+        name: 'Smart Microgrid & Clean Energy Systems Lab',
+        description: 'Advanced real-time digital power simulator and PV-biomass microgrid stabilization testbed.',
+      }),
+    );
+    console.log('  ✅ Seeded NIT Jamshedpur (NATIONAL)');
+  }
+
+  // -------------------------------------------------------------
+  // 3c. Central University of Jharkhand, Ranchi - CENTRAL HEI
+  // -------------------------------------------------------------
+  let cuj = await orgRepo.findOne({ where: { name: 'Central University of Jharkhand, Ranchi' } });
+  if (!cuj) {
+    cuj = orgRepo.create({
+      name: 'Central University of Jharkhand, Ranchi',
+      organization_type: OrganizationType.INSTITUTION,
+      geographic_reach: GeographicReach.NATIONAL,
+      is_demo: false,
+      description:
+        'Central university located in Brambe/Cheri-Manatu, Ranchi, leading research in tribal development, indigenous health, vernacular education, and decentralized renewable energy.',
+      district: 'Ranchi',
+      state: 'Jharkhand',
+      website: 'https://www.cuj.ac.in',
+      email: 'rnd@cuj.ac.in',
+      phone: '+91-651-2451000',
+      address: 'Cheri-Manatu, Kanke, Ranchi, Jharkhand 835222',
+      verification_status: VerificationStatus.VERIFIED,
+      is_claimed: true,
+      available_capacity: 5,
+      availability_status: 'AVAILABLE',
+    });
+    cuj = await orgRepo.save(cuj);
+
+    const cujProfile = await instProfileRepo.save(
+      instProfileRepo.create({
+        organization_id: cuj.id,
+        institution_code: 'CUJ-RAN-001',
+        institution_category: 'Central University',
+        established_year: 2009,
+      }),
+    );
+
+    const ruralDept = await deptRepo.save(
+      deptRepo.create({
+        institution_id: cujProfile.id,
+        name: 'Department of Rural & Tribal Development',
+        code: 'RTD',
+      }),
+    );
+
+    await labRepo.save(
+      labRepo.create({
+        institution_id: cujProfile.id,
+        name: 'Indigenous Community Health & Vernacular Pedagogy Lab',
+        description: 'Translational field laboratory for tribal health telemetry and bilingual learning tools.',
+      }),
+    );
+    console.log('  ✅ Seeded Central University of Jharkhand, Ranchi (NATIONAL)');
+  }
+
+  // -------------------------------------------------------------
+  // 3d. Ranchi University - STATE HEI
+  // -------------------------------------------------------------
+  let ru = await orgRepo.findOne({ where: { name: 'Ranchi University' } });
+  if (!ru) {
+    ru = orgRepo.create({
+      name: 'Ranchi University',
+      organization_type: OrganizationType.INSTITUTION,
+      geographic_reach: GeographicReach.STATEWIDE,
+      is_demo: false,
+      description:
+        'Pioneering public state university in Ranchi with extensive community outreach in urban waste segregation, rural livelihood studies, public health, and environmental conservation.',
+      district: 'Ranchi',
+      state: 'Jharkhand',
+      website: 'https://www.ranchiuniversity.ac.in',
+      email: 'registrar@ranchiuniversity.ac.in',
+      phone: '+91-651-2205177',
+      address: 'Shaheed Chowk, Ranchi, Jharkhand 834001',
+      verification_status: VerificationStatus.VERIFIED,
+      is_claimed: true,
+      available_capacity: 5,
+      availability_status: 'AVAILABLE',
+    });
+    ru = await orgRepo.save(ru);
+
+    const ruProfile = await instProfileRepo.save(
+      instProfileRepo.create({
+        organization_id: ru.id,
+        institution_code: 'RU-RAN-001',
+        institution_category: 'State Public University',
+        established_year: 1960,
+      }),
+    );
+
+    const envDept = await deptRepo.save(
+      deptRepo.create({
+        institution_id: ruProfile.id,
+        name: 'Department of Environmental Sciences & Waste Management',
+        code: 'ESWM',
+      }),
+    );
+
+    await labRepo.save(
+      labRepo.create({
+        institution_id: ruProfile.id,
+        name: 'Urban Ecology & Municipal Waste Upcycling Lab',
+        description: 'Resource recovery and biological composting experimental facility.',
+      }),
+    );
+    console.log('  ✅ Seeded Ranchi University (STATEWIDE)');
+  }
+
+  // -------------------------------------------------------------
+  // 3e. IIIT Ranchi - NATIONAL HEI
+  // -------------------------------------------------------------
+  let iiitRanchi = await orgRepo.findOne({ where: { name: 'IIIT Ranchi' } });
+  if (!iiitRanchi) {
+    iiitRanchi = orgRepo.create({
+      name: 'IIIT Ranchi',
+      organization_type: OrganizationType.INSTITUTION,
+      geographic_reach: GeographicReach.NATIONAL,
+      is_demo: false,
+      description:
+        'Institute of National Importance in Ranchi specializing in artificial intelligence, machine learning, data engineering, computer vision, and digital governance architectures.',
+      district: 'Ranchi',
+      state: 'Jharkhand',
+      website: 'https://www.iiitranchi.ac.in',
+      email: 'dean.academic@iiitranchi.ac.in',
+      phone: '+91-651-2233001',
+      address: 'Namkum, Ranchi, Jharkhand 834010',
+      verification_status: VerificationStatus.VERIFIED,
+      is_claimed: true,
+      available_capacity: 5,
+      availability_status: 'AVAILABLE',
+    });
+    iiitRanchi = await orgRepo.save(iiitRanchi);
+
+    const iiitProfile = await instProfileRepo.save(
+      instProfileRepo.create({
+        organization_id: iiitRanchi.id,
+        institution_code: 'IIIT-RAN-001',
+        institution_category: 'Institute of National Importance',
+        established_year: 2016,
+      }),
+    );
+
+    const aiDept = await deptRepo.save(
+      deptRepo.create({
+        institution_id: iiitProfile.id,
+        name: 'Department of Artificial Intelligence & Data Science',
+        code: 'AIDS',
+      }),
+    );
+
+    await labRepo.save(
+      labRepo.create({
+        institution_id: iiitProfile.id,
+        name: 'Civic Intelligence & Machine Vision Lab',
+        description: 'GPU-accelerated models for infrastructure defect detection and geospatial problem clustering.',
+      }),
+    );
+    console.log('  ✅ Seeded IIIT Ranchi (NATIONAL)');
+  }
+
+  // -------------------------------------------------------------
   // 4. Tata Steel Limited - NATIONAL INDUSTRY
   // -------------------------------------------------------------
   let tataSteel = await orgRepo.findOne({ where: { name: 'Tata Steel Limited' } });

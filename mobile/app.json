@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "SamadhanSetu",
+    "name": "ResolvIN",
     "slug": "samadhansetu",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,10 +10,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "gov.jharkhand.samadhansetu",
       "infoPlist": {
-        "NSCameraUsageDescription": "SamadhanSetu uses your camera to attach photographic evidence to civic problem reports.",
-        "NSPhotoLibraryUsageDescription": "SamadhanSetu accesses your photo library to attach evidence to problem reports.",
-        "NSLocationWhenInUseUsageDescription": "Your location helps SamadhanSetu identify the affected area and consolidate similar civic reports.",
-        "NSMicrophoneUsageDescription": "SamadhanSetu uses your microphone to record citizen voice problem reports."
+        "NSCameraUsageDescription": "ResolvIN uses your camera to attach photographic evidence to civic problem reports.",
+        "NSPhotoLibraryUsageDescription": "ResolvIN accesses your photo library to attach evidence to problem reports.",
+        "NSLocationWhenInUseUsageDescription": "Your location helps ResolvIN identify the affected area and consolidate similar civic reports.",
+        "NSMicrophoneUsageDescription": "ResolvIN uses your microphone to record citizen voice problem reports."
       }
     },
     "android": {
@@ -38,7 +38,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Your location helps SamadhanSetu identify the affected area and consolidate similar civic reports."
+          "locationWhenInUsePermission": "Your location helps ResolvIN identify the affected area and consolidate similar civic reports."
         }
       ],
       [

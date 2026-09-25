@@ -17,7 +17,7 @@ async function bootstrap() {
   const appName =
     configService.get<string>('app.appName') ||
     configService.get<string>('APP_NAME') ||
-    'SamadhanPlatform';
+    'ResolvIN';
 
   // Configure global API versioned prefix with root health exclusion
   app.setGlobalPrefix('api', {
@@ -33,9 +33,20 @@ async function bootstrap() {
     }),
   );
 
-  // Enable CORS for frontend integration
+  // Enable CORS with environment-driven allowed origins and credential safety
+  const rawCorsOrigin = configService.get<string>('app.corsOrigin', '*');
+  const corsConfig =
+    rawCorsOrigin && rawCorsOrigin !== '*'
+      ? rawCorsOrigin.includes(',')
+        ? rawCorsOrigin.split(',').map((o) => o.trim())
+        : rawCorsOrigin.trim()
+      : (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+          // Allow all origins with credentials by echoing back the requesting origin
+          callback(null, true);
+        };
+
   app.enableCors({
-    origin: '*',
+    origin: corsConfig,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });

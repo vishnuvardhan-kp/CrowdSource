@@ -9,7 +9,7 @@ import {
   getForumMessages,
   saveForumMessage,
   clearForumMessages,
-  seedDemoForumMessages,
+  initializeDefaultForumConversation,
 } from "../../../../lib/forum-storage";
 import {
   evaluateForumAccess,
@@ -19,6 +19,7 @@ import { formatDateSafe } from "../../../../lib/utils";
 import {
   MessageSquare,
   Send,
+  Mic,
   Users,
   CheckCircle2,
   Building2,
@@ -31,7 +32,6 @@ import {
   Clock,
   Lock,
   RefreshCw,
-  Trash2,
   AlertCircle,
   Info,
   User,
@@ -59,8 +59,6 @@ function ChallengeForumContent() {
   const [messages, setMessages] = useState<ForumMessage[]>([]);
   const [inputText, setInputText] = useState<string>("");
   const [sending, setSending] = useState<boolean>(false);
-  const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
-  const [seedNotice, setSeedNotice] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -145,11 +143,31 @@ function ChallengeForumContent() {
       if (chData) {
         const evaluation = evaluateForumAccess(chData, solItems, projItems, user);
         setAccessEvaluation(evaluation);
-      }
 
-      // 5. Load Stored Messages from LocalStorage
-      const stored = getForumMessages(challengeId);
-      setMessages(stored);
+        // 5. Load or Initialize Messages for Authorized Participants
+        if (evaluation.canAccess) {
+          const stored = getForumMessages(challengeId);
+          if (stored.length === 0) {
+            // First authorized visit: initialize professional starting conversation automatically
+            const initialConversation = initializeDefaultForumConversation(challengeId, {
+              citizenName: chData?.submitter?.name || "Citizen Submitter",
+              universityName:
+                evaluation.acceptedUniversity?.name ||
+                "National Institute of Technology, Jamshedpur",
+              industryName:
+                evaluation.acceptedCollaborators[0]?.name ||
+                "Tata Steel CSR / Engineering Partner",
+              problemTitle: chData?.title || "this reported issue",
+              district: chData?.districtName || chData?.district,
+            });
+            setMessages(initialConversation);
+          } else {
+            setMessages(stored);
+          }
+        } else {
+          setMessages([]);
+        }
+      }
     } catch (err) {
       console.error("Error loading forum data:", err);
     } finally {
@@ -215,34 +233,6 @@ function ChallengeForumContent() {
     }
   };
 
-  // Seed Demo Conversation
-  const handleSeedDemo = () => {
-    if (!challengeId) return;
-    const seeded = seedDemoForumMessages(challengeId, {
-      citizenName: challenge?.submitter?.name || "Anoop Minz",
-      universityName:
-        accessEvaluation?.acceptedUniversity?.name ||
-        "National Institute of Technology, Jamshedpur",
-      industryName:
-        accessEvaluation?.acceptedCollaborators[0]?.name ||
-        "Tata Steel CSR / Engineering Partner",
-      problemTitle: challenge?.title || "Damaged Road Infrastructure",
-    });
-    setMessages(seeded);
-    setSeedNotice("Sample stakeholder demonstration discussion loaded.");
-    setTimeout(() => setSeedNotice(null), 4000);
-    setTimeout(() => scrollToBottom("smooth"), 100);
-  };
-
-  // Clear Discussion
-  const handleClearDiscussion = () => {
-    clearForumMessages(challengeId);
-    setMessages([]);
-    setShowClearConfirm(false);
-    setSeedNotice("Forum messages reset.");
-    setTimeout(() => setSeedNotice(null), 3000);
-  };
-
   // Helper for Role Badges
   const getRoleBadge = (role: string) => {
     switch (role) {
@@ -281,7 +271,7 @@ function ChallengeForumContent() {
 
   // Quick prompt suggestions
   const quickPrompts = [
-    "Could you share the expected timeline for the prototype development?",
+    "Could you share the expected timeline for solution development and validation?",
     "Our team has completed preliminary analysis and is ready to schedule field validation.",
     "We can provide hardware components, lab instrumentation, and mentoring support.",
     "Can we arrange a site visit to inspect local site conditions in the district?",
@@ -399,20 +389,6 @@ function ChallengeForumContent() {
                   <FolderGit2 className="h-3.5 w-3.5" /> Open Project Workspace
                 </Link>
               )}
-
-              <div className="inline-flex items-center gap-1.5 rounded-xl bg-stone-100 px-3 py-1.5 text-xs font-medium text-stone-600 border border-stone-200">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Demo (Local Storage)</span>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowClearConfirm(true)}
-                className="inline-flex items-center gap-1 text-xs text-stone-500 hover:text-red-600 p-1.5 rounded-lg hover:bg-stone-100 transition"
-                title="Reset Forum Conversation"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
             </div>
           </div>
 
@@ -476,42 +452,6 @@ function ChallengeForumContent() {
 
       {/* Main Content Area */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-6">
-        {/* Seed Confirmation Alert */}
-        {seedNotice && (
-          <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-center justify-between">
-            <span className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-emerald-600" />
-              {seedNotice}
-            </span>
-          </div>
-        )}
-
-        {/* Clear Confirmation Modal */}
-        {showClearConfirm && (
-          <div className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-amber-700 shrink-0" />
-              <span>Are you sure you want to reset all messages in this local storage forum?</span>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={handleClearDiscussion}
-                className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-xs transition"
-              >
-                Yes, Reset Forum
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowClearConfirm(false)}
-                className="px-3 py-1 bg-white border border-stone-300 hover:bg-stone-50 text-stone-700 rounded-lg text-xs font-semibold transition"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Message Thread Container */}
         <div className="bg-white rounded-2xl border border-stone-200 shadow-xs flex flex-col min-h-[500px]">
           {/* Thread Header Info */}
@@ -522,16 +462,6 @@ function ChallengeForumContent() {
               <span>•</span>
               <span>{messages.length} message{messages.length === 1 ? "" : "s"}</span>
             </div>
-
-            {messages.length === 0 && (
-              <button
-                type="button"
-                onClick={handleSeedDemo}
-                className="inline-flex items-center gap-1.5 text-emerald-700 hover:text-emerald-800 font-semibold transition text-xs"
-              >
-                <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Load Demo Conversation
-              </button>
-            )}
           </div>
 
           {/* Message List */}
@@ -549,25 +479,14 @@ function ChallengeForumContent() {
                     This private forum connects the citizen submitter, participating university engineers, and industry partners to clarify requirements, coordinate testing, and discuss execution.
                   </p>
                 </div>
-
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={handleSeedDemo}
-                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 text-xs font-semibold shadow-xs transition"
-                  >
-                    <Sparkles className="h-3.5 w-3.5 text-amber-300" />
-                    Load Realistic Stakeholder Demo Discussion
-                  </button>
-                </div>
               </div>
             ) : (
               messages.map((msg) => {
                 const isMyMessage =
                   (user && msg.senderId === user.id) ||
-                  (accessEvaluation.isCitizen && msg.senderRole === "CITIZEN" && msg.senderId.includes("citizen")) ||
-                  (accessEvaluation.isUniversity && msg.senderRole === "UNIVERSITY" && msg.senderId.includes("university")) ||
-                  (accessEvaluation.isIndustry && msg.senderRole === "INDUSTRY" && msg.senderId.includes("industry"));
+                  (accessEvaluation.isCitizen && msg.senderRole === "CITIZEN" && (msg.senderId.includes("citizen") || msg.senderId === "participant-citizen")) ||
+                  (accessEvaluation.isUniversity && msg.senderRole === "UNIVERSITY" && (msg.senderId.includes("university") || msg.senderId === "participant-university")) ||
+                  (accessEvaluation.isIndustry && msg.senderRole === "INDUSTRY" && (msg.senderId.includes("industry") || msg.senderId === "participant-industry"));
 
                 return (
                   <div
@@ -664,6 +583,17 @@ function ChallengeForumContent() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    title="Voice messaging (Prototype visual preview)"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      // Visual-only prototype UI element. No audio recording or API access.
+                    }}
+                    className="inline-flex items-center justify-center p-2 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-500 hover:text-stone-700 transition"
+                  >
+                    <Mic className="h-4 w-4" />
+                  </button>
                   <button
                     type="submit"
                     disabled={!inputText.trim() || sending}

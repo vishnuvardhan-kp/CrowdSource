@@ -32,7 +32,7 @@ export default function ProfileScreen() {
   }, [user]);
 
   const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out of SamadhanSetu?', [
+    Alert.alert('Sign Out', 'Are you sure you want to sign out of ResolvIN?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Sign Out',
@@ -171,7 +171,7 @@ export default function ProfileScreen() {
                   </Text>
                   {isVerified && (
                     <Text style={{ fontSize: 10, color: '#047857', fontWeight: 'bold', marginTop: 4 }}>
-                      ✓ SamadhanSetu Verified Institutional Representative
+                      ✓ ResolvIN Verified Institutional Representative
                     </Text>
                   )}
                 </View>
@@ -194,9 +194,9 @@ export default function ProfileScreen() {
 
         {/* Civic Information */}
         <Card style={styles.infoCard}>
-          <Text style={styles.sectionHeading}>About SamadhanSetu</Text>
+          <Text style={styles.sectionHeading}>About ResolvIN</Text>
           <Text style={styles.aboutText}>
-            SamadhanSetu is the official problem intelligence and civic engagement platform developed for the Smart India Hackathon (SIH'26) in collaboration with the Government of Jharkhand.
+            ResolvIN is the official problem intelligence and civic engagement platform developed for the Smart India Hackathon (SIH'26) in collaboration with the Government of Jharkhand.
           </Text>
           <View style={styles.versionRow}>
             <Text style={styles.versionLabel}>Platform Version</Text>

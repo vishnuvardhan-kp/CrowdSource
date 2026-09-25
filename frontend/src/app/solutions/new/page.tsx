@@ -396,7 +396,7 @@ function SolutionNewContent() {
             </div>
           </div>
           <p className="text-[10px] text-stone-500 italic">
-            SamadhanSetu tracks IP status for academic attribution and consortium planning; it does not determine legal patentability or file patents.
+            ResolvIN tracks IP status for academic attribution and consortium planning; it does not determine legal patentability or file patents.
           </p>
         </div>
 

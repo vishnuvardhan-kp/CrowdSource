@@ -67,7 +67,7 @@
     "hero_title_1": "असली समस्या।",
     "hero_title_2": "असली मनई।",
     "hero_title_3": "असली समाधान।",
-    "hero_desc": "समाधानसेतु देहाती समस्या मन के विश्वविद्यालय आर उद्योग संगे जोड़ेला।",
+    "hero_desc": "ResolvIN देहाती समस्या मन के विश्वविद्यालय आर उद्योग संगे जोड़ेला।",
     "report_problem_cta": "समस्या दर्ज करा",
     "explore_challenges_cta": "समस्या सब देखू",
     "trust_notice": "सभे नागरिक, ग्राम पंचायत आर उद्योग मन ले खुलल आहे।",
@@ -81,7 +81,7 @@
     "metric_passports": "चालू क्षमता पासपोर्ट",
     "metric_review": "साफ सरकारी जांच",
     "pipeline_badge": "सहयोग कर डहर",
-    "how_it_works": "समाधानसेतु कइसे काम करेला",
+    "how_it_works": "ResolvIN कइसे काम करेला",
     "how_it_works_desc": "एक साफ आउर जिम्मेवार व्यवस्था जे नागरिक कर समस्या के समाधान में बदलेल।",
     "step1_title": "1. समस्या दर्ज करल",
     "step1_desc": "नागरिक आर पंचायत कर लोग फोटो संगे समस्या दर्ज करेना।",
@@ -99,7 +99,7 @@
     "explore_domain": "समस्या देखू",
     "participation_badge": "सभे कर भागीदारी",
     "participation_title": "तोहरे कइसे जुड़बा?",
-    "participation_desc": "समाधानसेतु तोहर जिम्मेदारी कर मुताबिक काम कर जगह देवेला।",
+    "participation_desc": "ResolvIN तोहर जिम्मेदारी कर मुताबिक काम कर जगह देवेला।",
     "role_citizen_title": "नागरिक आर समाज",
     "role_citizen_desc": "अपन जिला कर समस्या दर्ज करा आर समाधान देखू।",
     "role_citizen_badge": "गांव कर आवाज",
@@ -122,7 +122,7 @@
     "footer_stakeholders": "भागीदार",
     "footer_governance": "प्रशासन आर भरोसा",
     "footer_governance_text": "सभे समस्या जिला अफसर से जांचल जाई। AI खाली मदद ले आहे।",
-    "footer_copyright": "© 2026 समाधानसेतु। सभे अधिकार सुरक्षित।"
+    "footer_copyright": "© 2026 ResolvIN। सभे अधिकार सुरक्षित।"
   },
   "auth": {
     "back_to_home": "मुख पृष्ठ में घूरा",
@@ -169,12 +169,6 @@
     "register_btn": "नया खाता बनावा",
     "signing_in": "लॉग इन होत आहे...",
     "creating_account": "खाता बनत आहे...",
-    "quick_demo_logins": "डेमो खाता सब (1-क्लिक)",
-    "demo_citizen": "नागरिक (मोबाइल/वेब)",
-    "demo_officer": "जिला नोडल अफसर",
-    "demo_university": "यूनिवर्सिटी डीन / रिसर्चर",
-    "demo_industry": "उद्योग टेक हेड",
-    "demo_admin": "प्लेटफॉर्म एडमिन",
     "already_signed_in": "तोहरे एखन लॉग इन आह"
   },
   "challenges": {

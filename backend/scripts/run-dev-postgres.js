@@ -20,6 +20,27 @@ async function main() {
 
   const isFirstRun = !fs.existsSync(dataDir) || fs.readdirSync(dataDir).length === 0;
 
+  // Clean up stale postmaster.pid if postgres crashed or was terminated improperly
+  const pidFile = path.join(dataDir, 'postmaster.pid');
+  if (fs.existsSync(pidFile)) {
+    try {
+      const pid = parseInt(fs.readFileSync(pidFile, 'utf-8').split('\n')[0].trim(), 10);
+      let isRunning = false;
+      try {
+        process.kill(pid, 0);
+        isRunning = true;
+      } catch (e) {
+        isRunning = false;
+      }
+      if (!isRunning) {
+        console.log(`🧹 Removing stale postmaster.pid (PID: ${pid})...`);
+        fs.unlinkSync(pidFile);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
   if (isFirstRun) {
     console.log(`📦 Initializing PostgreSQL cluster at ${dataDir}...`);
     await pg.initialise();

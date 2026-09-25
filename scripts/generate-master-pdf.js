@@ -194,7 +194,7 @@ const fullHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>SamadhanSetu — Current Master Project Report</title>
+  <title>ResolvIN — Current Master Project Report</title>
   <style>
     @page {
       size: A4;
@@ -365,7 +365,7 @@ const fullHtml = `<!DOCTYPE html>
 </head>
 <body>
   <div class="hero-banner">
-    <div class="hero-title">🏛️ SamadhanSetu</div>
+    <div class="hero-title">🏛️ ResolvIN</div>
     <div class="hero-subtitle">Comprehensive Current Project Analysis &amp; Master Architecture Report</div>
     <div class="meta-grid">
       <div class="meta-item"><strong>Audit Date:</strong> September 23, 2026</div>

@@ -1,7 +1,7 @@
 {
   "name": "samadhansetu-platform",
   "version": "1.0.0",
-  "description": "SamadhanSetu: AI-Powered Multi-Stakeholder Problem Resolution & Innovation Orchestration Platform",
+  "description": "ResolvIN: AI-Powered Multi-Stakeholder Problem Resolution & Innovation Orchestration Platform",
   "private": true,
   "scripts": {
     "system:doctor": "node scripts/system-doctor.js",
@@ -11,12 +11,12 @@
     "test:reliability": "cd backend && npx ts-node -r tsconfig-paths/register test/run-reliability-tests.ts"
   },
   "keywords": [
-    "samadhansetu",
+    "resolvin",
     "governance",
     "crowdsourcing",
     "ai-clustering",
     "multilingual"
   ],
-  "author": "SamadhanSetu Team",
+  "author": "ResolvIN Team",
   "license": "MIT"
 }

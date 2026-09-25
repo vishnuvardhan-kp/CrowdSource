@@ -1,4 +1,4 @@
-# SamadhanSetu
+# ResolvIN
 
 > AI-powered civic problem intelligence, university research matching, and multi-stakeholder innovation collaboration platform.
 
@@ -17,7 +17,7 @@ Grassroots civic and societal challenges often remain unaddressed due to fragmen
 
 ## Solution
 
-**SamadhanSetu** bridges this gap by creating an end-to-end innovation pipeline connecting citizens, universities, industries, and government administration:
+**ResolvIN** bridges this gap by creating an end-to-end innovation pipeline connecting citizens, universities, industries, and government administration:
 
 ```text
 Citizen Report
@@ -106,7 +106,7 @@ Government Analytics (Authentic 24-District Jharkhand Heatmap, Oversight & Audit
 
 ## AI / ML Architecture
 
-SamadhanSetu integrates a provider-agnostic Python microservice paired with a deterministic backend fallback:
+ResolvIN integrates a provider-agnostic Python microservice paired with a deterministic backend fallback:
 
 - **Civic Problem Structuring & Refinement:** Utilizes external cloud LLM inference via NVIDIA NIM (`meta/llama-3.2-11b-vision-instruct`) or Sarvam API for multilingual speech-to-text. The model transforms colloquial citizen submissions into formal civic statements without altering the original immutable text. Note: The foundational LLM was not trained by us; we designed specialized prompt contracts and extraction constraints.
 - **Zero-Fabrication Architecture:** Citizen-reported facts are strictly extracted from the citizen utterance alone. Administrative metadata (district, block, locality) is appended exclusively from verified platform database records.

@@ -67,7 +67,7 @@
     "hero_title_1": "உண்மையான பிரச்சினைகள்.",
     "hero_title_2": "உண்மையான மக்கள்.",
     "hero_title_3": "உண்மையான தீர்வுகள்.",
-    "hero_desc": "சமாதன்சேது, அடிமட்ட சமூக சவால்களுக்கும், அவற்றைத் தீர்க்கும் சரிபார்க்கப்பட்ட திறன்களைக் கொண்ட பல்கலைக்கழகங்கள், ஆராய்ச்சி ஆய்வகங்கள், தொழிற்சாலைகள் மற்றும் தொடக்க நிறுவனங்களுக்கும் இடையே உள்ள இடைவெளியைக் குறைக்கிறது.",
+    "hero_desc": "ResolvIN, அடிமட்ட சமூக சவால்களுக்கும், அவற்றைத் தீர்க்கும் சரிபார்க்கப்பட்ட திறன்களைக் கொண்ட பல்கலைக்கழகங்கள், ஆராய்ச்சி ஆய்வகங்கள், தொழிற்சாலைகள் மற்றும் தொடக்க நிறுவனங்களுக்கும் இடையே உள்ள இடைவெளியைக் குறைக்கிறது.",
     "report_problem_cta": "சிக்கல் பற்றி அறிக்கை அளிக்கவும்.",
     "explore_challenges_cta": "சவால்களை ஆராய்வோம்.",
     "trust_notice": "அனைத்து குடிமக்களுக்கும், கிராம பஞ்சாயத்துகளுக்கும், ஆராய்ச்சி ஆசிரியர்களுக்கும், தொழில்துறை கூட்டாளிகளுக்கும் அணுகக்கூடியதாக இருக்க வேண்டும்.",
@@ -81,7 +81,7 @@
     "metric_passports": "செயல் திறன் பாஸ்போர்ட்",
     "metric_review": "வெளிப்படையான அரசு ஆய்வு",
     "pipeline_badge": "ஒத்துழைப்பு குழாய்",
-    "how_it_works": "சமாதானப் பாலம் எவ்வாறு செயல்படுகிறது",
+    "how_it_works": "How ResolvIN Works",
     "how_it_works_desc": "ஒரு வெளிப்படையான, பொறுப்புள்ள பணிமுறை, கட்டமைப்பற்ற குடிமக்கள் அறிக்கைகளை சரிபார்க்கப்பட்ட நிறுவன ஆராய்ச்சி மற்றும் சமூக பயன்பாட்டுக்கு மாற்றுகிறது.",
     "step1_title": "அடிமட்டப் பிரச்சினை",
     "step1_desc": "குடிமக்களே, கிராம பஞ்சாயத்துகளும் சமூகத் தலைவர்களும் சரிபார்க்கப்பட்ட சமூக சவால்களை புகைப்படங்கள் மற்றும் இருப்பிடத் தொலைத்தொடர்பு மூலம் ஆவணப்படுத்துகின்றனர்.",
@@ -99,7 +99,7 @@
     "explore_domain": "சவால்களை ஆராயுங்கள்",
     "participation_badge": "பல பங்குதாரர்களின் பங்கேற்பு",
     "participation_title": "நீங்கள் எவ்வாறு பங்கேற்பீர்கள்?",
-    "participation_desc": "சமாதன்சேது, உங்கள் நிறுவனத்தின் பங்கு மற்றும் சமூகப் பொறுப்புக்கேற்ப பிரத்யேக பணியிடங்களை வழங்குகிறது.",
+    "participation_desc": "ResolvIN, உங்கள் நிறுவனத்தின் பங்கு மற்றும் சமூகப் பொறுப்புக்கேற்ப பிரத்யேக பணியிடங்களை வழங்குகிறது.",
     "role_citizen_title": "குடிமக்கள் மற்றும் சமூகங்கள்",
     "role_citizen_desc": "உங்கள் மாவட்டத்தின் உண்மையான பிரச்சினைகளை அறிக்கை செய்யுங்கள். பகிரப்பட்ட சமூகப் பிரச்சினைகளைச் சரிபார்த்து, தீர்வுகளை நோக்கி முன்னேற்றத்தைக் கண்காணிக்கவும்.",
     "role_citizen_badge": "அடிமட்டச் செய்தி",
@@ -122,7 +122,7 @@
     "footer_stakeholders": "Stakeholders",
     "footer_governance": "Governance & Trust",
     "footer_governance_text": "All problem submissions are subject to district reviewer validation. AI matching inferences are provided as decision support for human reviewers.",
-    "footer_copyright": "© 2026 SamadhanSetu. All rights reserved."
+    "footer_copyright": "© 2026 ResolvIN. All rights reserved."
   },
   "auth": {
     "back_to_home": "Back to Home",
@@ -169,12 +169,6 @@
     "register_btn": "Create Account",
     "signing_in": "Signing in...",
     "creating_account": "Creating account...",
-    "quick_demo_logins": "Quick Demo Accounts (1-Click Switch)",
-    "demo_citizen": "Citizen (Mobile/Web)",
-    "demo_officer": "District Nodal Officer",
-    "demo_university": "University Dean / Researcher",
-    "demo_industry": "Industry Tech Lead",
-    "demo_admin": "Platform Admin",
     "already_signed_in": "You are currently signed in as"
   },
   "challenges": {

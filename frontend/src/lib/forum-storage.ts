@@ -1,5 +1,5 @@
 /**
- * SamadhanSetu - Private Problem Communication Forum
+ * ResolvIN - Private Problem Communication Forum
  * Local Storage Persistence Module
  *
  * Dedicated to problem-specific multi-stakeholder communication
@@ -89,9 +89,97 @@ export function clearForumMessages(challengeId: string): void {
 }
 
 /**
- * Demo Seed Mechanism:
- * Seeds realistic multi-stakeholder dialogue for demonstration purposes.
- * Clearly marked as demonstration discussion.
+ * Default Forum Conversation Initialization:
+ * Automatically seeds an initial professional collaboration conversation
+ * between Citizen Submitter, University Engineering Team, and Industry Partner
+ * when an authorized participant accesses the forum for the first time.
+ * If messages already exist, returns existing conversation without re-seeding.
+ */
+export function initializeDefaultForumConversation(
+  challengeId: string,
+  options?: {
+    citizenName?: string;
+    universityName?: string;
+    industryName?: string;
+    problemTitle?: string;
+    district?: string;
+  }
+): ForumMessage[] {
+  if (typeof window === "undefined" || !challengeId) return [];
+
+  // If conversation already exists, preserve it completely
+  const existing = getForumMessages(challengeId);
+  if (existing && existing.length > 0) {
+    return existing;
+  }
+
+  const citizenName = options?.citizenName || "Citizen Submitter";
+  const universityName = options?.universityName || "National Institute of Technology, Jamshedpur";
+  const industryName = options?.industryName || "Tata Steel CSR / Engineering Partner";
+  const problemTitle = options?.problemTitle || "this reported challenge";
+  const districtSuffix = options?.district ? ` in ${options.district}` : "";
+
+  const baseTime = Date.now() - 3600000 * 4; // 4 hours ago
+
+  const initialMessages: ForumMessage[] = [
+    {
+      id: `msg-init-${challengeId}-1`,
+      challengeId,
+      senderId: "participant-citizen",
+      senderName: citizenName,
+      senderRole: "CITIZEN",
+      organizationName: null,
+      organizationType: null,
+      message: `Thank you for taking up this problem. The issue regarding "${problemTitle}"${districtSuffix} becomes particularly difficult during peak usage periods. I can provide additional location details and field observations if required.`,
+      timestamp: new Date(baseTime).toISOString(),
+    },
+    {
+      id: `msg-init-${challengeId}-2`,
+      challengeId,
+      senderId: "participant-university",
+      senderName: `Prof. Academic Lead`,
+      senderRole: "UNIVERSITY",
+      organizationName: universityName,
+      organizationType: "Higher Education Institution",
+      message: `Thank you for reporting the issue. Our multidisciplinary engineering team has reviewed the problem and is currently evaluating the possible intervention approach. We will coordinate with the relevant stakeholders before moving to field validation.`,
+      timestamp: new Date(baseTime + 1800000).toISOString(), // +30 mins
+    },
+    {
+      id: `msg-init-${challengeId}-3`,
+      challengeId,
+      senderId: "participant-industry",
+      senderName: `Technical Solutions Lead`,
+      senderRole: "INDUSTRY",
+      organizationName: industryName,
+      organizationType: "Industry / Ecosystem Partner",
+      message: `We can support the team with technical inputs and field testing once the proposed approach is ready for validation.`,
+      timestamp: new Date(baseTime + 3600000).toISOString(), // +60 mins
+    },
+    {
+      id: `msg-init-${challengeId}-4`,
+      challengeId,
+      senderId: "participant-university",
+      senderName: `Prof. Academic Lead`,
+      senderRole: "UNIVERSITY",
+      organizationName: universityName,
+      organizationType: "Higher Education Institution",
+      message: `That support would be useful. We will share the initial implementation requirements and proposed testing plan through the project workspace.`,
+      timestamp: new Date(baseTime + 5400000).toISOString(), // +90 mins
+    },
+  ];
+
+  const conversation: ForumConversation = {
+    challengeId,
+    messages: initialMessages,
+    updatedAt: new Date().toISOString(),
+  };
+
+  localStorage.setItem(getForumStorageKey(challengeId), JSON.stringify(conversation));
+  return initialMessages;
+}
+
+/**
+ * Backward compatibility alias for tests and existing callers.
  */
 export function seedDemoForumMessages(
   challengeId: string,
@@ -100,70 +188,8 @@ export function seedDemoForumMessages(
     universityName?: string;
     industryName?: string;
     problemTitle?: string;
+    district?: string;
   }
 ): ForumMessage[] {
-  if (typeof window === "undefined" || !challengeId) return [];
-
-  const citizenName = options?.citizenName || "Citizen Submitter";
-  const universityName = options?.universityName || "National Institute of Technology, Jamshedpur";
-  const industryName = options?.industryName || "Tata Steel CSR / Engineering Partner";
-  const problemTitle = options?.problemTitle || "this civic challenge";
-
-  const baseTime = Date.now() - 3600000 * 3; // 3 hours ago
-
-  const demoMessages: ForumMessage[] = [
-    {
-      id: `demo-${challengeId}-1`,
-      challengeId,
-      senderId: "demo-citizen",
-      senderName: citizenName,
-      senderRole: "CITIZEN",
-      organizationName: null,
-      organizationType: null,
-      message: `Could you please share the expected timeline and approach for addressing ${problemTitle}? Our local community is eager to know how the solution will be tested.`,
-      timestamp: new Date(baseTime).toISOString(),
-    },
-    {
-      id: `demo-${challengeId}-2`,
-      challengeId,
-      senderId: "demo-university",
-      senderName: `Prof. Academic Lead`,
-      senderRole: "UNIVERSITY",
-      organizationName: universityName,
-      organizationType: "Higher Education Institution",
-      message: `Greetings! Our multidisciplinary student and faculty team has completed the preliminary engineering analysis. We are currently finalizing the prototype requirements and test specifications before initiating field validation.`,
-      timestamp: new Date(baseTime + 1800000).toISOString(), // +30 mins
-    },
-    {
-      id: `demo-${challengeId}-3`,
-      challengeId,
-      senderId: "demo-industry",
-      senderName: `R&D Lead`,
-      senderRole: "INDUSTRY",
-      organizationName: industryName,
-      organizationType: "Industry / Innovation Partner",
-      message: `Our technical team has reviewed the solution architecture. We have approved collaboration support to provide hardware components, technical mentoring, and pilot deployment testing in your district.`,
-      timestamp: new Date(baseTime + 3600000).toISOString(), // +60 mins
-    },
-    {
-      id: `demo-${challengeId}-4`,
-      challengeId,
-      senderId: "demo-citizen",
-      senderName: citizenName,
-      senderRole: "CITIZEN",
-      organizationName: null,
-      organizationType: null,
-      message: `Thank you very much! Please keep me updated when field visits and pilot trials begin. We are happy to coordinate local access.`,
-      timestamp: new Date(baseTime + 5400000).toISOString(), // +90 mins
-    },
-  ];
-
-  const conversation: ForumConversation = {
-    challengeId,
-    messages: demoMessages,
-    updatedAt: new Date().toISOString(),
-  };
-
-  localStorage.setItem(getForumStorageKey(challengeId), JSON.stringify(conversation));
-  return demoMessages;
+  return initializeDefaultForumConversation(challengeId, options);
 }

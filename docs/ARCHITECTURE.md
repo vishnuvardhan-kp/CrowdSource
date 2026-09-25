@@ -1,6 +1,6 @@
-# SamadhanSetu — System Architecture
+# ResolvIN — System Architecture
 
-This document provides a concise architectural overview of the SamadhanSetu multi-stakeholder innovation pipeline.
+This document provides a concise architectural overview of the ResolvIN multi-stakeholder innovation pipeline.
 
 ---
 

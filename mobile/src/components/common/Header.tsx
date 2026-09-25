@@ -13,7 +13,7 @@ interface HeaderProps {
 }
 
 export function Header({
-  title = 'SamadhanSetu',
+  title = 'ResolvIN',
   subtitle = 'Civic Problem Intelligence',
   showBack = false,
   onBack,
@@ -38,7 +38,7 @@ export function Header({
         )}
 
         <View style={styles.logoBadge}>
-          <Text style={styles.logoText}>SS</Text>
+          <Text style={styles.logoText}>RI</Text>
         </View>
 
         <View style={styles.titleContainer}>

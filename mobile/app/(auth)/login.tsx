@@ -67,9 +67,9 @@ export default function LoginScreen() {
           {/* Header & Logo */}
           <View style={styles.brandHeader}>
             <View style={styles.logoBadge}>
-              <Text style={styles.logoText}>SS</Text>
+              <Text style={styles.logoText}>RI</Text>
             </View>
-            <Text style={styles.brandTitle}>SamadhanSetu</Text>
+            <Text style={styles.brandTitle}>ResolvIN</Text>
             <View style={styles.jharkhandTag}>
               <Text style={styles.jharkhandTagText}>Government of Jharkhand</Text>
             </View>

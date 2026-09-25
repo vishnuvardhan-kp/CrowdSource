@@ -428,7 +428,7 @@ export default function SolutionDetailPage() {
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-emerald-700 shrink-0" />
             <span>
-              <strong>SamadhanSetu Proposed Solution:</strong> This solution is proposed by{" "}
+              <strong>ResolvIN Proposed Solution:</strong> This solution is proposed by{" "}
               <strong>{solution.proposingOrganization?.name || "an affiliated university"}</strong> to address an identified civic challenge.
             </span>
           </div>
@@ -598,7 +598,7 @@ export default function SolutionDetailPage() {
                   Expected Verifiable Outcomes
                 </h4>
                 <p className="text-xs text-stone-600 leading-relaxed">
-                  {solution.expected_outcomes || "Outcome specifications to be demonstrated in pilot testing."}
+                  {solution.expected_outcomes || "Outcome specifications to be verified in pilot validation."}
                 </p>
               </div>
 
@@ -1614,7 +1614,7 @@ export default function SolutionDetailPage() {
             </div>
 
             <p className="text-xs text-stone-600 leading-relaxed">
-              Converting this solution initiates a formally governed <strong>SamadhanSetu Project</strong>.
+              Converting this solution initiates a formally governed <strong>ResolvIN Project</strong>.
               All academic team members and accepted collaboration partners (with their funding and technical commitments) will automatically transition into active project participants.
             </p>
 

@@ -87,7 +87,7 @@ class ResearchRecommendationResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str
-    service: str = "SamadhanSetu Research Intelligence Recommendation Engine"
+    service: str = "ResolvIN Research Intelligence Recommendation Engine"
     embedding_model: str
     embedding_dimension: int
     paper_index_vectors: int
@@ -132,7 +132,7 @@ async def lifespan(app: FastAPI):
     db.close()
 
 app = FastAPI(
-    title="SamadhanSetu Research Intelligence API",
+    title="ResolvIN Research Intelligence API",
     description="Internal scholarly paper and dataset recommendation microservice for civic challenges",
     version="1.0.0",
     lifespan=lifespan

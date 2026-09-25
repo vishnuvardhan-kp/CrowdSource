@@ -313,6 +313,147 @@ export class MatchingService {
   }
 
   /**
+   * On-demand evaluation of a specific organization for a challenge.
+   * Enables institutional portal users to receive instant capability matching
+   * even when a challenge was seeded or evaluated prior to their profile onboarding.
+   */
+  async evaluateOrganizationForChallenge(
+    challengeId: string,
+    organizationId: string,
+  ): Promise<any | null> {
+    const challenge = await this.challengeRepo.findOne({
+      where: { id: challengeId },
+    });
+    if (!challenge) return null;
+
+    let analysis = await this.aiAnalysisRepo.findOne({
+      where: { challenge_id: challengeId },
+    });
+    if (!analysis) {
+      const text = `${challenge.title} ${challenge.description}`.toLowerCase();
+      const detectedCaps: string[] = [];
+      if (text.includes('gis') || text.includes('geographic') || text.includes('spatial') || text.includes('mapping')) {
+        detectedCaps.push('Geographic Information Systems (GIS)');
+      }
+      if (text.includes('water') || text.includes('drain') || text.includes('pipe') || text.includes('sanitation')) {
+        detectedCaps.push('Water Purification', 'Hydraulic Modeling', 'Water Quality & Resource Management');
+      }
+      if (text.includes('solar') || text.includes('grid') || text.includes('inverter') || text.includes('electric') || text.includes('power')) {
+        detectedCaps.push('Internet of Things (IoT)', 'Embedded Systems & Hardware');
+      }
+      if (text.includes('crop') || text.includes('farm') || text.includes('agri') || text.includes('pest') || text.includes('plant')) {
+        detectedCaps.push('Plant Pathology & Crop Disease Surveillance', 'Agronomy & Field Crop Management', 'Soil Science & Soil Health Testing');
+      }
+      if (detectedCaps.length === 0) {
+        detectedCaps.push('Data Analytics', 'Civic Engineering');
+      }
+
+      analysis = this.aiAnalysisRepo.create({
+        challenge_id: challengeId,
+        category: challenge.category || 'General',
+        sub_category: 'Civic Infrastructure',
+        summary: challenge.description.substring(0, 200),
+        priority_score: 7.0,
+        severity_score: 6.5,
+        required_capabilities: detectedCaps,
+        model_name: 'meta/llama-3.2-11b-vision-instruct',
+        confidence: 0.85,
+      });
+      await this.aiAnalysisRepo.save(analysis);
+    }
+
+    const org = await this.orgRepo.findOne({
+      where: { id: organizationId },
+      relations: [
+        'institutionProfile',
+        'institutionProfile.departments',
+        'institutionProfile.departments.faculty',
+        'institutionProfile.laboratories',
+        'institutionProfile.researchAreas',
+        'institutionProfile.capabilities',
+        'institutionProfile.capabilities.capability',
+        'industryProfile',
+        'industryProfile.capabilities',
+        'industryProfile.capabilities.capability',
+        'industryProfile.capabilities.supportType',
+      ],
+    });
+    if (!org || org.verification_status === VerificationStatus.REJECTED) return null;
+
+    if (org.organization_type === OrganizationType.INSTITUTION) {
+      const inst = await this.instProfileRepo.findOne({
+        where: { organization_id: org.id },
+        relations: ['departments', 'departments.faculty', 'laboratories', 'researchAreas', 'capabilities', 'capabilities.capability'],
+      });
+      if (inst) org.institutionProfile = inst;
+    }
+
+    const challengeEmbedding = await this.embeddingRepo.findOne({
+      where: {
+        entity_id: challengeId,
+        entity_type: EntityEmbeddingType.CHALLENGE,
+        is_active: true,
+      },
+    });
+
+    const scoreData = this.computeHybridScore(challenge, analysis, org, challengeEmbedding);
+
+    // Persist or update review
+    let review = await this.reviewRepo.findOne({
+      where: {
+        challenge_id: challengeId,
+        recommended_organization_id: org.id,
+      },
+    });
+
+    if (!review) {
+      review = this.reviewRepo.create({
+        challenge_id: challengeId,
+        recommended_organization_id: org.id,
+        recommended_entity_type: org.organization_type,
+        human_review_status: ReviewStatus.PENDING,
+      });
+    }
+
+    review.ai_recommendation_score = scoreData.total_score;
+    review.ai_match_reasons = {
+      reasons: scoreData.reasons,
+      confidence_category: scoreData.confidence_category,
+      scores: {
+        semantic: scoreData.semantic_similarity,
+        capability: scoreData.capability_match_score,
+        expertise: scoreData.domain_expertise_score,
+        geographic: scoreData.geographic_relevance_score,
+        verification: scoreData.verification_confidence_score,
+        availability: scoreData.availability_score,
+        novelty_boost: scoreData.novelty_exploration_boost,
+      },
+    };
+
+    await this.reviewRepo.save(review);
+
+    return {
+      review_id: review.id,
+      organization_id: org.id,
+      organization_name: org.name,
+      organization_type: org.organization_type,
+      total_score: scoreData.total_score,
+      capability_match_score: scoreData.capability_match_score,
+      semantic_similarity: scoreData.semantic_similarity,
+      domain_expertise_score: scoreData.domain_expertise_score,
+      geographic_relevance_score: scoreData.geographic_relevance_score,
+      verification_confidence_score: scoreData.verification_confidence_score,
+      availability_score: scoreData.availability_score,
+      reasons: scoreData.reasons,
+      confidence_category: scoreData.confidence_category,
+      human_review_status: review.human_review_status,
+      final_decision: review.final_decision,
+      review_notes: review.review_notes,
+      reviewed_at: review.reviewed_at,
+    };
+  }
+
+  /**
    * Computes hybrid score across semantic, capability, expertise, geographic,
    * verification confidence, availability freshness (TTL), and novelty exploration.
    */

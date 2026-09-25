@@ -162,7 +162,7 @@ export default function InstitutionDashboardPage() {
                     <div>
                       <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold tracking-wide mb-2">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>SamadhanSetu Verified Institutional Representative</span>
+                        <span>ResolvIN Verified Institutional Representative</span>
                       </div>
                       <h3 className="text-xl font-bold text-slate-900">{mem.institution?.name}</h3>
                       <p className="text-xs text-slate-500 mt-0.5">

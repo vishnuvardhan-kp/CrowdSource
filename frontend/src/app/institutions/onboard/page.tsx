@@ -199,7 +199,7 @@ export default function InstitutionOnboardingPage() {
     }
 
     const docName = documentName.trim() || `${evidenceType}_Verification_Document.pdf`;
-    const docUrl = documentUrl.trim() || `https://storage.samadhansetu.gov.in/evidence/${Date.now()}_${docName}`;
+    const docUrl = documentUrl.trim() || `https://storage.resolvin.gov.in/evidence/${Date.now()}_${docName}`;
 
     setSubmitting(true);
     setErrorMsg(null);
@@ -257,7 +257,7 @@ export default function InstitutionOnboardingPage() {
           <Landmark className="w-12 h-12 text-blue-600 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-slate-900 mb-2">Authentication Required</h2>
           <p className="text-sm text-slate-600 mb-6">
-            Please sign in with your SamadhanSetu account to apply for institutional representative verification.
+            Please sign in with your ResolvIN account to apply for institutional representative verification.
           </p>
           <Link
             href="/login?redirect=/institutions/onboard"
@@ -881,7 +881,7 @@ export default function InstitutionOnboardingPage() {
                           const file = e.target.files[0];
                           setDocumentName(file.name);
                           setUploadSimulated(true);
-                          setDocumentUrl(`https://storage.samadhansetu.gov.in/credentials/${encodeURIComponent(file.name)}`);
+                          setDocumentUrl(`https://storage.resolvin.gov.in/credentials/${encodeURIComponent(file.name)}`);
                         }
                       }}
                     />

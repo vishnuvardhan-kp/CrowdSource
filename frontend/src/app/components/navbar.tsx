@@ -215,12 +215,12 @@ export function Navbar() {
         <div className="flex items-center gap-3 shrink-0">
           <Link href="/" className="flex items-center gap-2.5 group">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-700 via-emerald-800 to-teal-900 shadow-sm text-white font-bold text-base tracking-tight transition-transform group-hover:scale-105">
-              SS
+              RI
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-base font-bold tracking-tight text-stone-900 group-hover:text-emerald-800 transition-colors">
-                  SamadhanSetu
+                  ResolvIN
                 </span>
                 <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                   {t("nav.brand_subtitle")}

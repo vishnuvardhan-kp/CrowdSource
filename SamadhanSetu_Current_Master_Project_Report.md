@@ -1,4 +1,4 @@
-# SamadhanSetu — Current Master Project Report
+# ResolvIN — Current Master Project Report
 ## AI-Powered Multi-Stakeholder Civic Problem Intelligence & Collaborative Innovation Platform
 
 **Execution & Audit Date:** September 23, 2026  
@@ -13,7 +13,7 @@
 
 1. [Executive Summary](#1-executive-summary)
 2. [Problem Statement](#2-problem-statement)
-3. [SamadhanSetu Solution](#3-samadhansetu-solution)
+3. [ResolvIN Solution](#3-resolvin-solution)
 4. [Project Objectives](#4-project-objectives)
 5. [Overall Architecture](#5-overall-architecture)
 6. [Complete Technology Stack](#6-complete-technology-stack)
@@ -32,7 +32,7 @@
 19. [Capability Passport](#19-capability-passport)
 20. [Institution Matching](#20-institution-matching)
 21. [Industry / CSR Participation](#21-industry--csr-participation)
-22. [EOI Workflow](#22-eoi-workflow)
+22: [EOI Workflow](#22-eoi-workflow)
 23. [Project Formation](#23-project-formation)
 24. [Academic Collaboration](#24-academic-collaboration)
 25. [Milestone Management](#25-milestone-management)
@@ -58,9 +58,9 @@
 
 ## 1. Executive Summary
 
-**SamadhanSetu** is an enterprise-grade digital civic intelligence, crowdsourcing, and multi-stakeholder innovation orchestration platform designed for regional and grassroots governance in Jharkhand, India. 
+**ResolvIN** is an enterprise-grade digital civic intelligence, crowdsourcing, and multi-stakeholder innovation orchestration platform designed for regional and grassroots governance in Jharkhand, India. 
 
-Rather than treating civic grievances as isolated complaints routed to administrative silos, SamadhanSetu introduces an **AI-structured problem-to-solution pipeline**. Grassroots citizens submit localized societal problems—in regional languages and scripts including Hindi, Santali in Ol Chiki script, and Nagpuri—via web and mobile interfaces. The system performs automated linguistic detection, civic translation, root-cause entity extraction, and 2048-dimensional vector embedding. 
+Rather than treating civic grievances as isolated complaints routed to administrative silos, ResolvIN introduces an **AI-structured problem-to-solution pipeline**. Grassroots citizens submit localized societal problems—in regional languages and scripts including Hindi, Santali in Ol Chiki script, and Nagpuri—via web and mobile interfaces. The system performs automated linguistic detection, civic translation, root-cause entity extraction, and 2048-dimensional vector embedding. 
 
 A deterministic, concurrency-safe clustering engine (powered by **PostgreSQL Advisory Locks**, Haversine geographic boundary gating, and lexical Jaccard similarity) consolidates localized reports into unified **Problem Clusters** with transparent, explainable priority scoring. Verified government reviewers evaluate clusters on an executive-grade **Government Intelligence Dashboard**, preventing AI autonomy in public policy allocation. 
 
@@ -80,9 +80,9 @@ Across regional governance in India, civic grievance redressal faces systemic st
 
 ---
 
-## 3. SamadhanSetu Solution
+## 3. ResolvIN Solution
 
-SamadhanSetu solves this paradigm through a closed-loop, multi-stakeholder value chain:
+ResolvIN solves this paradigm through a closed-loop, multi-stakeholder value chain:
 
 ```
 [Grassroots Citizen] ──> Multilingual Intake (Ol Chiki, Devanagari, Voice, GPS)

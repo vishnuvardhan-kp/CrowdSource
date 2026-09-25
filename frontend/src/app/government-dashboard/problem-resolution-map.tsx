@@ -649,9 +649,9 @@ export function ProblemResolutionMap({
                 </div>
 
                 <div className="text-right">
-                  <span className="text-[10px] text-stone-400 block">AI Model</span>
-                  <span className="text-[11px] font-mono text-purple-900 font-semibold">
-                    {stages.aiStructuring.modelName}
+                  <span className="text-[10px] text-stone-400 block">Analysis Engine</span>
+                  <span className="text-[11px] text-purple-900 font-semibold">
+                    Problem Intelligence
                   </span>
                 </div>
               </div>

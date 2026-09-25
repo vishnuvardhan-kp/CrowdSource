@@ -106,7 +106,7 @@ export default function OrganizationOnboardPage() {
             Onboarding Application Received!
           </h2>
           <p className="text-sm text-stone-600 max-w-lg mx-auto mb-6 break-words">
-            Thank you for registering <span className="font-semibold text-emerald-800">{formData.name}</span> with SamadhanSetu. Platform administrators will verify institutional accreditation and authorize your administrative credentials.
+            Thank you for registering <span className="font-semibold text-emerald-800">{formData.name}</span> with ResolvIN. Platform administrators will verify institutional accreditation and authorize your administrative credentials.
           </p>
 
           <div className="inline-block max-w-full rounded-xl bg-stone-50 border border-stone-200 px-5 py-3 text-xs text-stone-600 mb-8 break-words">

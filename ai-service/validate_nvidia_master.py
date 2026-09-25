@@ -23,7 +23,7 @@ def cosine_similarity(v1: list[float], v2: list[float]) -> float:
 
 async def run_master_validation():
     print("=" * 70)
-    print("SAMADHANSETU PHASE 5 - NVIDIA AI LIVE INTEGRATION VALIDATION")
+    print("RESOLVIN PHASE 5 - NVIDIA AI LIVE INTEGRATION VALIDATION")
     print("=" * 70)
 
     results = {}
@@ -234,7 +234,7 @@ async def run_master_validation():
         results["reranker"] = {"status": "UNAVAILABLE", "model": settings.RERANKER_MODEL, "error": str(e)}
 
     # -------------------------------------------------------------
-    # 5. Full SamadhanSetu AI Flow
+    # 5. Full ResolvIN AI Flow
     # -------------------------------------------------------------
     print("\n" + "-" * 70)
     print("5. Validating Full End-to-End AI Flow")

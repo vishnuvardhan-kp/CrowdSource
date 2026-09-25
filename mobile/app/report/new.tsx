@@ -734,7 +734,7 @@ export default function NewReportWizard() {
                     Automated Civic Intelligence
                   </Text>
                   <Text style={styles.aiNoticeText}>
-                    Civic domain, technical categorization, and required institutional capabilities will be automatically structured by SamadhanSetu AI from your problem description upon submission.
+                    Civic domain, technical categorization, and required institutional capabilities will be automatically structured by ResolvIN AI from your problem description upon submission.
                   </Text>
                 </View>
               </View>
@@ -797,7 +797,7 @@ export default function NewReportWizard() {
             <View>
               <Text style={styles.stepHeading}>Location Information</Text>
               <Text style={styles.stepSubheading}>
-                Your location helps SamadhanSetu identify the affected area and consolidate similar reports.
+                Your location helps ResolvIN identify the affected area and consolidate similar reports.
               </Text>
 
               {/* GPS Capture Button */}
@@ -1016,7 +1016,7 @@ export default function NewReportWizard() {
             <View>
               <Text style={styles.stepHeading}>Review Your Report</Text>
               <Text style={styles.stepSubheading}>
-                Please confirm the details below before submitting to the SamadhanSetu Research & Problem Intelligence Platform.
+                Please confirm the details below before submitting to the ResolvIN Research & Problem Intelligence Platform.
               </Text>
 
               <Card style={styles.reviewCard}>

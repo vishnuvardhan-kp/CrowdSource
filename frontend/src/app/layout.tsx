@@ -8,9 +8,9 @@ import { Navbar } from "./components/navbar";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "SamadhanSetu | Societal Innovation Collaboration Platform",
+  title: "ResolvIN | Societal Innovation Collaboration Platform",
   description:
-    "A societal innovation collaboration platform connecting citizens, AI analysis, universities, industry partners, and government impact analytics.",
+    "ResolvIN: A societal innovation collaboration platform connecting citizens, AI analysis, universities, industry partners, and government impact analytics.",
   icons: {
     icon: "/icon.svg",
     shortcut: "/icon.svg",

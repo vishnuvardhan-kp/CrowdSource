@@ -1,6 +1,6 @@
 # Free Hosting Readiness
 
-This audit evaluates the feasibility of deploying the current SamadhanSetu platform using free-tier cloud hosting providers.
+This audit evaluates the feasibility of deploying the current ResolvIN platform using free-tier cloud hosting providers.
 
 ---
 
@@ -29,7 +29,7 @@ This audit evaluates the feasibility of deploying the current SamadhanSetu platf
 The following environment variables and settings must be configured for cloud hosting:
 
 1. **Frontend (`frontend/.env.production` or Vercel Environment Variables):**
-   - `NEXT_PUBLIC_API_URL`: Public HTTPS URL of the deployed backend API (e.g., `https://samadhansetu-api.onrender.com/api`).
+   - `NEXT_PUBLIC_API_URL`: Public HTTPS URL of the deployed backend API (e.g., `https://resolvin-api.onrender.com/api`).
 
 2. **Backend API (`backend/.env` or Render Environment Variables):**
    - `NODE_ENV`: Set to `production`.

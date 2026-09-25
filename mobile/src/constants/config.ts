@@ -82,8 +82,8 @@ export function getApiBaseUrl(): string {
 }
 
 export const config = {
-  appName: 'SamadhanSetu',
-  appTagline: 'Civic Problem Intelligence & Citizen Redressal',
+  appName: 'ResolvIN',
+  appTagline: 'From Community Problems to Collaborative Solutions',
   stateName: 'Government of Jharkhand',
   get apiBaseUrl(): string {
     return getApiBaseUrl();
