@@ -1,0 +1,90 @@
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: samadhan-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-samadhan_setu}
+      POSTGRES_USER: ${DATABASE_USER:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-postgres_password}
+    ports:
+      - "${DATABASE_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - samadhan-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DATABASE_USER:-postgres} -d ${DATABASE_NAME:-samadhan_setu}"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: samadhan-backend
+    restart: always
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DATABASE_NAME:-samadhan_setu}
+      DATABASE_USER: ${DATABASE_USER:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-postgres_password}
+      AI_SERVICE_URL: http://ai-service:8000
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - samadhan-network
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: samadhan-ai-service
+    restart: always
+    environment:
+      PORT: 8000
+      AI_PROVIDER: ${AI_PROVIDER}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY}
+      NVIDIA_BASE_URL: ${NVIDIA_BASE_URL}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL}
+      RERANKER_MODEL: ${RERANKER_MODEL}
+    ports:
+      - "${AI_SERVICE_PORT:-8000}:8000"
+    networks:
+      - samadhan-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: samadhan-frontend
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api
+      NEXT_PUBLIC_AI_SERVICE_URL: http://localhost:8000
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - backend
+    networks:
+      - samadhan-network
+
+networks:
+  samadhan-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

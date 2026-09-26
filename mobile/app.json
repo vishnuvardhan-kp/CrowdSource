@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "ResolvIN",
+    "slug": "samadhansetu",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "samadhansetu",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "gov.jharkhand.samadhansetu",
+      "infoPlist": {
+        "NSCameraUsageDescription": "ResolvIN uses your camera to attach photographic evidence to civic problem reports.",
+        "NSPhotoLibraryUsageDescription": "ResolvIN accesses your photo library to attach evidence to problem reports.",
+        "NSLocationWhenInUseUsageDescription": "Your location helps ResolvIN identify the affected area and consolidate similar civic reports.",
+        "NSMicrophoneUsageDescription": "ResolvIN uses your microphone to record citizen voice problem reports."
+      }
+    },
+    "android": {
+      "package": "gov.jharkhand.samadhansetu",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "RECORD_AUDIO",
+        "READ_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES",
+        "READ_MEDIA_VIDEO"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Your location helps ResolvIN identify the affected area and consolidate similar civic reports."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you attach evidence of civic problems.",
+          "cameraPermission": "The app uses your camera to capture evidence of civic problems."
+        }
+      ],
+      "expo-audio"
+    ]
+  }
+}

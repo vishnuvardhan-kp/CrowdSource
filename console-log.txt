@@ -1,0 +1,2 @@
+﻿System.Management.Automation.RemoteException
+aws: [ERROR]: 'charmap' codec can't encode character '\u2192' in position 20291: character maps to <undefined>

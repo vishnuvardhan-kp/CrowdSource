@@ -1,0 +1,65 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+.expo/
+web-build/
+
+# Python virtual environment & cache
+venv/
+.venv/
+ENV/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+
+# Environment & local config
+.env
+.env.*
+.env*.local
+**/env
+!.env.example
+!.env.*.example
+!**/.env.example
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database data mounts
+postgres_data/
+*.pgdata*
+.pgdata*
+test-pgdata/
+
+# Runtime uploads
+uploads/
+
+# Scratch & temporary artifacts
+scratch/
+*.zip
+*.pdf
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml

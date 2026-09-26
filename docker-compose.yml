@@ -1,0 +1,70 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: samadhan-backend
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: ${DATABASE_URL}
+      AI_SERVICE_URL: http://ai-service:8000
+    expose:
+      - "3001"
+    networks:
+      - samadhan-network
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: samadhan-ai-service
+    restart: always
+    environment:
+      PORT: 8000
+      AI_PROVIDER: ${AI_PROVIDER}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY}
+      NVIDIA_BASE_URL: ${NVIDIA_BASE_URL}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL}
+      RERANKER_MODEL: ${RERANKER_MODEL}
+    expose:
+      - "8000"
+    networks:
+      - samadhan-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: /api
+    container_name: samadhan-frontend
+    restart: always
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: /api
+    expose:
+      - "3000"
+    depends_on:
+      - backend
+    networks:
+      - samadhan-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: samadhan-nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./aws/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - samadhan-network
+
+networks:
+  samadhan-network:
+    driver: bridge

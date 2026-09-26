@@ -1,0 +1,9 @@
+requests
+psycopg2-binary
+sqlalchemy
+python-dotenv
+tqdm
+pytest
+sentence-transformers
+faiss-cpu
+numpy

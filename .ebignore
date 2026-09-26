@@ -1,0 +1,15 @@
+.git/
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+dist/
+**/dist/
+ai-service/venv/
+**/__pycache__/
+**/*.pyc
+.env
+.env.*
+uploads/
+aws-elastic-beanstalk-cli-setup/
+mobile/
