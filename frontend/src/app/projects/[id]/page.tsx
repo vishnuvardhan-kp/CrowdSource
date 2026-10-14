@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "../../../lib/auth-context";
+import { useTranslation } from "../../../lib/i18n";
 import { formatDateSafe } from "../../../lib/utils";
 import {
   FolderGit2,
@@ -352,6 +353,7 @@ export default function ProjectWorkspacePage() {
   const params = useParams();
   const projectId = params?.id as string;
   const { user, token, loading: authLoading } = useAuth();
+  const { t } = useTranslation();
   const isAuthenticated = !authLoading && !!token && !!user;
 
   const [project, setProject] = useState<ProjectData | null>(null);
@@ -1403,23 +1405,23 @@ export default function ProjectWorkspacePage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "ACTIVE":
-        return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200"><Activity className="w-3.5 h-3.5 mr-1" /> Active Execution</span>;
+        return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200"><Activity className="w-3.5 h-3.5 mr-1" /> {t("project.active_execution", "Active Execution")}</span>;
       case "BLOCKED":
-        return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-800 border border-red-200 animate-pulse"><AlertTriangle className="w-3.5 h-3.5 mr-1" /> Project Blocked</span>;
+        return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-800 border border-red-200 animate-pulse"><AlertTriangle className="w-3.5 h-3.5 mr-1" /> {t("project.project_blocked", "Project Blocked")}</span>;
       case "KICKOFF_PENDING":
-        return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200"><Clock className="w-3.5 h-3.5 mr-1" /> Kickoff Review Pending</span>;
+        return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200"><Clock className="w-3.5 h-3.5 mr-1" /> {t("project.kickoff_pending", "Kickoff Review Pending")}</span>;
       case "KICKOFF_REVISION":
-        return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-800 border border-orange-200"><AlertCircle className="w-3.5 h-3.5 mr-1" /> Kickoff Revision Required</span>;
+        return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-800 border border-orange-200"><AlertCircle className="w-3.5 h-3.5 mr-1" /> {t("project.kickoff_revision", "Kickoff Revision Required")}</span>;
       case "COMPLETED":
-        return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200"><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Execution Completed</span>;
+        return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200"><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> {t("project.completed_status", "Execution Completed")}</span>;
       case "IMPACT_VERIFIED":
-        return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-800 border border-purple-200"><Shield className="w-3.5 h-3.5 mr-1" /> Impact Verified</span>;
+        return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-800 border border-purple-200"><Shield className="w-3.5 h-3.5 mr-1" /> {t("project.impact_verified", "Impact Verified")}</span>;
       case "TERMINATED":
-        return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-stone-100 text-stone-600 border border-stone-300"><Ban className="w-3.5 h-3.5 mr-1" /> Terminated</span>;
+        return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-stone-100 text-stone-600 border border-stone-300"><Ban className="w-3.5 h-3.5 mr-1" /> {t("project.terminated_status", "Terminated")}</span>;
       case "INITIATED":
       case "PROPOSED":
       default:
-        return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-stone-100 text-stone-600 border border-stone-200"><Clock className="w-3.5 h-3.5 mr-1" /> Kickoff Preparation</span>;
+        return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-stone-100 text-stone-600 border border-stone-200"><Clock className="w-3.5 h-3.5 mr-1" /> {t("project.kickoff_prep", "Kickoff Preparation")}</span>;
     }
   };
 
@@ -1444,7 +1446,7 @@ export default function ProjectWorkspacePage() {
       <div className="min-h-screen bg-stone-50 text-stone-900 flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
           <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-stone-500 font-medium">Loading Project Workspace...</p>
+          <p className="text-stone-500 font-medium">{t("common.loading", "Loading Project Workspace...")}</p>
         </div>
       </div>
     );
@@ -1454,9 +1456,9 @@ export default function ProjectWorkspacePage() {
     return (
       <div className="min-h-screen bg-stone-50 text-stone-900 flex flex-col items-center justify-center p-4">
         <Shield className="w-16 h-16 text-emerald-500 mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Authentication Required</h2>
+        <h2 className="text-2xl font-bold mb-2">{t("common.auth_required", "Authentication Required")}</h2>
         <p className="text-stone-500 mb-6 text-center max-w-md">Please sign in to access the collaborative project workspace.</p>
-        <Link href="/login" className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 font-medium rounded-lg transition">Sign In</Link>
+        <Link href="/login" className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 font-medium rounded-lg transition">{t("nav.login", "Sign In")}</Link>
       </div>
     );
   }
@@ -1467,7 +1469,7 @@ export default function ProjectWorkspacePage() {
         <AlertTriangle className="w-14 h-14 text-red-400 mb-4" />
         <h2 className="text-xl font-bold mb-2">Access Denied or Not Found</h2>
         <p className="text-stone-500 mb-6 max-w-md text-center">{error || "Unable to access the requested project."}</p>
-        <Link href="/my-eois" className="px-5 py-2 bg-stone-100 hover:bg-stone-200 rounded-lg text-sm transition">Back to My Projects</Link>
+        <Link href="/my-eois" className="px-5 py-2 bg-stone-100 hover:bg-stone-200 rounded-lg text-sm transition">{t("project.consortium_dashboard", "Back to My Projects")}</Link>
       </div>
     );
   }
@@ -1486,10 +1488,10 @@ export default function ProjectWorkspacePage() {
             <div>
               <div className="flex items-center space-x-2 text-xs text-stone-500 mb-1">
                 <Link href="/my-eois" className="hover:text-emerald-600 flex items-center transition">
-                  <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Consortium Dashboard
+                  <ArrowLeft className="w-3.5 h-3.5 mr-1" /> {t("project.consortium_dashboard", "Consortium Dashboard")}
                 </Link>
                 <span>/</span>
-                <span className="text-stone-400">Project Workspace</span>
+                <span className="text-stone-400">{t("project.workspace_label", "Project Workspace")}</span>
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-xl sm:text-2xl font-bold text-stone-900 tracking-tight break-words">{project.title}</h1>
@@ -1506,7 +1508,7 @@ export default function ProjectWorkspacePage() {
                   className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 text-sm font-semibold rounded-xl flex items-center transition"
                 >
                   <MessageSquare className="w-4 h-4 mr-1.5" />
-                  Communication Forum
+                  {t("project.comm_forum", "Communication Forum")}
                 </Link>
               )}
 
@@ -1517,7 +1519,7 @@ export default function ProjectWorkspacePage() {
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg shadow-sm flex items-center transition"
                 >
                   <Send className="w-4 h-4 mr-1.5" />
-                  {project.status === "KICKOFF_REVISION" ? "Resubmit Kickoff Plan" : "Submit Kickoff Plan"}
+                  {project.status === "KICKOFF_REVISION" ? t("project.resubmit_kickoff", "Resubmit Kickoff Plan") : t("project.submit_kickoff", "Submit Kickoff Plan")}
                 </button>
               )}
 
@@ -1531,7 +1533,7 @@ export default function ProjectWorkspacePage() {
                   className="px-3.5 py-2 bg-white hover:bg-stone-50 text-stone-700 border border-stone-300 text-sm font-medium rounded-xl flex items-center transition"
                 >
                   <Upload className="w-4 h-4 mr-1.5 text-blue-600" />
-                  Upload Deliverable
+                  {t("project.upload_deliverable_btn", "Upload Deliverable")}
                 </button>
               )}
 
@@ -1542,7 +1544,7 @@ export default function ProjectWorkspacePage() {
                   className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg shadow-sm flex items-center transition"
                 >
                   <Shield className="w-4 h-4 mr-1.5" />
-                  {project.status === "IMPACT_VERIFIED" ? "View Verified Impact" : "Impact Verification Workspace"}
+                  {project.status === "IMPACT_VERIFIED" ? t("project.view_impact_btn", "View Verified Impact") : t("project.impact_workspace", "Impact Verification Workspace")}
                 </Link>
               )}
 
@@ -1553,7 +1555,7 @@ export default function ProjectWorkspacePage() {
                   className="px-3.5 py-2 bg-white hover:bg-stone-50 text-stone-700 border border-stone-300 text-sm font-medium rounded-xl flex items-center transition"
                 >
                   <Activity className="w-4 h-4 mr-1.5 text-emerald-700" />
-                  Post Update / Blocker
+                  {t("project.post_update_btn", "Post Update / Blocker")}
                 </button>
               )}
             </div>
@@ -1610,16 +1612,16 @@ export default function ProjectWorkspacePage() {
           {/* Navigation Tabs */}
           <div className="flex items-center space-x-1 mt-6 border-b border-stone-200 overflow-x-auto text-sm">
             {[
-              { id: "overview", label: "Overview & Roster", icon: Building2 },
-              { id: "lifecycle", label: "Lifecycle & Deployment", icon: Rocket },
-              { id: "milestones", label: `Milestones (${project.milestones.length})`, icon: Layers },
-              { id: "tasks", label: "Task Board", icon: CheckSquare },
-              { id: "deliverables", label: `Deliverables Vault (${project.deliverables.length})`, icon: FileCheck },
-              { id: "updates", label: `Updates & Blockers (${project.updates.length})`, icon: Activity },
-              { id: "governance", label: `Governance Audit (${project.reviews.length})`, icon: Shield },
-              { id: "academic", label: `Academic Team (${academicMembers.length})`, icon: GraduationCap },
-              { id: "contributions", label: `Contributions (${contributions.length})`, icon: Briefcase },
-              { id: "outcomes", label: `Innovation & IP (${innovationOutcomes.length})`, icon: Sparkles },
+              { id: "overview", label: t("project.tab_overview", "Overview & Roster"), icon: Building2 },
+              { id: "lifecycle", label: t("project.tab_lifecycle", "Lifecycle & Deployment"), icon: Rocket },
+              { id: "milestones", label: t("project.tab_milestones", `Milestones (${project.milestones.length})`, { count: project.milestones.length }), icon: Layers },
+              { id: "tasks", label: t("project.tab_tasks", "Task Board"), icon: CheckSquare },
+              { id: "deliverables", label: t("project.tab_deliverables", `Deliverables Vault (${project.deliverables.length})`, { count: project.deliverables.length }), icon: FileCheck },
+              { id: "updates", label: t("project.tab_updates", `Updates & Blockers (${project.updates.length})`, { count: project.updates.length }), icon: Activity },
+              { id: "governance", label: t("project.tab_governance", `Governance Audit (${project.reviews.length})`, { count: project.reviews.length }), icon: Shield },
+              { id: "academic", label: t("project.tab_academic", `Academic Team (${academicMembers.length})`, { count: academicMembers.length }), icon: GraduationCap },
+              { id: "contributions", label: t("project.tab_contributions", `Contributions (${contributions.length})`, { count: contributions.length }), icon: Briefcase },
+              { id: "outcomes", label: t("project.tab_outcomes", `Innovation & IP (${innovationOutcomes.length})`, { count: innovationOutcomes.length }), icon: Sparkles },
             ].map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;

@@ -28,6 +28,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import { useAuth } from "../lib/auth-context";
+import { useTranslation } from "../lib/i18n";
 
 interface ChallengeItem {
   id: string;
@@ -47,6 +48,7 @@ interface ChallengeItem {
 
 export default function Home() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [challenges, setChallenges] = useState<ChallengeItem[]>([]);
   const [loadingChallenges, setLoadingChallenges] = useState(true);
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
@@ -80,19 +82,19 @@ export default function Home() {
       case "VALIDATED":
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800">
-            <CheckCircle2 className="h-3 w-3 text-emerald-700" /> Validated
+            <CheckCircle2 className="h-3 w-3 text-emerald-700" /> {t("status.validated", "Validated")}
           </span>
         );
       case "UNDER_REVIEW":
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">
-            <Clock className="h-3 w-3 text-amber-700" /> Under Review
+            <Clock className="h-3 w-3 text-amber-700" /> {t("status.under_review", "Under Review")}
           </span>
         );
       default:
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-[11px] font-semibold text-blue-800">
-            <FileCheck2 className="h-3 w-3 text-blue-700" /> Submitted
+            <FileCheck2 className="h-3 w-3 text-blue-700" /> {t("status.submitted", "Submitted")}
           </span>
         );
     }
@@ -104,19 +106,19 @@ export default function Home() {
       case "SERIOUS":
         return (
           <span className="rounded-md bg-red-50 border border-red-200 px-2 py-0.5 text-[10px] font-semibold text-red-700">
-            High Severity
+            {t("common.high_severity", "High Severity")}
           </span>
         );
       case "MODERATE":
         return (
           <span className="rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
-            Moderate
+            {t("common.moderate_severity", "Moderate")}
           </span>
         );
       default:
         return (
           <span className="rounded-md bg-stone-100 border border-stone-200 px-2 py-0.5 text-[10px] font-medium text-stone-600">
-            Unspecified
+            {t("common.unspecified_severity", "Unspecified")}
           </span>
         );
     }
@@ -124,43 +126,43 @@ export default function Home() {
 
   const problemDomains = [
     {
-      title: "Water & Sanitation",
-      description: "Pipeline contamination, drinking water filtration, rural aquifer restoration, and drainage mitigation.",
+      title: t("domains.water", "Water & Sanitation"),
+      description: t("domains.water_desc", "Pipeline contamination, drinking water filtration, rural aquifer restoration, and drainage mitigation."),
       icon: Droplets,
       dotColor: "bg-cyan-500",
       accent: "text-cyan-700 bg-cyan-50 border-cyan-200",
     },
     {
-      title: "Agriculture & Soil Resilience",
-      description: "Drought-resilient seeds, soil nutrient diagnostics, precision irrigation, and post-harvest storage.",
+      title: t("domains.agriculture", "Agriculture & Soil Resilience"),
+      description: t("domains.agriculture_desc", "Drought-resilient seeds, soil nutrient diagnostics, precision irrigation, and post-harvest storage."),
       icon: Sprout,
       dotColor: "bg-emerald-500",
       accent: "text-emerald-700 bg-emerald-50 border-emerald-200",
     },
     {
-      title: "Rural Healthcare & Telemetry",
-      description: "Primary health center connectivity, maternal health diagnostics, and emergency logistics.",
+      title: t("domains.healthcare", "Rural Healthcare & Telemetry"),
+      description: t("domains.healthcare_desc", "Primary health center connectivity, maternal health diagnostics, and emergency logistics."),
       icon: Stethoscope,
       dotColor: "bg-rose-500",
       accent: "text-rose-700 bg-rose-50 border-rose-200",
     },
     {
-      title: "Clean Energy & Biomass",
-      description: "Decentralized solar microgrids, agricultural biomass briquetting, and clean cooking technology.",
+      title: t("domains.energy", "Clean Energy & Biomass"),
+      description: t("domains.energy_desc", "Decentralized solar microgrids, agricultural biomass briquetting, and clean cooking technology."),
       icon: Zap,
       dotColor: "bg-amber-500",
       accent: "text-amber-700 bg-amber-50 border-amber-200",
     },
     {
-      title: "Vocational Skills & Livelihood",
-      description: "Tribal craft mechanization, youth technical skills, agro-processing, and local entrepreneurship.",
+      title: t("domains.skills", "Vocational Skills & Livelihood"),
+      description: t("domains.skills_desc", "Tribal craft mechanization, youth technical skills, agro-processing, and local entrepreneurship."),
       icon: BookOpen,
       dotColor: "bg-blue-500",
       accent: "text-blue-700 bg-blue-50 border-blue-200",
     },
     {
-      title: "Public Infrastructure & Roads",
-      description: "Monsoon culvert erosion, solar cold-storage transit, and bridge durability testing.",
+      title: t("domains.infrastructure", "Public Infrastructure & Roads"),
+      description: t("domains.infrastructure_desc", "Monsoon culvert erosion, solar cold-storage transit, and bridge durability testing."),
       icon: Truck,
       dotColor: "bg-purple-500",
       accent: "text-purple-700 bg-purple-50 border-purple-200",
@@ -170,62 +172,62 @@ export default function Home() {
   const workflowSteps = [
     {
       number: "01",
-      title: "Grassroots Problem Intake",
-      description: "Citizens, village panchayats, and community leaders document verified societal challenges with photos and location telemetry.",
+      title: t("home.step1_title", "Grassroots Problem Intake"),
+      description: t("home.step1_desc", "Citizens, village panchayats, and community leaders document verified societal challenges with photos and location telemetry."),
       icon: Users,
     },
     {
       number: "02",
-      title: "AI Problem Decomposition",
-      description: "Advanced AI models structure problems, assess impact severity, and map required technical competencies to the Master Taxonomy.",
+      title: t("home.step2_title", "AI Problem Decomposition"),
+      description: t("home.step2_desc", "Advanced AI models structure problems, assess impact severity, and map required technical competencies to the Master Taxonomy."),
       icon: Sparkles,
     },
     {
       number: "03",
-      title: "Capability Passport Matching",
-      description: "Hybrid matching engine connects verified universities, specialized laboratories, and startups based on real capacity.",
+      title: t("home.step3_title", "Capability Passport Matching"),
+      description: t("home.step3_desc", "Hybrid matching engine connects verified universities, specialized laboratories, and startups based on real capacity."),
       icon: Award,
     },
     {
       number: "04",
-      title: "Transparent Governance & Action",
-      description: "District officers and platform reviewers validate proposals, track verified milestones, and coordinate civic implementation.",
+      title: t("home.step4_title", "Transparent Governance & Action"),
+      description: t("home.step4_desc", "District officers and platform reviewers validate proposals, track verified milestones, and coordinate civic implementation."),
       icon: ShieldCheck,
     },
   ];
 
   const participantRoles = [
     {
-      title: "Citizens & Communities",
-      description: "Report real problems from your district. Validate shared community issues and track progress toward solutions.",
-      cta: "Report a Problem",
+      title: t("home.role_citizen_title", "Citizens & Communities"),
+      description: t("home.role_citizen_desc", "Report real problems from your district. Validate shared community issues and track progress toward solutions."),
+      cta: t("home.role_citizen_cta", "Report a Problem"),
       href: "/challenges/new",
       icon: Users,
-      badge: "Grassroots Voice",
+      badge: t("home.role_citizen_badge", "Grassroots Voice"),
     },
     {
-      title: "Universities & Researchers",
-      description: "Bring faculty expertise, specialized laboratory equipment, and student innovators to solve prioritized regional challenges.",
-      cta: "Access Capability Passport",
+      title: t("home.role_university_title", "Universities & Researchers"),
+      description: t("home.role_university_desc", "Bring faculty expertise, specialized laboratory equipment, and student innovators to solve prioritized regional challenges."),
+      cta: t("home.role_university_cta", "Access Capability Passport"),
       href: "/login",
       icon: GraduationCap,
-      badge: "R&D Capacity",
+      badge: t("home.role_university_badge", "R&D Capacity"),
     },
     {
-      title: "Industry, Startups & MSMEs",
-      description: "Deploy technical capabilities, manufacture prototypes, offer mentorship, or direct CSR support where it matters most.",
-      cta: "Onboard Institution",
+      title: t("home.role_industry_title", "Industry, Startups & MSMEs"),
+      description: t("home.role_industry_desc", "Deploy technical capabilities, manufacture prototypes, offer mentorship, or direct CSR support where it matters most."),
+      cta: t("home.role_industry_cta", "Onboard Institution"),
       href: "/organizations/onboard",
       icon: Building2,
-      badge: "Enterprise & Scale",
+      badge: t("home.role_industry_badge", "Enterprise & Scale"),
     },
     {
-      title: "Government & District Officers",
-      description: "Review citizen problem submissions under official jurisdiction, authenticate priorities, and oversee collaborative outcomes.",
-      cta: "Reviewer Queue",
+      title: t("home.role_government_title", "Government & District Officers"),
+      description: t("home.role_government_desc", "Review citizen problem submissions under official jurisdiction, authenticate priorities, and oversee collaborative outcomes."),
+      cta: t("home.role_government_cta", "Reviewer Queue"),
       href: "/reviewer-queue",
       icon: ShieldCheck,
-      badge: "Public Accountability",
+      badge: t("home.role_government_badge", "Public Accountability"),
     },
   ];
 
@@ -239,19 +241,19 @@ export default function Home() {
             <div className="lg:col-span-7 space-y-6 text-left">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100/70 border border-amber-300/80 text-amber-900 text-xs font-semibold tracking-wide">
                 <span className="w-2 h-2 rounded-full bg-amber-600"></span>
-                <span>Government of Jharkhand · Societal Innovation Collaboration Platform</span>
+                <span>{t("home.badge", "Government of Jharkhand · Societal Innovation Collaboration Platform")}</span>
               </div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-stone-900 leading-[1.12]">
-                Real Problems. <br />
-                Real People. <br />
+                {t("home.hero_title_1", "Real Problems.")} <br />
+                {t("home.hero_title_2", "Real People.")} <br />
                 <span className="text-emerald-800 underline decoration-amber-400 decoration-wavy decoration-2 underline-offset-8">
-                  Real Solutions.
+                  {t("home.hero_title_3", "Real Solutions.")}
                 </span>
               </h1>
 
               <p className="text-base sm:text-lg text-stone-600 max-w-2xl leading-relaxed">
-                ResolvIN bridges the gap between grassroots community challenges and the universities, research laboratories, industries, and startups equipped with the verified capabilities to solve them.
+                {t("home.hero_desc", "ResolvIN bridges the gap between grassroots community challenges and the universities, research laboratories, industries, and startups equipped with the verified capabilities to solve them.")}
               </p>
 
               {/* Action Buttons */}
@@ -261,7 +263,7 @@ export default function Home() {
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-6 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 transition-all shadow-emerald-950/10 text-center"
                 >
                   <PlusCircle className="h-4 w-4 shrink-0" />
-                  <span>Report a Problem</span>
+                  <span>{t("home.report_problem_cta", "Report a Problem")}</span>
                 </Link>
 
                 <Link
@@ -269,18 +271,18 @@ export default function Home() {
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-6 py-3.5 text-sm font-semibold text-stone-800 shadow-sm hover:bg-stone-50 transition-all text-center"
                 >
                   <Compass className="h-4 w-4 text-stone-500 shrink-0" />
-                  <span>Explore Challenges</span>
+                  <span>{t("home.explore_challenges_cta", "Explore Challenges")}</span>
                 </Link>
               </div>
 
               {/* Citizen Trust Notice */}
               <div className="flex items-center gap-2 pt-2 text-xs text-stone-500">
                 <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0" />
-                <span>Open to all citizens, village panchayats, research faculties, and industrial partners.</span>
+                <span>{t("home.trust_notice", "Open to all citizens, village panchayats, research faculties, and industrial partners.")}</span>
               </div>
             </div>
 
-            {/* Right Visual Composition (Inspired by Positive Citizens Foundation & Studify) */}
+            {/* Right Visual Composition */}
             <div className="lg:col-span-5 relative flex justify-center">
               <div className="relative w-full max-w-md aspect-square rounded-3xl bg-gradient-to-tr from-amber-100 via-emerald-50 to-teal-50 border border-amber-200/80 p-6 flex flex-col justify-between shadow-lg shadow-amber-950/5">
                 {/* Decorative Circular Focal Frame */}
@@ -291,7 +293,7 @@ export default function Home() {
                 <div className="p-4 rounded-2xl bg-white/95 border border-stone-200 shadow-sm backdrop-blur-sm space-y-1 z-10">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
-                      Grassroots Impact
+                      {t("home.grassroots_impact", "Grassroots Impact")}
                     </span>
                     <span className="flex h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
                   </div>
@@ -303,14 +305,14 @@ export default function Home() {
                   </p>
                 </div>
 
-                {/* Center Visual Emblem */}
+                {/* Center Visual Emblem: RI Monogram for ResolvIN */}
                 <div className="my-auto text-center space-y-3 z-10">
                   <div className="mx-auto w-24 h-24 rounded-full bg-gradient-to-br from-emerald-700 to-teal-900 text-white flex items-center justify-center shadow-md shadow-emerald-950/20 text-3xl font-extrabold border-4 border-white">
-                    SS
+                    RI
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-stone-900">Jharkhand Civic Innovation Grid</h3>
-                    <p className="text-xs text-stone-600">Connecting 24 Districts with Verified Research Labs</p>
+                    <h3 className="text-base font-bold text-stone-900">{t("home.grid_title", "Jharkhand Civic Innovation Grid")}</h3>
+                    <p className="text-xs text-stone-600">{t("home.grid_desc", "Connecting 24 Districts with Verified Research Labs")}</p>
                   </div>
                 </div>
 
@@ -318,10 +320,10 @@ export default function Home() {
                 <div className="p-3.5 rounded-2xl bg-white/95 border border-stone-200 shadow-sm backdrop-blur-sm flex items-center justify-between text-xs z-10">
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="h-4 w-4 text-emerald-700" />
-                    <span className="font-semibold text-stone-800">Statewide Verified Capacity</span>
+                    <span className="font-semibold text-stone-800">{t("home.statewide_capacity", "Statewide Verified Capacity")}</span>
                   </div>
                   <span className="text-[11px] font-medium text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                    100% Audited
+                    {t("home.audited_badge", "100% Audited")}
                   </span>
                 </div>
               </div>
@@ -336,19 +338,19 @@ export default function Home() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             <div className="space-y-1">
               <div className="text-3xl sm:text-4xl font-extrabold text-emerald-800">24</div>
-              <p className="text-xs font-medium text-stone-500 uppercase tracking-wider">Districts Covered in Jharkhand</p>
+              <p className="text-xs font-medium text-stone-500 uppercase tracking-wider">{t("home.metric_districts", "Districts Covered in Jharkhand")}</p>
             </div>
             <div className="space-y-1">
               <div className="text-3xl sm:text-4xl font-extrabold text-stone-900">100+</div>
-              <p className="text-xs font-medium text-stone-500 uppercase tracking-wider">Verified Research Labs & Startups</p>
+              <p className="text-xs font-medium text-stone-500 uppercase tracking-wider">{t("home.metric_labs", "Verified Research Labs & Startups")}</p>
             </div>
             <div className="space-y-1">
               <div className="text-3xl sm:text-4xl font-extrabold text-amber-700">40+</div>
-              <p className="text-xs font-medium text-stone-500 uppercase tracking-wider">Active Capability Passports</p>
+              <p className="text-xs font-medium text-stone-500 uppercase tracking-wider">{t("home.metric_passports", "Active Capability Passports")}</p>
             </div>
             <div className="space-y-1">
               <div className="text-3xl sm:text-4xl font-extrabold text-teal-800">100%</div>
-              <p className="text-xs font-medium text-stone-500 uppercase tracking-wider">Transparent Government Review</p>
+              <p className="text-xs font-medium text-stone-500 uppercase tracking-wider">{t("home.metric_review", "Transparent Government Review")}</p>
             </div>
           </div>
         </div>
@@ -359,13 +361,13 @@ export default function Home() {
         <div className="mx-auto max-w-7xl space-y-12">
           <div className="text-center space-y-3 max-w-2xl mx-auto">
             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100/70 text-emerald-800 border border-emerald-300">
-              The Collaboration Pipeline
+              {t("home.pipeline_badge", "The Collaboration Pipeline")}
             </span>
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-stone-900">
-              How ResolvIN Works
+              {t("home.how_it_works", "How ResolvIN Works")}
             </h2>
             <p className="text-sm text-stone-600">
-              A transparent, accountable workflow transforming unstructured citizen reports into validated institutional research and community deployment.
+              {t("home.how_it_works_desc", "A transparent, accountable workflow transforming unstructured citizen reports into validated institutional research and community deployment.")}
             </p>
           </div>
 
@@ -404,18 +406,18 @@ export default function Home() {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                  Regional Priorities
+                  {t("home.domains_badge", "Regional Priorities")}
                 </span>
                 <span className="inline-flex items-center gap-1 text-xs text-stone-500 font-medium">
                   <MapPin className="h-3.5 w-3.5 text-emerald-700" />
-                  Across Jharkhand (24 Districts)
+                  {t("home.across_jharkhand", "Across Jharkhand (24 Districts)")}
                 </span>
               </div>
               <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-stone-900">
-                Priority Societal Challenges
+                {t("home.domains_title", "Priority Societal Challenges")}
               </h2>
               <p className="text-sm sm:text-base text-stone-600 max-w-2xl leading-relaxed">
-                Explore real grassroots problems submitted by citizens across Jharkhand, verified by district nodal officers and open for institutional research.
+                {t("home.domains_desc", "Explore real grassroots problems submitted by citizens across Jharkhand, verified by district nodal officers and open for institutional research.")}
               </p>
             </div>
 
@@ -425,13 +427,13 @@ export default function Home() {
                 className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs transition"
               >
                 <PlusCircle className="h-4 w-4" />
-                <span>Report Problem</span>
+                <span>{t("challenges.report_problem_btn", "Report Problem")}</span>
               </Link>
               <Link
                 href="/challenges"
                 className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold border border-stone-300 hover:bg-stone-50 text-stone-800 shadow-2xs transition"
               >
-                <span>Full Directory</span>
+                <span>{t("home.view_full_directory", "Full Directory")}</span>
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
@@ -445,15 +447,15 @@ export default function Home() {
                   <Sparkles className="h-4 w-4" />
                 </div>
                 <div>
-                  <h3 className="text-base sm:text-lg font-bold text-stone-900">Recently Reported in Jharkhand</h3>
-                  <p className="text-xs text-stone-500">Live feed of grassroots civic issues submitted by citizens</p>
+                  <h3 className="text-base sm:text-lg font-bold text-stone-900">{t("home.recent_challenges_title", "Recently Reported in Jharkhand")}</h3>
+                  <p className="text-xs text-stone-500">{t("home.recent_challenges_sub", "Live feed of grassroots civic issues submitted by citizens")}</p>
                 </div>
               </div>
               <Link
                 href="/challenges"
                 className="text-xs font-semibold text-emerald-800 hover:text-emerald-900 inline-flex items-center gap-1 self-start sm:self-auto"
               >
-                View all ({challenges.length}+) <ChevronRight className="h-3.5 w-3.5" />
+                {t("home.view_all", "View all")} ({challenges.length}+) <ChevronRight className="h-3.5 w-3.5" />
               </Link>
             </div>
 
@@ -477,9 +479,9 @@ export default function Home() {
             ) : challenges.length === 0 ? (
               <div className="p-10 rounded-2xl border border-dashed border-stone-300 bg-stone-50/50 text-center space-y-3">
                 <AlertCircle className="h-9 w-9 text-stone-400 mx-auto" />
-                <h4 className="text-base font-semibold text-stone-800">No active challenges found</h4>
+                <h4 className="text-base font-semibold text-stone-800">{t("challenges.no_challenges_found", "No active challenges found")}</h4>
                 <p className="text-xs text-stone-500 max-w-sm mx-auto">
-                  Be the first to report a grassroots problem in your district so universities and local officers can act.
+                  {t("challenges.no_challenges_desc", "Be the first to report a grassroots problem in your district so universities and local officers can act.")}
                 </p>
                 <div className="pt-2">
                   <Link
@@ -487,7 +489,7 @@ export default function Home() {
                     className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-semibold bg-emerald-700 text-white hover:bg-emerald-800 shadow-xs transition"
                   >
                     <PlusCircle className="h-4 w-4" />
-                    <span>Report a Problem</span>
+                    <span>{t("home.report_problem_cta", "Report a Problem")}</span>
                   </Link>
                 </div>
               </div>
@@ -522,7 +524,7 @@ export default function Home() {
                         {challenge.blockName && (
                           <>
                             <span>·</span>
-                            <span>{challenge.blockName} Block</span>
+                            <span>{challenge.blockName} {t("challenges.block", "Block")}</span>
                           </>
                         )}
                         {challenge.village_locality && (
@@ -541,7 +543,7 @@ export default function Home() {
                           title="Community Confirmations"
                         >
                           <HeartHandshake className="h-3.5 w-3.5 text-emerald-700" />
-                          <span>{challenge.confirmationsCount || 0} confirmed</span>
+                          <span>{t("challenges.confirmed_count", "{count} confirmed", { count: challenge.confirmationsCount || 0 })}</span>
                         </span>
                         {challenge.evidenceCount > 0 && (
                           <span
@@ -558,7 +560,7 @@ export default function Home() {
                         href={`/challenges/${challenge.id}`}
                         className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 group/link"
                       >
-                        <span>Details</span>
+                        <span>{t("common.details", "Details")}</span>
                         <ArrowRight className="h-3.5 w-3.5 group-hover/link:translate-x-0.5 transition-transform" />
                       </Link>
                     </div>
@@ -572,7 +574,7 @@ export default function Home() {
           <div className="space-y-6 pt-6 border-t border-stone-100">
             <div className="flex items-center gap-2">
               <Compass className="h-4 w-4 text-amber-700" />
-              <h3 className="text-base sm:text-lg font-bold text-stone-900">Explore by Thematic Research Domain</h3>
+              <h3 className="text-base sm:text-lg font-bold text-stone-900">{t("home.domains_explore_title", "Explore by Thematic Research Domain")}</h3>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -589,7 +591,7 @@ export default function Home() {
                       </div>
                       <span className="flex items-center gap-1.5 text-xs font-medium text-stone-500">
                         <span className={`h-2 w-2 rounded-full ${domain.dotColor}`} />
-                        <span>Active Focus</span>
+                        <span>{t("home.active_focus", "Active Focus")}</span>
                       </span>
                     </div>
 
@@ -607,7 +609,7 @@ export default function Home() {
                         href={`/challenges?domain=${encodeURIComponent(domain.title)}`}
                         className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 hover:text-emerald-900"
                       >
-                        <span>Explore Challenges</span>
+                        <span>{t("home.explore_domain", "Explore Challenges")}</span>
                         <ChevronRight className="h-3.5 w-3.5" />
                       </Link>
                     </div>
@@ -624,13 +626,13 @@ export default function Home() {
         <div className="mx-auto max-w-7xl space-y-12">
           <div className="text-center space-y-3 max-w-2xl mx-auto">
             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-              Multi-Stakeholder Participation
+              {t("home.participation_badge", "Multi-Stakeholder Participation")}
             </span>
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-stone-900">
-              How Will You Participate?
+              {t("home.participation_title", "How Will You Participate?")}
             </h2>
             <p className="text-sm text-stone-600">
-              ResolvIN provides dedicated workspaces tailored to your institutional role and societal responsibility.
+              {t("home.participation_desc", "ResolvIN provides dedicated workspaces tailored to your institutional role and societal responsibility.")}
             </p>
           </div>
 
@@ -683,39 +685,39 @@ export default function Home() {
               <span>ResolvIN</span>
             </div>
             <p className="text-stone-400 text-xs max-w-sm leading-relaxed">
-              An initiative supported by the Government of Jharkhand to connect grassroots citizen problems with higher education institutions, specialized laboratories, and enterprise innovators.
+              {t("home.footer_desc", "An initiative supported by the Government of Jharkhand to connect grassroots citizen problems with higher education institutions, specialized laboratories, and enterprise innovators.")}
             </p>
             <p className="text-stone-500 text-[11px]">
-              Built for Smart India Hackathon (SIH) and public societal impact deployment.
+              {t("home.footer_hackathon", "Built for Smart India Hackathon (SIH) and public societal impact deployment.")}
             </p>
           </div>
 
           <div className="md:col-span-2 space-y-2">
-            <p className="text-white font-bold uppercase tracking-wider text-[11px]">Platform</p>
+            <p className="text-white font-bold uppercase tracking-wider text-[11px]">{t("home.footer_platform", "Platform")}</p>
             <ul className="space-y-1.5 text-stone-400">
-              <li><Link href="/challenges" className="hover:text-white transition-colors">Challenges Directory</Link></li>
-              <li><Link href="/challenges/new" className="hover:text-white transition-colors">Report a Problem</Link></li>
-              <li><Link href="/organizations/onboard" className="hover:text-white transition-colors">Onboard Institution</Link></li>
+              <li><Link href="/challenges" className="hover:text-white transition-colors">{t("challenges.title", "Challenges Directory")}</Link></li>
+              <li><Link href="/challenges/new" className="hover:text-white transition-colors">{t("challenges.report_problem_btn", "Report a Problem")}</Link></li>
+              <li><Link href="/organizations/onboard" className="hover:text-white transition-colors">{t("nav.onboard_institution", "Onboard Institution")}</Link></li>
             </ul>
           </div>
 
           <div className="md:col-span-2 space-y-2">
-            <p className="text-white font-bold uppercase tracking-wider text-[11px]">Stakeholders</p>
+            <p className="text-white font-bold uppercase tracking-wider text-[11px]">{t("home.footer_stakeholders", "Stakeholders")}</p>
             <ul className="space-y-1.5 text-stone-400">
-              <li><Link href="/login" className="hover:text-white transition-colors">Citizen Portal</Link></li>
-              <li><Link href="/login" className="hover:text-white transition-colors">University Portal</Link></li>
-              <li><Link href="/login" className="hover:text-white transition-colors">Industry Portal</Link></li>
-              <li><Link href="/reviewer-queue" className="hover:text-white transition-colors">Reviewer Queue</Link></li>
+              <li><Link href="/login" className="hover:text-white transition-colors">{t("auth.citizen_title", "Citizen Portal")}</Link></li>
+              <li><Link href="/login" className="hover:text-white transition-colors">{t("auth.university_title", "University Portal")}</Link></li>
+              <li><Link href="/login" className="hover:text-white transition-colors">{t("auth.industry_title", "Industry Portal")}</Link></li>
+              <li><Link href="/reviewer-queue" className="hover:text-white transition-colors">{t("nav.reviewer_queue", "Reviewer Queue")}</Link></li>
             </ul>
           </div>
 
           <div className="md:col-span-3 space-y-2">
-            <p className="text-white font-bold uppercase tracking-wider text-[11px]">Governance & Trust</p>
+            <p className="text-white font-bold uppercase tracking-wider text-[11px]">{t("home.footer_governance", "Governance & Trust")}</p>
             <p className="text-stone-400 text-xs leading-relaxed">
-              All problem submissions are subject to district reviewer validation. AI matching inferences are provided as decision support for human reviewers.
+              {t("home.footer_governance_text", "All problem submissions are subject to district reviewer validation. AI matching inferences are provided as decision support for human reviewers.")}
             </p>
             <div className="pt-2 text-stone-500 text-[11px]">
-              © 2026 ResolvIN. All rights reserved.
+              {t("home.footer_copyright", "© 2026 ResolvIN. All rights reserved.")}
             </div>
           </div>
         </div>
@@ -723,4 +725,3 @@ export default function Home() {
     </main>
   );
 }
-

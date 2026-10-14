@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth, UserProfile } from "../../lib/auth-context";
 import { formatUserRole, formatOrganizationType } from "../../lib/utils";
+import { useTranslation } from "../../lib/i18n";
 import {
   Shield,
   Users,
@@ -48,80 +49,84 @@ interface EntryOption {
   bullets: string[];
 }
 
-const ENTRY_OPTIONS: EntryOption[] = [
-  {
-    id: "citizen",
-    title: "Citizen",
-    subtitle: "Community innovators & residents",
-    icon: Users,
-    accentColor: "border-emerald-300 hover:border-emerald-500 bg-emerald-50/40",
-    badgeBorder: "border-emerald-200",
-    badgeBg: "bg-emerald-50",
-    badgeText: "text-emerald-800",
-    loginHint: "Sign in with your citizen account to report or track community issues.",
-    loginButtonText: "Sign In as Citizen",
-    bullets: [
-      "Report real societal problems across Jharkhand",
-      "Track status and reviewer verification progress",
-      "Confirm problems experienced in your community",
-    ],
-  },
-  {
-    id: "university",
-    title: "University / Research Institution",
-    subtitle: "HEIs, research labs, faculty & students",
-    icon: GraduationCap,
-    accentColor: "border-blue-300 hover:border-blue-500 bg-blue-50/40",
-    badgeBorder: "border-blue-200",
-    badgeBg: "bg-blue-50",
-    badgeText: "text-blue-800",
-    loginHint: "Sign in with your institutional administrator or researcher credentials.",
-    loginButtonText: "Sign In to University Portal",
-    bullets: [
-      "Discover verified societal challenges matching your domain",
-      "Showcase research labs and specialized capabilities",
-      "Manage institutional Capability Passport & availability",
-    ],
-  },
-  {
-    id: "industry",
-    title: "Industry / Startup / MSME",
-    subtitle: "Enterprises, technology providers & startups",
-    icon: Building2,
-    accentColor: "border-amber-300 hover:border-amber-500 bg-amber-50/40",
-    badgeBorder: "border-amber-200",
-    badgeBg: "bg-amber-50",
-    badgeText: "text-amber-800",
-    loginHint: "Sign in with your corporate, startup, or enterprise credentials.",
-    loginButtonText: "Sign In to Industry Portal",
-    bullets: [
-      "Showcase technology, manufacturing & prototyping assets",
-      "Offer mentorship, hardware access, or technical support",
-      "Manage organizational availability & collaboration capacity",
-    ],
-  },
-  {
-    id: "government",
-    title: "Government / Reviewer",
-    subtitle: "District officers, reviewers & administrators",
-    icon: ShieldCheck,
-    accentColor: "border-stone-400 hover:border-stone-600 bg-stone-100/60",
-    badgeBorder: "border-stone-300",
-    badgeBg: "bg-stone-100",
-    badgeText: "text-stone-800",
-    loginHint: "Sign in with your verified government officer or administrator credentials.",
-    loginButtonText: "Sign In to Government Portal",
-    bullets: [
-      "Review and validate pending citizen problem reports",
-      "Govern verified ecosystem data & accreditation requests",
-      "Monitor regional societal impact and policy interventions",
-    ],
-  },
-];
-
 export function AuthCard({ redirectTo }: { redirectTo?: string }) {
   const router = useRouter();
   const { user, loading, login, register, logout } = useAuth();
+  const { t } = useTranslation();
+
+  const entryOptions: EntryOption[] = useMemo(
+    () => [
+      {
+        id: "citizen",
+        title: t("auth.citizen_title", "Citizen"),
+        subtitle: t("auth.citizen_sub", "Community innovators & residents"),
+        icon: Users,
+        accentColor: "border-emerald-300 hover:border-emerald-500 bg-emerald-50/40",
+        badgeBorder: "border-emerald-200",
+        badgeBg: "bg-emerald-50",
+        badgeText: "text-emerald-800",
+        loginHint: t("auth.citizen_hint", "Sign in with your citizen account to report or track community issues."),
+        loginButtonText: t("auth.citizen_btn", "Sign In as Citizen"),
+        bullets: [
+          t("auth.citizen_bullet_1", "Report real societal problems across Jharkhand"),
+          t("auth.citizen_bullet_2", "Track status and reviewer verification progress"),
+          t("auth.citizen_bullet_3", "Confirm problems experienced in your community"),
+        ],
+      },
+      {
+        id: "university",
+        title: t("auth.university_title", "University / Research Institution"),
+        subtitle: t("auth.university_sub", "HEIs, research labs, faculty & students"),
+        icon: GraduationCap,
+        accentColor: "border-blue-300 hover:border-blue-500 bg-blue-50/40",
+        badgeBorder: "border-blue-200",
+        badgeBg: "bg-blue-50",
+        badgeText: "text-blue-800",
+        loginHint: t("auth.university_hint", "Sign in with your institutional administrator or researcher credentials."),
+        loginButtonText: t("auth.university_btn", "Sign In to University Portal"),
+        bullets: [
+          t("auth.university_bullet_1", "Discover verified societal challenges matching your domain"),
+          t("auth.university_bullet_2", "Showcase research labs and specialized capabilities"),
+          t("auth.university_bullet_3", "Manage institutional Capability Passport & availability"),
+        ],
+      },
+      {
+        id: "industry",
+        title: t("auth.industry_title", "Industry / Startup / MSME"),
+        subtitle: t("auth.industry_sub", "Enterprises, technology providers & startups"),
+        icon: Building2,
+        accentColor: "border-amber-300 hover:border-amber-500 bg-amber-50/40",
+        badgeBorder: "border-amber-200",
+        badgeBg: "bg-amber-50",
+        badgeText: "text-amber-800",
+        loginHint: t("auth.industry_hint", "Sign in with your corporate, startup, or enterprise credentials."),
+        loginButtonText: t("auth.industry_btn", "Sign In to Industry Portal"),
+        bullets: [
+          t("auth.industry_bullet_1", "Showcase technology, manufacturing & prototyping assets"),
+          t("auth.industry_bullet_2", "Offer mentorship, hardware access, or technical support"),
+          t("auth.industry_bullet_3", "Manage organizational availability & collaboration capacity"),
+        ],
+      },
+      {
+        id: "government",
+        title: t("auth.government_title", "Government / Reviewer"),
+        subtitle: t("auth.government_sub", "District officers, reviewers & administrators"),
+        icon: ShieldCheck,
+        accentColor: "border-stone-400 hover:border-stone-600 bg-stone-100/60",
+        badgeBorder: "border-stone-300",
+        badgeBg: "bg-stone-100",
+        badgeText: "text-stone-800",
+        loginHint: t("auth.government_hint", "Sign in with your verified government officer or administrator credentials."),
+        loginButtonText: t("auth.government_btn", "Sign In to Government Portal"),
+        bullets: [
+          t("auth.government_bullet_1", "Review and validate pending citizen problem reports"),
+          t("auth.government_bullet_2", "Govern verified ecosystem data & accreditation requests"),
+          t("auth.government_bullet_3", "Monitor regional societal impact and policy interventions"),
+        ],
+      },
+    ],
+    [t],
+  );
 
   // Role entry path selection
   const [selectedEntry, setSelectedEntry] = useState<EntryType>("citizen");
@@ -140,7 +145,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [multiOrgChoices, setMultiOrgChoices] = useState<any[] | null>(null);
 
-  const activeOption = ENTRY_OPTIONS.find((opt) => opt.id === selectedEntry) || ENTRY_OPTIONS[0];
+  const activeOption = entryOptions.find((opt) => opt.id === selectedEntry) || entryOptions[0];
 
   const showDemoAccounts = true; // Always available for evaluation and jury assessment
 
@@ -375,7 +380,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
               <h2 className="text-xl sm:text-2xl font-bold text-stone-900">{user.name}</h2>
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                 <Shield className="w-3.5 h-3.5" />
-                {formatUserRole(user.role)}
+                {formatUserRole(user.role, t)}
               </span>
             </div>
             <p className="text-xs text-stone-500 font-mono">{user.email}</p>
@@ -386,7 +391,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
             className="inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-medium text-red-700 hover:text-red-800 hover:bg-red-50 border border-red-200 rounded-xl transition"
           >
             <LogOut className="w-3.5 h-3.5" />
-            Sign Out
+            {t("nav.logout", "Sign Out")}
           </button>
         </div>
 
@@ -417,7 +422,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
                       {m.organization_name || "Organization"}
                     </div>
                     <div className="text-[10px] text-stone-500 truncate">
-                      {formatOrganizationType(m.organization_type)} • {m.organization_role}
+                      {formatOrganizationType(m.organization_type, t)} • {m.organization_role}
                     </div>
                   </div>
                   <ArrowRight className="w-3.5 h-3.5 text-stone-400 group-hover:text-emerald-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
@@ -539,7 +544,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
 
       {/* Role-Oriented Entry Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {ENTRY_OPTIONS.map((option) => {
+        {entryOptions.map((option) => {
           const Icon = option.icon;
           const isSelected = selectedEntry === option.id;
           return (
@@ -618,7 +623,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
                   : "text-stone-600 hover:text-stone-900"
               }`}
             >
-              Sign In
+              {t("auth.sign_in", "Sign In")}
             </button>
             <button
               type="button"
@@ -634,7 +639,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
                   : "text-stone-600 hover:text-stone-900"
               }`}
             >
-              Register
+              {t("auth.create_account", "Register")}
             </button>
           </div>
         </div>
@@ -775,7 +780,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
             <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-stone-700">
-                Email Address <span className="text-red-500">*</span>
+                {t("auth.email_label", "Email Address")} <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-stone-400">
@@ -786,7 +791,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@organization.gov.in / name@institution.ac.in"
+                  placeholder={t("auth.email_placeholder", "name@organization.gov.in / name@institution.ac.in")}
                   className="w-full rounded-xl border border-stone-300 bg-white pl-9 pr-3.5 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600"
                 />
               </div>
@@ -795,7 +800,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-semibold text-stone-700">
-                  Password <span className="text-red-500">*</span>
+                  {t("auth.password_label", "Password")} <span className="text-red-500">*</span>
                 </label>
               </div>
               <div className="relative">
@@ -807,7 +812,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder={t("auth.password_placeholder", "••••••••")}
                   className="w-full rounded-xl border border-stone-300 bg-white pl-9 pr-10 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600"
                 />
                 <button
@@ -828,7 +833,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
             >
               {submitting ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Authenticating...
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t("auth.signing_in", "Authenticating...")}
                 </>
               ) : (
                 <>
@@ -851,7 +856,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
                   }}
                   className="text-emerald-700 hover:underline font-semibold"
                 >
-                  Create an account
+                  {t("auth.create_account", "Create an account")}
                 </button>
               </p>
             </div>
@@ -889,7 +894,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-stone-700">
-                  Full Name <span className="text-red-500">*</span>
+                  {t("auth.name_label", "Full Name")} <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-stone-400">
@@ -902,7 +907,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
                     maxLength={100}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Prof. Ramesh Kumar"
+                    placeholder={t("auth.name_placeholder", "Prof. Ramesh Kumar")}
                     className="w-full rounded-xl border border-stone-300 bg-white pl-9 pr-3.5 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600"
                   />
                 </div>
@@ -910,7 +915,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
 
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-stone-700">
-                  Contact Phone (Optional)
+                  {t("auth.phone_label", "Contact Phone (Optional)")}
                 </label>
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-stone-400">
@@ -920,7 +925,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+91-9876543210"
+                    placeholder={t("auth.phone_placeholder", "+91-9876543210")}
                     className="w-full rounded-xl border border-stone-300 bg-white pl-9 pr-3.5 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600"
                   />
                 </div>
@@ -929,7 +934,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
 
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-stone-700">
-                Email Address <span className="text-red-500">*</span>
+                {t("auth.email_label", "Email Address")} <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-stone-400">
@@ -948,7 +953,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
 
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-stone-700">
-                Password (min 8 characters) <span className="text-red-500">*</span>
+                {t("auth.password_label", "Password")} <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-stone-400">
@@ -960,7 +965,7 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
                   minLength={8}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder={t("auth.password_placeholder", "••••••••")}
                   className="w-full rounded-xl border border-stone-300 bg-white pl-9 pr-10 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600"
                 />
                 <button
@@ -981,11 +986,11 @@ export function AuthCard({ redirectTo }: { redirectTo?: string }) {
             >
               {submitting ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Creating Account...
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t("auth.creating_account", "Creating Account...")}
                 </>
               ) : (
                 <>
-                  <span>Create Account</span>
+                  <span>{t("auth.register_btn", "Create Account")}</span>
                   <ArrowRight className="h-3.5 w-3.5" />
                 </>
               )}

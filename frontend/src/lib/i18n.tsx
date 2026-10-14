@@ -51,7 +51,7 @@ interface I18nContextType {
   t: (
     key: string,
     fallbackOrParams?: string | Record<string, string | number>,
-    params?: Record<string, string | number>
+    paramsOrFallback?: string | Record<string, string | number>
   ) => string;
   supportedLanguages: Record<string, LanguageInfo>;
 }
@@ -59,8 +59,15 @@ interface I18nContextType {
 const I18nContext = createContext<I18nContextType>({
   language: "en",
   setLanguage: () => {},
-  t: (key: string, fallbackOrParams?: string | Record<string, string | number>) =>
-    typeof fallbackOrParams === "string" ? fallbackOrParams : key,
+  t: (
+    key: string,
+    fallbackOrParams?: string | Record<string, string | number>,
+    paramsOrFallback?: string | Record<string, string | number>
+  ) => {
+    if (typeof fallbackOrParams === "string") return fallbackOrParams;
+    if (typeof paramsOrFallback === "string") return paramsOrFallback;
+    return key;
+  },
   supportedLanguages: SUPPORTED_LANGUAGES,
 });
 
@@ -84,7 +91,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   // Read saved preference on mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("samadhan_language");
+      const saved =
+        localStorage.getItem("resolvin_language") ||
+        localStorage.getItem("samadhan_language");
       if (saved && SUPPORTED_LANGUAGES[saved]) {
         setLanguageState(saved);
         if (typeof document !== "undefined") {
@@ -102,6 +111,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     if (SUPPORTED_LANGUAGES[lang]) {
       setLanguageState(lang);
       try {
+        localStorage.setItem("resolvin_language", lang);
         localStorage.setItem("samadhan_language", lang);
         if (typeof document !== "undefined") {
           document.documentElement.lang = lang;
@@ -114,10 +124,29 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     (
       key: string,
       fallbackOrParams?: string | Record<string, string | number>,
-      params?: Record<string, string | number>
+      paramsOrFallback?: string | Record<string, string | number>
     ): string => {
-      const defaultText = typeof fallbackOrParams === "string" ? fallbackOrParams : key;
-      const actualParams = typeof fallbackOrParams === "object" ? fallbackOrParams : params;
+      if (!key || typeof key !== "string") {
+        return typeof fallbackOrParams === "string"
+          ? fallbackOrParams
+          : typeof paramsOrFallback === "string"
+          ? paramsOrFallback
+          : "";
+      }
+
+      const defaultText =
+        typeof fallbackOrParams === "string"
+          ? fallbackOrParams
+          : typeof paramsOrFallback === "string"
+          ? paramsOrFallback
+          : key;
+
+      const actualParams =
+        typeof fallbackOrParams === "object" && fallbackOrParams !== null
+          ? fallbackOrParams
+          : typeof paramsOrFallback === "object" && paramsOrFallback !== null
+          ? paramsOrFallback
+          : undefined;
 
       // 1. Try selected language
       let text = getNestedValue(translations[language], key);
@@ -129,6 +158,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
       // 3. Fallback to defaultText or key itself (never blank or undefined)
       if (!text) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(`[i18n] Missing translation for key: "${key}" in language: "${language}"`);
+        }
         text = defaultText;
       }
 

@@ -16,6 +16,7 @@ import {
   ForumAccessEvaluation,
 } from "../../../../lib/forum-access";
 import { formatDateSafe } from "../../../../lib/utils";
+import { useTranslation } from "../../../../lib/i18n";
 import {
   MessageSquare,
   Send,
@@ -47,6 +48,7 @@ function ChallengeForumContent() {
   const challengeId = params?.id as string;
   const queryProjectId = searchParams?.get("projectId") || null;
   const { user, token, loading: authLoading } = useAuth();
+  const { t } = useTranslation();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
   const [challenge, setChallenge] = useState<any | null>(null);
@@ -299,10 +301,10 @@ function ChallengeForumContent() {
 
           <div className="space-y-2">
             <h2 className="text-xl font-bold text-stone-900 tracking-tight">
-              Communication Forum Access Restricted
+              {t("forum.access_restricted", "Communication Forum Access Restricted")}
             </h2>
             <p className="text-sm text-stone-600 leading-relaxed max-w-md mx-auto">
-              Only participants connected to this problem or project can access this discussion.
+              {t("forum.restricted_notice", "Only participants connected to this problem or project can access this discussion.")}
             </p>
           </div>
 
@@ -324,21 +326,21 @@ function ChallengeForumContent() {
                 href={`/projects/${accessEvaluation.projectId}`}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-800 transition shadow-xs"
               >
-                <FolderGit2 className="w-4 h-4" /> Return to Project Workspace
+                <FolderGit2 className="w-4 h-4" /> {t("solutions.open_project_workspace", "Return to Project Workspace")}
               </Link>
             ) : null}
             <Link
               href={`/challenges/${challengeId}`}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-stone-900 px-5 py-2.5 text-xs font-semibold text-white hover:bg-stone-800 transition shadow-xs"
             >
-              <ArrowLeft className="w-4 h-4" /> Return to Problem Overview
+              <ArrowLeft className="w-4 h-4" /> {t("forum.back_to_challenge", "Return to Problem Overview")}
             </Link>
             {!user && (
               <Link
                 href={`/login?redirectTo=/challenges/${challengeId}/forum`}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-5 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition"
               >
-                Sign In to Verify Access
+                {t("auth.sign_in", "Sign In to Verify Access")}
               </Link>
             )}
           </div>
@@ -359,15 +361,15 @@ function ChallengeForumContent() {
                   href={`/challenges/${challengeId}`}
                   className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 font-semibold"
                 >
-                  <ArrowLeft className="h-3.5 w-3.5" /> Back to Problem
+                  <ArrowLeft className="h-3.5 w-3.5" /> {t("forum.back_to_challenge", "Back to Problem")}
                 </Link>
                 <span>/</span>
-                <span className="text-stone-700 font-medium">Communication Forum</span>
+                <span className="text-stone-700 font-medium">{t("forum.title", "Communication Forum")}</span>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-lg sm:text-xl font-bold text-stone-900 tracking-tight break-words">
-                  {challenge?.title || "Problem Stakeholder Communication Forum"}
+                  {challenge?.title || t("forum.title", "Problem Stakeholder Communication Forum")}
                 </h1>
                 {challenge?.district && (
                   <span className="inline-flex items-center rounded-md bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-700 border border-stone-200">
@@ -375,7 +377,7 @@ function ChallengeForumContent() {
                   </span>
                 )}
                 <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-700 border border-indigo-200">
-                  <Sparkles className="h-3 w-3" /> Multi-Stakeholder Forum
+                  <Sparkles className="h-3 w-3" /> {t("forum.subtitle", "Multi-Stakeholder Forum")}
                 </span>
               </div>
             </div>
@@ -386,7 +388,7 @@ function ChallengeForumContent() {
                   href={`/projects/${accessEvaluation.projectId}`}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs transition"
                 >
-                  <FolderGit2 className="h-3.5 w-3.5" /> Open Project Workspace
+                  <FolderGit2 className="h-3.5 w-3.5" /> {t("solutions.open_project_workspace", "Open Project Workspace")}
                 </Link>
               )}
             </div>
@@ -397,7 +399,7 @@ function ChallengeForumContent() {
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider flex items-center gap-1 mr-1">
-                  <Users className="h-3.5 w-3.5 text-stone-400" /> Stakeholders:
+                  <Users className="h-3.5 w-3.5 text-stone-400" /> {t("forum.stakeholders", "Stakeholders:")}
                 </span>
 
                 {accessEvaluation.participantsList.map((part) => (
@@ -421,11 +423,11 @@ function ChallengeForumContent() {
                     <div className="flex items-center gap-1">
                       <span className="font-semibold text-stone-900">{part.name}</span>
                       <span className="text-[11px] text-stone-500">
-                        ({part.role === "CITIZEN" ? "Citizen" : part.role === "UNIVERSITY" ? "University" : "Industry"})
+                        ({part.role === "CITIZEN" ? t("roles.CITIZEN", "Citizen") : part.role === "UNIVERSITY" ? t("roles.INSTITUTION", "University") : t("roles.INDUSTRY", "Industry")})
                       </span>
                       {part.isCurrentUser && (
                         <span className="ml-1 rounded-md bg-emerald-200/80 px-1.5 py-0.2 text-[10px] font-bold text-emerald-900">
-                          YOU
+                          {t("forum.you", "YOU")}
                         </span>
                       )}
                     </div>
@@ -458,7 +460,7 @@ function ChallengeForumContent() {
           <div className="p-4 border-b border-stone-100 flex items-center justify-between text-xs text-stone-500">
             <div className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-emerald-700" />
-              <span className="font-semibold text-stone-800">Stakeholder Discussion Stream</span>
+              <span className="font-semibold text-stone-800">{t("forum.stream_title", "Stakeholder Discussion Stream")}</span>
               <span>•</span>
               <span>{messages.length} message{messages.length === 1 ? "" : "s"}</span>
             </div>
@@ -473,10 +475,10 @@ function ChallengeForumContent() {
                 </div>
                 <div className="space-y-1">
                   <h3 className="text-sm font-bold text-stone-900">
-                    No Messages Yet in this Forum
+                    {t("forum.empty_messages", "No Messages Yet in this Forum")}
                   </h3>
                   <p className="text-xs text-stone-500 leading-relaxed">
-                    This private forum connects the citizen submitter, participating university engineers, and industry partners to clarify requirements, coordinate testing, and discuss execution.
+                    {t("forum.subtitle", "This private forum connects the citizen submitter, participating university engineers, and industry partners to clarify requirements, coordinate testing, and discuss execution.")}
                   </p>
                 </div>
               </div>
@@ -600,7 +602,7 @@ function ChallengeForumContent() {
                     className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white px-4 py-2 text-xs font-semibold shadow-xs transition"
                   >
                     <Send className="h-3.5 w-3.5" />
-                    <span>Send Message</span>
+                    <span>{t("forum.send_message", "Send")}</span>
                   </button>
                 </div>
               </div>

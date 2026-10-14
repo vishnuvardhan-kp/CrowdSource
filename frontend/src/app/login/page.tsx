@@ -3,9 +3,12 @@
 import React from "react";
 import Link from "next/link";
 import { AuthCard } from "../components/auth-card";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { useTranslation } from "../../lib/i18n";
 
 export default function LoginPage() {
+  const { t } = useTranslation();
+
   return (
     <main className="min-h-[85vh] flex flex-col items-center justify-center py-10 px-4 sm:px-6 relative">
       <div className="w-full max-w-4xl relative z-10 space-y-6">
@@ -15,13 +18,13 @@ export default function LoginPage() {
             href="/"
             className="inline-flex items-center gap-1.5 text-xs text-stone-600 hover:text-stone-900 font-medium transition-colors self-start sm:self-auto"
           >
-            <ArrowLeft className="h-3.5 w-3.5" /> Back to Home
+            <ArrowLeft className="h-3.5 w-3.5" /> {t("auth.back_to_home", "Back to Home")}
           </Link>
           <Link
             href="/challenges"
             className="text-xs text-emerald-700 hover:text-emerald-800 font-medium hover:underline self-start sm:self-auto"
           >
-            Explore Challenges Without Signing In →
+            {t("auth.explore_without_login", "Explore Challenges Without Signing In →")}
           </Link>
         </div>
 

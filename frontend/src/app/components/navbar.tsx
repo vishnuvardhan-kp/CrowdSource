@@ -147,7 +147,7 @@ export function Navbar() {
     },
     {
       href: "/solutions",
-      label: "Open Solutions",
+      label: t("nav.solutions", "Open Solutions"),
       icon: Sparkles,
     },
     {

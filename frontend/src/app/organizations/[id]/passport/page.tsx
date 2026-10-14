@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../../../lib/auth-context";
+import { useTranslation } from "../../../../lib/i18n";
 import {
   formatOrganizationType,
   formatGeographicReach,
@@ -167,6 +168,7 @@ export default function CapabilityPassportPage() {
   const router = useRouter();
   const orgId = params.id as string;
   const { user, token } = useAuth();
+  const { t } = useTranslation();
 
   const [passport, setPassport] = useState<PassportData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -516,7 +518,7 @@ export default function CapabilityPassportPage() {
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="flex flex-col items-center gap-3 text-stone-500">
           <Loader2 className="h-8 w-8 animate-spin text-emerald-700" />
-          <p className="text-sm">Loading Capability Passport...</p>
+          <p className="text-sm">{t("common.loading", "Loading Capability Passport...")}</p>
         </div>
       </div>
     );
@@ -527,13 +529,13 @@ export default function CapabilityPassportPage() {
       <div className="mx-auto max-w-4xl px-4 py-12">
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center shadow-xs">
           <AlertCircle className="mx-auto h-10 w-10 text-red-600 mb-3" />
-          <h2 className="text-lg font-bold text-red-900 mb-1">Organization Passport Not Found</h2>
-          <p className="text-sm text-red-700 mb-4">{error || "The requested organization passport could not be loaded."}</p>
+          <h2 className="text-lg font-bold text-red-900 mb-1">{t("passport.not_found_title", "Organization Passport Not Found")}</h2>
+          <p className="text-sm text-red-700 mb-4">{error || t("passport.not_found_desc", "The requested organization passport could not be loaded.")}</p>
           <Link
             href="/challenges"
             className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-800 shadow-xs"
           >
-            <ArrowLeft className="h-4 w-4" /> Back to Challenges
+            <ArrowLeft className="h-4 w-4" /> {t("passport.back_to_challenges", "Back to Challenges")}
           </Link>
         </div>
       </div>
@@ -558,12 +560,12 @@ export default function CapabilityPassportPage() {
           href="/challenges"
           className="inline-flex items-center gap-1.5 text-xs text-stone-600 hover:text-stone-900 font-medium transition-colors"
         >
-          <ArrowLeft className="h-3.5 w-3.5" /> Back to Directory
+          <ArrowLeft className="h-3.5 w-3.5" /> {t("passport.back_to_directory", "Back to Directory")}
         </Link>
 
         {isOrgAdmin && (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800 border border-blue-200">
-            <Lock className="h-3 w-3" /> Organization Administrator
+            <Lock className="h-3 w-3" /> {t("passport.org_admin_badge", "Organization Administrator")}
           </span>
         )}
       </div>
@@ -586,11 +588,11 @@ export default function CapabilityPassportPage() {
               {/* Claimed / Unclaimed Status */}
               {org.is_claimed ? (
                 <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 border border-emerald-200">
-                  <ShieldCheck className="h-3 w-3" /> Claimed Institution
+                  <ShieldCheck className="h-3 w-3" /> {t("passport.claimed_badge", "Claimed Institution")}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 border border-amber-200">
-                  <ShieldAlert className="h-3 w-3" /> Unclaimed Registry Record
+                  <ShieldAlert className="h-3 w-3" /> {t("passport.unclaimed_badge", "Unclaimed Registry Record")}
                 </span>
               )}
 
@@ -627,7 +629,7 @@ export default function CapabilityPassportPage() {
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 text-emerald-700 hover:text-emerald-800 hover:underline font-medium break-all"
                 >
-                  <ExternalLink className="h-3 w-3 shrink-0" /> Official Website
+                  <ExternalLink className="h-3 w-3 shrink-0" /> {t("passport.official_website", "Official Website")}
                 </a>
               )}
               {org.email && (
@@ -651,7 +653,7 @@ export default function CapabilityPassportPage() {
                 onClick={() => setShowClaimModal(true)}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 px-4 py-2.5 sm:py-2 text-xs font-semibold text-white shadow-xs transition-all w-full sm:w-auto"
               >
-                <ShieldCheck className="h-4 w-4 shrink-0" /> Claim This Profile
+                <ShieldCheck className="h-4 w-4 shrink-0" /> {t("passport.claim_btn", "Claim This Profile")}
               </button>
             )}
 
@@ -662,7 +664,7 @@ export default function CapabilityPassportPage() {
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-3 py-2 sm:py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 shadow-2xs transition-colors disabled:opacity-50 w-full sm:w-auto"
               >
                 <RefreshCw className={`h-3.5 w-3.5 text-blue-700 shrink-0 ${reindexing ? "animate-spin" : ""}`} />
-                {reindexing ? "Synchronizing..." : "Sync AI Capability Index"}
+                {reindexing ? t("common.loading", "Synchronizing...") : t("passport.reindex_btn", "Sync AI Capability Index")}
               </button>
             )}
           </div>

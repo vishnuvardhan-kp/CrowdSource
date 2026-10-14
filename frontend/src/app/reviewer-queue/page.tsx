@@ -106,6 +106,7 @@ interface ProposedSolutionItem {
 
 export default function ReviewerQueuePage() {
   const { user, token } = useAuth();
+  const { t } = useTranslation();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
   // Primary Tab: 'clusters' | 'challenges' | 'solutions' | 'projects' | 'impact' | 'innovations' | 'capabilities' | 'pri_ulb'
@@ -1079,22 +1080,22 @@ export default function ReviewerQueuePage() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 border border-emerald-200/60 uppercase tracking-wide">
-              Official Governance Portal
+              {t("reviewer.official_portal", "Official Governance Portal")}
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 flex items-center gap-2.5">
             <ShieldCheck className="h-7 w-7 text-emerald-700" />
-            Government Reviewer Queue
+            {t("nav.reviewer", "Government Reviewer Queue")}
           </h1>
           <p className="text-xs sm:text-sm text-stone-600 mt-1 max-w-2xl">
-            Review citizen challenges, evaluate proposed solutions, and govern collaborative innovation projects.
+            {t("reviewer.subtitle", "Review citizen challenges, evaluate proposed solutions, and govern collaborative innovation projects.")}
           </p>
         </div>
 
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs font-medium text-stone-600 bg-stone-50 border border-stone-200 px-3.5 py-2 rounded-xl self-start sm:self-auto shadow-xs">
           <div className="flex items-center gap-2">
-            <span>Officer:</span>
+            <span>{t("reviewer.officer_label", "Officer")}:</span>
             <span className="text-stone-900 font-semibold">{user?.name}</span>
             <span className="text-stone-300">|</span>
             <span className="text-emerald-800 font-semibold">{formatUserRole(user?.role)}</span>
@@ -1104,10 +1105,10 @@ export default function ReviewerQueuePage() {
             <MapPin className="h-3 w-3 text-amber-700" />
             <span>
               {user?.role === "GOVERNMENT_OFFICER"
-                ? `${user?.districtRef?.name || user?.district || "Assigned"} District Jurisdiction`
+                ? t("reviewer.jurisdiction_district", { district: user?.districtRef?.name || user?.district || "Assigned" }, `${user?.districtRef?.name || user?.district || "Assigned"} District Jurisdiction`)
                 : user?.role === "GOVERNMENT_ADMIN"
-                ? `${user?.state || "Jharkhand"} State Jurisdiction`
-                : "Universal Jurisdiction"}
+                ? t("reviewer.jurisdiction_state", { state: user?.state || "Jharkhand" }, `${user?.state || "Jharkhand"} State Jurisdiction`)
+                : t("reviewer.jurisdiction_universal", "Universal Jurisdiction")}
             </span>
           </div>
         </div>
@@ -1128,7 +1129,7 @@ export default function ReviewerQueuePage() {
           }`}
         >
           <Sparkles className="h-4 w-4" />
-          1. Problem Intelligence (Clusters)
+          {t("reviewer.tab_clusters_title", "1. Problem Intelligence (Clusters)")}
         </button>
 
         <button
@@ -1144,7 +1145,7 @@ export default function ReviewerQueuePage() {
           }`}
         >
           <FileText className="h-4 w-4" />
-          2. Citizen Reports
+          {t("reviewer.tab_reports_title", "2. Citizen Reports")}
           {challengesQueue.length > 0 && (
             <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] bg-white/20 text-white font-bold">
               {challengesQueue.length}
@@ -1165,7 +1166,7 @@ export default function ReviewerQueuePage() {
           }`}
         >
           <Sparkles className="h-4 w-4" />
-          3. Proposed Solutions
+          {t("reviewer.tab_solutions_title", "3. Proposed Solutions")}
           {solutionsQueue.length > 0 && (
             <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] bg-white/20 text-white font-bold">
               {solutionsQueue.length}
@@ -1186,7 +1187,7 @@ export default function ReviewerQueuePage() {
           }`}
         >
           <FolderGit2 className="h-4 w-4" />
-          4. Project Governance
+          {t("reviewer.tab_projects_title", "4. Project Governance")}
           {projectsQueue.length > 0 && (
             <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] bg-white/20 text-white font-bold">
               {projectsQueue.length}
@@ -1207,7 +1208,7 @@ export default function ReviewerQueuePage() {
           }`}
         >
           <Award className="h-4 w-4" />
-          6. Impact Verification
+          {t("reviewer.tab_impact_title", "5. Impact Verification")}
           {impactQueue.length > 0 && (
             <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] bg-white/20 text-white font-bold">
               {impactQueue.length}
@@ -1229,7 +1230,7 @@ export default function ReviewerQueuePage() {
           }`}
         >
           <Sparkles className="h-4 w-4" />
-          6. Innovation & IP Review
+          {t("reviewer.tab_outcomes_title", "6. Innovation & IP Review")}
           {innovationsQueue.length > 0 && (
             <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] bg-white/20 text-white font-bold">
               {innovationsQueue.length}
@@ -1251,7 +1252,7 @@ export default function ReviewerQueuePage() {
           }`}
         >
           <ShieldCheck className="h-4 w-4" />
-          7. Capability Verification
+          {t("reviewer.tab_capabilities_title", "7. Capability Verification")}
           {((verificationQueue?.pending_evidence_count || 0) + (verificationQueue?.pending_capabilities_count || 0)) > 0 && (
             <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] bg-amber-400 text-stone-950 font-bold">
               {(verificationQueue?.pending_evidence_count || 0) + (verificationQueue?.pending_capabilities_count || 0)}
@@ -1268,7 +1269,7 @@ export default function ReviewerQueuePage() {
           }`}
         >
           <Landmark className="h-4 w-4" />
-          8. PRI & ULB Authority
+          {t("reviewer.tab_pri_title", "8. PRI & ULB Authority")}
         </button>
       </div>
 

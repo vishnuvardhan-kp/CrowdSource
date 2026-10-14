@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../../lib/auth-context";
+import { useTranslation } from "../../../lib/i18n";
 import {
   Building2,
   Globe2,
@@ -23,6 +24,7 @@ import {
 export default function OrganizationOnboardPage() {
   const router = useRouter();
   const { user, token } = useAuth();
+  const { t } = useTranslation();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -93,7 +95,7 @@ export default function OrganizationOnboardPage() {
           href="/challenges"
           className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-500 hover:text-stone-800 transition-colors"
         >
-          <ArrowLeft className="h-3.5 w-3.5" /> Back to Challenges
+          <ArrowLeft className="h-3.5 w-3.5" /> {t("onboard.back_to_challenges", "Back to Challenges")}
         </Link>
       </div>
 
@@ -103,14 +105,14 @@ export default function OrganizationOnboardPage() {
             <CheckCircle2 className="h-8 w-8" />
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-stone-900 mb-2 break-words">
-            Onboarding Application Received!
+            {t("onboard.app_received", "Onboarding Application Received!")}
           </h2>
           <p className="text-sm text-stone-600 max-w-lg mx-auto mb-6 break-words">
-            Thank you for registering <span className="font-semibold text-emerald-800">{formData.name}</span> with ResolvIN. Platform administrators will verify institutional accreditation and authorize your administrative credentials.
+            {t("onboard.app_desc", `Thank you for registering ${formData.name} with ResolvIN. Platform administrators will verify institutional accreditation and authorize your administrative credentials.`, { name: formData.name })}
           </p>
 
           <div className="inline-block max-w-full rounded-xl bg-stone-50 border border-stone-200 px-5 py-3 text-xs text-stone-600 mb-8 break-words">
-            Application Reference: <span className="font-mono text-emerald-800 font-bold break-all">{submittedId}</span>
+            {t("onboard.app_ref", `Application Reference: ${submittedId}`, { id: submittedId })}
           </div>
 
           <div className="flex justify-center gap-4">
@@ -118,7 +120,7 @@ export default function OrganizationOnboardPage() {
               href="/challenges"
               className="w-full sm:w-auto text-center rounded-xl bg-emerald-700 px-5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-800 shadow-sm transition-colors"
             >
-              Explore Challenges
+              {t("onboard.explore_challenges", "Explore Challenges")}
             </Link>
           </div>
         </div>
@@ -132,15 +134,15 @@ export default function OrganizationOnboardPage() {
               </div>
               <div>
                 <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 border border-emerald-200/60 uppercase tracking-wide">
-                  Ecosystem Onboarding
+                  {t("onboard.banner_tag", "Ecosystem Onboarding")}
                 </span>
                 <h1 className="text-2xl font-bold text-stone-900 tracking-tight mt-0.5">
-                  Register Your Institution / Enterprise
+                  {t("onboard.title", "Register Your Institution / Enterprise")}
                 </h1>
               </div>
             </div>
             <p className="text-xs text-stone-600 leading-relaxed max-w-2xl">
-              Connect your university, research lab, industrial enterprise, or startup with Jharkhand&apos;s societal innovation grid. Once approved, your organization receives a verified Capability Passport, automated AI challenge matching, and institutional credential elevation.
+              {t("onboard.subtitle", "Connect your university, research lab, industrial enterprise, or startup with Jharkhand's societal innovation grid. Once approved, your organization receives a verified Capability Passport, automated AI challenge matching, and institutional credential elevation.")}
             </p>
           </div>
 
@@ -149,13 +151,13 @@ export default function OrganizationOnboardPage() {
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 text-amber-900 text-xs">
                 <AlertCircle className="h-4 w-4 shrink-0 text-amber-700" />
-                <span>You must be signed in to submit an institutional onboarding application.</span>
+                <span>{t("onboard.must_sign_in", "You must be signed in to submit an institutional onboarding application.")}</span>
               </div>
               <Link
                 href="/login"
                 className="w-full sm:w-auto text-center rounded-xl bg-amber-700 px-3.5 py-2 text-xs font-semibold text-white hover:bg-amber-800 whitespace-nowrap shadow-sm transition"
               >
-                Sign In Now
+                {t("onboard.sign_in_now", "Sign In Now")}
               </Link>
             </div>
           )}
@@ -173,7 +175,7 @@ export default function OrganizationOnboardPage() {
               {/* Institution Name */}
               <div className="md:col-span-2">
                 <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                  Institution / Organization Name *
+                  {t("onboard.org_name_label", "Institution / Organization Name *")}
                 </label>
                 <input
                   type="text"
@@ -181,7 +183,7 @@ export default function OrganizationOnboardPage() {
                   required
                   value={formData.name}
                   onChange={handleChange}
-                  placeholder="e.g. National Institute of Advanced Materials, Ranchi"
+                  placeholder={t("onboard.org_name_placeholder", "e.g. National Institute of Advanced Materials, Ranchi")}
                   className="w-full rounded-xl border border-stone-300 bg-stone-50/50 px-3.5 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:bg-white focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition"
                 />
               </div>
@@ -189,7 +191,7 @@ export default function OrganizationOnboardPage() {
               {/* Organization Type */}
               <div>
                 <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                  Organization Type *
+                  {t("onboard.org_type_label", "Organization Type *")}
                 </label>
                 <select
                   name="organization_type"
@@ -208,7 +210,7 @@ export default function OrganizationOnboardPage() {
               {/* Registration Number */}
               <div>
                 <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                  Official Registration ID / AISHE Code *
+                  {t("onboard.reg_number_label", "Official Registration ID / AISHE Code *")}
                 </label>
                 <input
                   type="text"
@@ -216,7 +218,7 @@ export default function OrganizationOnboardPage() {
                   required
                   value={formData.registration_number}
                   onChange={handleChange}
-                  placeholder="e.g. AISHE-U-0123 / CIN U72200JH2021..."
+                  placeholder={t("onboard.reg_number_placeholder", "e.g. AISHE-U-0123 / CIN U72200JH2021...")}
                   className="w-full rounded-xl border border-stone-300 bg-stone-50/50 px-3.5 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:bg-white focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition"
                 />
               </div>
@@ -224,7 +226,7 @@ export default function OrganizationOnboardPage() {
               {/* Email */}
               <div>
                 <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                  Official Contact Email *
+                  {t("onboard.email_label", "Official Contact Email *")}
                 </label>
                 <input
                   type="email"
@@ -232,7 +234,7 @@ export default function OrganizationOnboardPage() {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  placeholder="contact@institution.ac.in"
+                  placeholder={t("onboard.email_placeholder", "contact@institution.ac.in")}
                   className="w-full rounded-xl border border-stone-300 bg-stone-50/50 px-3.5 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:bg-white focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition"
                 />
               </div>
@@ -240,14 +242,14 @@ export default function OrganizationOnboardPage() {
               {/* Website */}
               <div>
                 <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                  Website URL
+                  {t("onboard.website_label", "Website URL")}
                 </label>
                 <input
                   type="url"
                   name="website"
                   value={formData.website}
                   onChange={handleChange}
-                  placeholder="https://www.institution.ac.in"
+                  placeholder={t("onboard.website_placeholder", "https://www.institution.ac.in")}
                   className="w-full rounded-xl border border-stone-300 bg-stone-50/50 px-3.5 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:bg-white focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition"
                 />
               </div>
@@ -255,14 +257,14 @@ export default function OrganizationOnboardPage() {
               {/* Phone */}
               <div>
                 <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                  Official Telephone / Contact Number
+                  {t("onboard.phone_label", "Official Telephone / Contact Number")}
                 </label>
                 <input
                   type="tel"
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
-                  placeholder="+91 651 2233445"
+                  placeholder={t("onboard.phone_placeholder", "+91 651 2233445")}
                   className="w-full rounded-xl border border-stone-300 bg-stone-50/50 px-3.5 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:bg-white focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition"
                 />
               </div>
@@ -270,7 +272,7 @@ export default function OrganizationOnboardPage() {
               {/* Geographic Reach */}
               <div>
                 <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                  Geographic Operational Reach *
+                  {t("onboard.reach_label", "Geographic Operational Reach *")}
                 </label>
                 <select
                   name="geographic_reach"
@@ -287,7 +289,7 @@ export default function OrganizationOnboardPage() {
               {/* District */}
               <div>
                 <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                  District *
+                  {t("onboard.district_label", "District *")}
                 </label>
                 <input
                   type="text"
@@ -295,7 +297,7 @@ export default function OrganizationOnboardPage() {
                   required
                   value={formData.district}
                   onChange={handleChange}
-                  placeholder="e.g. Ranchi, Dhanbad, Bokaro"
+                  placeholder={t("onboard.district_placeholder", "e.g. Ranchi, Dhanbad, Bokaro")}
                   className="w-full rounded-xl border border-stone-300 bg-stone-50/50 px-3.5 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:bg-white focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition"
                 />
               </div>
@@ -303,7 +305,7 @@ export default function OrganizationOnboardPage() {
               {/* State */}
               <div>
                 <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                  State *
+                  {t("onboard.state_label", "State *")}
                 </label>
                 <input
                   type="text"
@@ -319,14 +321,14 @@ export default function OrganizationOnboardPage() {
               {/* Address */}
               <div className="md:col-span-2">
                 <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                  Physical Campus / Corporate Address
+                  {t("onboard.address_label", "Physical Campus / Corporate Address")}
                 </label>
                 <textarea
                   rows={2}
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
-                  placeholder="Main Campus Road, Knowledge City, Ranchi - 834001"
+                  placeholder={t("onboard.address_placeholder", "Main Campus Road, Knowledge City, Ranchi - 834001")}
                   className="w-full rounded-xl border border-stone-300 bg-stone-50/50 px-3.5 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:bg-white focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition"
                 />
               </div>
@@ -334,7 +336,7 @@ export default function OrganizationOnboardPage() {
               {/* Verification Document URL */}
               <div className="md:col-span-2">
                 <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                  Accreditation / Incorporation Document URL *
+                  {t("onboard.doc_url_label", "Accreditation / Incorporation Document URL *")}
                 </label>
                 <input
                   type="url"
@@ -342,11 +344,11 @@ export default function OrganizationOnboardPage() {
                   required
                   value={formData.verification_document_url}
                   onChange={handleChange}
-                  placeholder="https://... (UGC/AICTE approval, MCA Certificate of Incorporation, or Official Registry Document)"
+                  placeholder={t("onboard.doc_url_placeholder", "https://... (UGC/AICTE approval, MCA Certificate of Incorporation, or Official Registry Document)")}
                   className="w-full rounded-xl border border-stone-300 bg-stone-50/50 px-3.5 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:bg-white focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition"
                 />
                 <p className="text-[11px] text-stone-500 mt-1">
-                  Provide a direct URL to official scanned documents for platform administrator verification.
+                  {t("onboard.doc_url_help", "Provide a direct URL to official scanned documents for platform administrator verification.")}
                 </p>
               </div>
             </div>
@@ -359,11 +361,11 @@ export default function OrganizationOnboardPage() {
               >
                 {submitting ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin shrink-0" /> Submitting Application...
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" /> {t("onboard.submitting_app", "Submitting Application...")}
                   </>
                 ) : (
                   <>
-                    <Building2 className="h-4 w-4 shrink-0" /> Submit Institutional Onboarding Request
+                    <Building2 className="h-4 w-4 shrink-0" /> {t("onboard.submit_req", "Submit Institutional Onboarding Request")}
                   </>
                 )}
               </button>

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../../lib/auth-context";
+import { useTranslation } from "../../../lib/i18n";
 import {
   Building2,
   Landmark,
@@ -49,6 +50,7 @@ interface InstitutionItem {
 export default function InstitutionOnboardingPage() {
   const router = useRouter();
   const { user, token, loading: authLoading } = useAuth();
+  const { t } = useTranslation();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
   const [step, setStep] = useState<number>(1);
@@ -281,10 +283,10 @@ export default function InstitutionOnboardingPage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-slate-900">
-                Institutional Representative Onboarding
+                {t("institution.workspace_title", "Institutional Representative Onboarding")}
               </h1>
               <p className="text-sm text-slate-500">
-                Panchayati Raj Institutions (PRI) & Urban Local Bodies (ULB) Verification
+                {t("institution.workspace_sub", "Panchayati Raj Institutions (PRI) & Urban Local Bodies (ULB) Verification")}
               </p>
             </div>
           </div>

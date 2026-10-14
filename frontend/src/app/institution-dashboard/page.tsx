@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../lib/auth-context";
+import { useTranslation } from "../../lib/i18n";
 import {
   Landmark,
   Building2,
@@ -23,6 +24,7 @@ import {
 export default function InstitutionDashboardPage() {
   const router = useRouter();
   const { user, token, loading: authLoading } = useAuth();
+  const { t } = useTranslation();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
   const [memberships, setMemberships] = useState<any[]>([]);
@@ -63,15 +65,15 @@ export default function InstitutionDashboardPage() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="bg-white max-w-md w-full p-8 rounded-2xl shadow-sm border border-slate-200 text-center">
           <Landmark className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-slate-900 mb-2">Authentication Required</h2>
+          <h2 className="text-xl font-bold text-slate-900 mb-2">{t("institution.auth_required", "Authentication Required")}</h2>
           <p className="text-sm text-slate-600 mb-6">
-            Please sign in to access your institutional representation workspace.
+            {t("institution.auth_desc", "Please sign in to access your institutional representation workspace.")}
           </p>
           <Link
             href="/login?redirect=/institution-dashboard"
             className="inline-flex items-center justify-center w-full px-5 py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition"
           >
-            Sign In to Continue
+            {t("institution.sign_in_continue", "Sign In to Continue")}
           </Link>
         </div>
       </div>
@@ -94,10 +96,10 @@ export default function InstitutionDashboardPage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-slate-900">
-                Institutional Representative Workspace
+                {t("institution.workspace_title", "Institutional Representative Workspace")}
               </h1>
               <p className="text-sm text-slate-500">
-                Panchayati Raj Institutions (PRI) & Urban Local Bodies (ULB) Management
+                {t("institution.workspace_sub", "Panchayati Raj Institutions (PRI) & Urban Local Bodies (ULB) Management")}
               </p>
             </div>
           </div>
@@ -107,7 +109,7 @@ export default function InstitutionDashboardPage() {
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 shadow-sm transition"
           >
             <PlusCircle className="w-4 h-4" />
-            Apply for New Local Body
+            {t("institution.apply_new", "Apply for New Local Body")}
           </Link>
         </div>
 
@@ -125,17 +127,16 @@ export default function InstitutionDashboardPage() {
             <div className="w-16 h-16 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
               <Landmark className="w-8 h-8" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900">No Institutional Affiliations Yet</h3>
+            <h3 className="text-lg font-bold text-slate-900">{t("institution.no_affiliations", "No Institutional Affiliations Yet")}</h3>
             <p className="text-sm text-slate-600">
-              Are you an elected representative, Mukhiya, Panchayat Secretary, Ward Councillor, or Local Body Officer?
-              Get verified to submit official challenges on behalf of your Panchayat or Municipality.
+              {t("institution.no_affiliations_desc", "Are you an elected representative, Mukhiya, Panchayat Secretary, Ward Councillor, or Local Body Officer? Get verified to submit official challenges on behalf of your Panchayat or Municipality.")}
             </p>
             <div className="pt-2">
               <Link
                 href="/institutions/onboard"
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition"
               >
-                Start Institutional Verification
+                {t("institution.start_verification", "Start Institutional Verification")}
                 <ChevronRight className="w-4 h-4" />
               </Link>
             </div>
@@ -147,7 +148,7 @@ export default function InstitutionDashboardPage() {
           <div className="space-y-4">
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-emerald-600" />
-              Verified Local Body Representations ({verifiedMemberships.length})
+              {t("institution.verified_reps", `Verified Local Body Representations (${verifiedMemberships.length})`, { count: verifiedMemberships.length })}
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -162,7 +163,7 @@ export default function InstitutionDashboardPage() {
                     <div>
                       <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold tracking-wide mb-2">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>ResolvIN Verified Institutional Representative</span>
+                        <span>{t("institution.verified_badge", "ResolvIN Verified Institutional Representative")}</span>
                       </div>
                       <h3 className="text-xl font-bold text-slate-900">{mem.institution?.name}</h3>
                       <p className="text-xs text-slate-500 mt-0.5">
@@ -173,21 +174,21 @@ export default function InstitutionDashboardPage() {
 
                   <div className="grid grid-cols-2 gap-3 text-xs pt-2 border-t border-slate-100">
                     <div>
-                      <span className="text-slate-400 block font-medium">Canonical LGD Code</span>
+                      <span className="text-slate-400 block font-medium">{t("institution.lgd_code", "Canonical LGD Code")}</span>
                       <span className="font-mono font-bold text-blue-700 text-sm">{mem.institution?.lgd_code}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block font-medium">Your Designation</span>
+                      <span className="text-slate-400 block font-medium">{t("institution.designation", "Your Designation")}</span>
                       <span className="font-bold text-slate-800 text-sm">{mem.designation}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block font-medium">Authority Source</span>
+                      <span className="text-slate-400 block font-medium">{t("institution.authority_source", "Authority Source")}</span>
                       <span className="font-medium text-slate-700">{mem.authority_source}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block font-medium">Verified On</span>
+                      <span className="text-slate-400 block font-medium">{t("institution.verified_on", "Verified On")}</span>
                       <span className="font-medium text-slate-700">
-                        {mem.verified_at ? new Date(mem.verified_at).toLocaleDateString() : "Active"}
+                        {mem.verified_at ? new Date(mem.verified_at).toLocaleDateString() : t("common.active", "Active")}
                       </span>
                     </div>
                   </div>
@@ -198,7 +199,7 @@ export default function InstitutionDashboardPage() {
                       className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 shadow-sm transition"
                     >
                       <PlusCircle className="w-4 h-4" />
-                      Submit Official Institutional Challenge
+                      {t("institution.submit_challenge", "Submit Official Institutional Challenge")}
                     </Link>
                   </div>
                 </div>
@@ -212,7 +213,7 @@ export default function InstitutionDashboardPage() {
           <div className="space-y-4">
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <Clock className="w-5 h-5 text-amber-600" />
-              Applications Under Review ({pendingMemberships.length})
+              {t("institution.pending_apps", `Applications Under Review (${pendingMemberships.length})`, { count: pendingMemberships.length })}
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -233,17 +234,17 @@ export default function InstitutionDashboardPage() {
                   <div>
                     <h4 className="font-bold text-slate-900 text-base">{mem.institution?.name}</h4>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Applied as: <strong>{mem.designation}</strong> ({mem.relationship})
+                      {t("institution.applied_as", `Applied as: ${mem.designation} (${mem.relationship})`, { designation: mem.designation, relationship: mem.relationship })}
                     </p>
                   </div>
 
                   <div className="p-3 rounded-lg bg-slate-50 text-xs text-slate-600 space-y-1">
                     <p>
-                      <strong>Documents Attached:</strong> {mem.evidence?.length || 0} file(s)
+                      <strong>{t("institution.docs_attached", `Documents Attached: ${mem.evidence?.length || 0} file(s)`, { count: mem.evidence?.length || 0 })}</strong>
                     </p>
                     {mem.verification_notes && (
                       <p className="text-amber-800 font-medium">
-                        Admin Note: {mem.verification_notes}
+                        {t("institution.admin_note", `Admin Note: ${mem.verification_notes}`, { note: mem.verification_notes })}
                       </p>
                     )}
                   </div>

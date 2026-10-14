@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useAuth } from "../../lib/auth-context";
 import { formatUserRole, formatDateSafe } from "../../lib/utils";
+import { useTranslation } from "../../lib/i18n";
 import {
   BarChart3,
   TrendingUp,
@@ -224,6 +225,7 @@ const DOMAINS = [
 
 export default function GovernmentDashboardPage() {
   const { user, token, loading: authLoading } = useAuth();
+  const { t } = useTranslation();
   const isAuthorized =
     user?.role === "PLATFORM_ADMIN" ||
     user?.role === "GOVERNMENT_OFFICER" ||
@@ -560,7 +562,7 @@ export default function GovernmentDashboardPage() {
       <div className="min-h-screen flex items-center justify-center bg-stone-50 p-4">
         <div className="max-w-md w-full bg-white rounded-2xl border border-stone-200 p-8 text-center shadow-xs">
           <Shield className="h-12 w-12 text-amber-600 mx-auto mb-4" />
-          <h2 className="text-lg font-bold text-stone-900">Restricted Government Access</h2>
+          <h2 className="text-lg font-bold text-stone-900">{t("common.restricted_access", "Restricted Government Access")}</h2>
           <p className="text-xs text-stone-600 mt-2">
             The Government Intelligence & Analytics Dashboard is reserved exclusively for authorized District Officers, Government Administrators, and State Reviewers.
           </p>
@@ -569,7 +571,7 @@ export default function GovernmentDashboardPage() {
               href="/challenges"
               className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-emerald-700 text-white rounded-xl hover:bg-emerald-800 transition"
             >
-              Back to Challenges
+              {t("common.back_to_challenges", "Back to Challenges")}
             </Link>
           </div>
         </div>
@@ -591,14 +593,14 @@ export default function GovernmentDashboardPage() {
               <div>
                 <div className="flex items-center gap-2.5">
                   <h1 className="text-xl font-black text-stone-900 tracking-tight">
-                    Government Intelligence Dashboard
+                    {t("government.title", "Government Intelligence Dashboard")}
                   </h1>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
                     ResolvIN
                   </span>
                 </div>
                 <p className="text-xs text-stone-500 mt-0.5">
-                  Citizen Problem Intelligence &middot; Institutional Response &middot; Measurable Outcomes
+                  {t("government.subtitle", "Citizen Problem Intelligence · Institutional Response · Measurable Outcomes")}
                 </p>
               </div>
             </div>
@@ -614,7 +616,7 @@ export default function GovernmentDashboardPage() {
               }`}
             >
               <Lock className="h-3 w-3" />
-              <span>{isDistrictOfficer ? "District Scope Enforced" : "Statewide Oversight"}</span>
+              <span>{isDistrictOfficer ? t("government.district_scope", "District Scope Enforced") : t("government.statewide_scope", "Statewide Oversight")}</span>
             </span>
 
             {/* Freshness Timestamp */}
@@ -622,7 +624,7 @@ export default function GovernmentDashboardPage() {
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-100 border border-stone-200 text-[11px] text-stone-600">
                 <Clock className="h-3.5 w-3.5 text-stone-400" />
                 <span>
-                  Refreshed:{" "}
+                  {t("common.refreshed", "Refreshed")}:{" "}
                   {new Date(lastRefreshedAt).toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
@@ -639,7 +641,7 @@ export default function GovernmentDashboardPage() {
               title="Refresh all metrics from live database"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin text-emerald-600" : ""}`} />
-              <span>Refresh</span>
+              <span>{t("common.refresh", "Refresh")}</span>
             </button>
 
             {/* Metric Telemetry Modal Button */}

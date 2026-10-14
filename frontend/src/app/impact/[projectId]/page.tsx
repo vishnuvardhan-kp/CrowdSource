@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../../lib/auth-context";
 import { formatDateSafe } from "../../../lib/utils";
+import { useTranslation } from "../../../lib/i18n";
 import {
   ShieldCheck,
   Award,
@@ -78,6 +79,7 @@ export default function ImpactWorkspacePage() {
   const { projectId } = useParams<{ projectId: string }>();
   const router = useRouter();
   const { user, token } = useAuth();
+  const { t } = useTranslation();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -489,17 +491,17 @@ export default function ImpactWorkspacePage() {
               className="flex items-center gap-1 hover:text-slate-800 transition"
             >
               <ChevronLeft className="h-4 w-4" />
-              Back to Project Workspace
+              {t("solutions.open_project_workspace", "Back to Project Workspace")}
             </Link>
             <span>/</span>
-            <span className="text-slate-700 font-medium">Impact Verification</span>
+            <span className="text-slate-700 font-medium">{t("impact.title", "Impact Verification")}</span>
           </div>
 
           <div className="mt-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="text-2xl font-bold text-slate-900">
-                  {project?.title || "Impact Verification Workspace"}
+                  {project?.title || t("impact.title", "Impact Verification Workspace")}
                 </h1>
                 {assessment && (
                   <span
@@ -524,11 +526,11 @@ export default function ImpactWorkspacePage() {
                 )}
               </div>
               <p className="text-sm text-slate-500 mt-1">
-                Challenge:{" "}
+                {t("solutions.problem", "Challenge:")}{" "}
                 <span className="font-medium text-slate-700">
                   {project?.challenge?.title || "Original Civic Challenge"}
                 </span>{" "}
-                • District:{" "}
+                • {t("common.district", "District")}:{" "}
                 <span className="font-medium text-slate-700">
                   {project?.challenge?.district || "Jharkhand"}
                 </span>
@@ -543,7 +545,7 @@ export default function ImpactWorkspacePage() {
                   className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-lg shadow-sm transition"
                 >
                   <Sparkles className="h-4 w-4" />
-                  Initiate Impact Assessment
+                  {t("impact.title", "Initiate Impact Assessment")}
                 </button>
               )}
 
@@ -554,7 +556,7 @@ export default function ImpactWorkspacePage() {
                   className="inline-flex items-center gap-2 px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-lg shadow-md transition disabled:opacity-50"
                 >
                   <ShieldCheck className="h-4 w-4" />
-                  Submit for Administrative Certification
+                  {t("impact.approval_status", "Submit for Administrative Certification")}
                 </button>
               )}
             </div>
@@ -569,7 +571,7 @@ export default function ImpactWorkspacePage() {
           <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3 text-rose-800 text-sm">
             <AlertCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold">Error</p>
+              <p className="font-semibold">{t("errors.something_went_wrong", "Error")}</p>
               <p>{error}</p>
             </div>
           </div>
@@ -579,7 +581,7 @@ export default function ImpactWorkspacePage() {
           <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3 text-emerald-800 text-sm">
             <Check className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold">Success</p>
+              <p className="font-semibold">{t("common.success", "Success")}</p>
               <p>{successMessage}</p>
             </div>
           </div>
@@ -593,12 +595,10 @@ export default function ImpactWorkspacePage() {
                 Phase 8 • Real-World Impact Verification
               </span>
               <h2 className="text-xl font-bold text-white">
-                Closing the Civic Innovation Loop
+                {t("impact.title", "Closing the Civic Innovation Loop")}
               </h2>
               <p className="text-sm text-emerald-100/90 leading-relaxed">
-                Project completion marks the finish of consortium engineering.
-                Verified Impact confirms that real citizens experienced tangible,
-                auditable improvements in their quality of life.
+                {t("impact.subtitle", "Project completion marks the finish of consortium engineering. Verified Impact confirms that real citizens experienced tangible, auditable improvements in their quality of life.")}
               </p>
             </div>
 

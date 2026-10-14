@@ -7,6 +7,7 @@ import { useAuth } from "../../lib/auth-context";
 import {
   formatDateSafe,
 } from "../../lib/utils";
+import { useTranslation } from "../../lib/i18n";
 import {
   Building2,
   Award,
@@ -173,6 +174,7 @@ interface ChallengeRecommendation {
 export default function UniversityDashboardPage() {
   const router = useRouter();
   const { user, token, loading: authLoading } = useAuth();
+  const { t } = useTranslation();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
   const [passport, setPassport] = useState<PassportSummary | null>(null);
@@ -506,27 +508,27 @@ export default function UniversityDashboardPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "DRAFT":
-        return <span className="rounded-full bg-stone-100 text-stone-700 px-2.5 py-0.5 text-[11px] font-bold border border-stone-200">Draft</span>;
+        return <span className="rounded-full bg-stone-100 text-stone-700 px-2.5 py-0.5 text-[11px] font-bold border border-stone-200">{t("status.draft", "Draft")}</span>;
       case "SUBMITTED":
       case "UNDER_REVIEW":
-        return <span className="rounded-full bg-blue-50 text-blue-700 px-2.5 py-0.5 text-[11px] font-bold border border-blue-200">Under Review</span>;
+        return <span className="rounded-full bg-blue-50 text-blue-700 px-2.5 py-0.5 text-[11px] font-bold border border-blue-200">{t("status.under_review", "Under Review")}</span>;
       case "PUBLISHED":
-        return <span className="rounded-full bg-emerald-50 text-emerald-800 px-2.5 py-0.5 text-[11px] font-bold border border-emerald-300">Published</span>;
+        return <span className="rounded-full bg-emerald-50 text-emerald-800 px-2.5 py-0.5 text-[11px] font-bold border border-emerald-300">{t("status.published", "Published")}</span>;
       case "COLLABORATION_OPEN":
-        return <span className="rounded-full bg-teal-50 text-teal-800 px-2.5 py-0.5 text-[11px] font-bold border border-teal-300">Open for Collaboration</span>;
+        return <span className="rounded-full bg-teal-50 text-teal-800 px-2.5 py-0.5 text-[11px] font-bold border border-teal-300">{t("solutions.collab_open", "Open for Collaboration")}</span>;
       case "CONVERTED_TO_PROJECT":
       case "PROJECT_FORMED":
-        return <span className="rounded-full bg-indigo-50 text-indigo-800 px-2.5 py-0.5 text-[11px] font-bold border border-indigo-300">Active Project</span>;
+        return <span className="rounded-full bg-indigo-50 text-indigo-800 px-2.5 py-0.5 text-[11px] font-bold border border-indigo-300">{t("solutions.converted_project", "Active Project")}</span>;
       case "ACCEPTED":
-        return <span className="rounded-full bg-emerald-50 text-emerald-800 px-2.5 py-0.5 text-[11px] font-bold border border-emerald-300">Accepted</span>;
+        return <span className="rounded-full bg-emerald-50 text-emerald-800 px-2.5 py-0.5 text-[11px] font-bold border border-emerald-300">{t("status.accepted", "Accepted")}</span>;
       case "OFFERED":
         return <span className="rounded-full bg-amber-50 text-amber-800 px-2.5 py-0.5 text-[11px] font-bold border border-amber-300">Offer Received</span>;
       case "UNDER_DISCUSSION":
       case "DISCUSSION_REQUIRED":
-        return <span className="rounded-full bg-blue-50 text-blue-800 px-2.5 py-0.5 text-[11px] font-bold border border-blue-300">Discussion</span>;
+        return <span className="rounded-full bg-blue-50 text-blue-800 px-2.5 py-0.5 text-[11px] font-bold border border-blue-300">{t("status.discussion_required", "Discussion")}</span>;
       case "DECLINED":
       case "REJECTED":
-        return <span className="rounded-full bg-red-50 text-red-700 px-2.5 py-0.5 text-[11px] font-bold border border-red-200">Declined</span>;
+        return <span className="rounded-full bg-red-50 text-red-700 px-2.5 py-0.5 text-[11px] font-bold border border-red-200">{t("status.rejected", "Declined")}</span>;
       case "ACTIVE":
       case "IN_PROGRESS":
         return <span className="rounded-full bg-emerald-50 text-emerald-800 px-2.5 py-0.5 text-[11px] font-bold border border-emerald-300">Active</span>;
@@ -541,7 +543,7 @@ export default function UniversityDashboardPage() {
     return (
       <div className="min-h-screen py-16 flex flex-col items-center justify-center text-stone-500 gap-3">
         <RefreshCw className="h-8 w-8 animate-spin text-emerald-700" />
-        <p className="text-sm font-medium">Loading University Experience Dashboard...</p>
+        <p className="text-sm font-medium">{t("common.loading", "Loading University Experience Dashboard...")}</p>
       </div>
     );
   }
@@ -551,7 +553,7 @@ export default function UniversityDashboardPage() {
       <div className="min-h-screen bg-stone-50/60 py-16 px-4">
         <div className="mx-auto max-w-md rounded-2xl border border-stone-200 bg-white p-8 text-center space-y-4">
           <GraduationCap className="h-12 w-12 text-emerald-700 mx-auto" />
-          <h2 className="text-lg font-bold text-stone-900">University Authentication Required</h2>
+          <h2 className="text-lg font-bold text-stone-900">{t("auth.university_auth_required", "University Authentication Required")}</h2>
           <p className="text-xs text-stone-600">
             Sign in with an academic, faculty, or institutional account to access the University Experience Grid.
           </p>
@@ -559,7 +561,7 @@ export default function UniversityDashboardPage() {
             href="/login"
             className="inline-flex items-center justify-center w-full rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-800 shadow-sm transition"
           >
-            Sign In to University Portal
+            {t("auth.sign_in_university", "Sign In to University Portal")}
           </Link>
         </div>
       </div>
@@ -585,7 +587,7 @@ export default function UniversityDashboardPage() {
             <div className="space-y-3 max-w-3xl">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 border border-emerald-200">
-                  <GraduationCap className="h-3.5 w-3.5 text-emerald-700" /> Academic & Innovation Hub
+                  <GraduationCap className="h-3.5 w-3.5 text-emerald-700" /> {t("nav.university_dashboard", "Academic & Innovation Hub")}
                 </span>
                 {verificationStatus === "VERIFIED" && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-800 border border-blue-200">
@@ -637,14 +639,14 @@ export default function UniversityDashboardPage() {
                   href={`/organizations/${orgId}/passport`}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-stone-900 px-4 py-2.5 text-xs font-semibold text-white hover:bg-stone-800 shadow-sm transition"
                 >
-                  <Award className="h-4 w-4" /> Capability Passport
+                  <Award className="h-4 w-4" /> {t("organizations.capability_passport", "Capability Passport")}
                 </Link>
               ) : (
                 <Link
                   href="/organizations/onboard"
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-stone-900 px-4 py-2.5 text-xs font-semibold text-white hover:bg-stone-800 shadow-sm transition"
                 >
-                  <Building2 className="h-4 w-4" /> Onboard Institution
+                  <Building2 className="h-4 w-4" /> {t("organizations.onboard_org", "Onboard Institution")}
                 </Link>
               )}
 
@@ -769,7 +771,7 @@ export default function UniversityDashboardPage() {
                 : "text-stone-600 hover:bg-stone-100"
             }`}
           >
-            Consortium Projects ({projects.length})
+            {t("projects.consortium_projects", "Consortium Projects")} ({projects.length})
           </button>
           <button
             onClick={() => setActiveTab("ongoingProjects")}
@@ -779,7 +781,7 @@ export default function UniversityDashboardPage() {
                 : "text-stone-600 hover:bg-stone-100"
             }`}
           >
-            Ongoing Projects ({ongoingProjects.length})
+            {t("projects.ongoing_projects", "Ongoing Projects")} ({ongoingProjects.length})
           </button>
           <button
             onClick={() => setActiveTab("solutions")}
@@ -789,7 +791,7 @@ export default function UniversityDashboardPage() {
                 : "text-stone-600 hover:bg-stone-100"
             }`}
           >
-            Proposed Solutions & Collaborations ({solutions.length})
+            {t("solutions.title", "Proposed Solutions")} ({solutions.length})
           </button>
           <button
             onClick={() => setActiveTab("challenges")}
@@ -799,7 +801,7 @@ export default function UniversityDashboardPage() {
                 : "text-stone-600 hover:bg-stone-100"
             }`}
           >
-            Validated Civic Challenges ({openChallenges.length})
+            {t("challenges.validated_challenges", "Validated Civic Challenges")} ({openChallenges.length})
           </button>
           {orgId && (
             <button
@@ -810,7 +812,7 @@ export default function UniversityDashboardPage() {
                   : "text-stone-600 hover:bg-stone-100"
               }`}
             >
-              Capability Overview
+              {t("organizations.capability_passport", "Capability Overview")}
             </button>
           )}
           <button
@@ -821,7 +823,7 @@ export default function UniversityDashboardPage() {
                 : "text-stone-600 hover:bg-stone-100"
             }`}
           >
-            Research Intelligence
+            {t("research.tab_research_intelligence", "Research Intelligence")}
           </button>
           {orgId && (
             <button
@@ -832,7 +834,7 @@ export default function UniversityDashboardPage() {
                   : "text-stone-600 hover:bg-stone-100"
               }`}
             >
-              Academic Roster & Departments ({rosterMembers.length})
+              {t("common.academic_roster", "Academic Roster & Departments")} ({rosterMembers.length})
             </button>
           )}
         </div>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "../../lib/auth-context";
+import { useTranslation } from "../../lib/i18n";
 import {
   FolderHeart,
   PlusCircle,
@@ -39,6 +40,7 @@ interface UserChallenge {
 
 export default function MyChallengesPage() {
   const { user, token } = useAuth();
+  const { t } = useTranslation();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
   const [challenges, setChallenges] = useState<UserChallenge[]>([]);
@@ -72,7 +74,7 @@ export default function MyChallengesPage() {
   }, [fetchMyChallenges]);
 
   const handleDeleteDraft = async (id: string) => {
-    if (!confirm("Are you sure you want to permanently delete this draft and all uploaded evidence?")) {
+    if (!confirm(t("my_challenges.delete_confirm", "Are you sure you want to permanently delete this draft and all uploaded evidence?"))) {
       return;
     }
 
@@ -101,31 +103,31 @@ export default function MyChallengesPage() {
       case "VALIDATED":
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800">
-            <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Validated
+            <CheckCircle2 className="h-3 w-3 text-emerald-600" /> {t("status.validated", "Validated")}
           </span>
         );
       case "UNDER_REVIEW":
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">
-            <Clock className="h-3 w-3 text-amber-600" /> Under Review
+            <Clock className="h-3 w-3 text-amber-600" /> {t("status.under_review", "Under Review")}
           </span>
         );
       case "REJECTED":
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-red-50 border border-red-200 px-2.5 py-0.5 text-[11px] font-semibold text-red-800">
-            <AlertTriangle className="h-3 w-3 text-red-600" /> Rejected
+            <AlertTriangle className="h-3 w-3 text-red-600" /> {t("status.rejected", "Rejected")}
           </span>
         );
       case "DRAFT":
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 border border-stone-200 px-2.5 py-0.5 text-[11px] font-semibold text-stone-700">
-            Draft
+            {t("status.draft", "Draft")}
           </span>
         );
       default:
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-[11px] font-semibold text-blue-800">
-            <FileCheck2 className="h-3 w-3 text-blue-600" /> Submitted
+            <FileCheck2 className="h-3 w-3 text-blue-600" /> {t("status.submitted", "Submitted")}
           </span>
         );
     }
@@ -137,15 +139,15 @@ export default function MyChallengesPage() {
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 shadow-sm">
           <AlertCircle className="h-7 w-7" />
         </div>
-        <h2 className="text-xl font-bold text-stone-900">Sign In Required</h2>
+        <h2 className="text-xl font-bold text-stone-900">{t("auth.sign_in", "Sign In")}</h2>
         <p className="text-xs text-stone-600 max-w-sm mx-auto">
-          Please log in to track your submitted community problems and manage your ongoing drafts.
+          {t("auth.citizen_hint", "Please log in to track your submitted community problems and manage your ongoing drafts.")}
         </p>
         <Link
           href="/login"
           className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-800 shadow-sm transition"
         >
-          Sign In
+          {t("auth.sign_in", "Sign In")}
         </Link>
       </div>
     );
@@ -163,10 +165,10 @@ export default function MyChallengesPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 flex items-center gap-2.5">
             <FolderHeart className="h-7 w-7 text-emerald-700" />
-            My Reported Challenges
+            {t("my_challenges.title", "My Reported Challenges")}
           </h1>
           <p className="text-xs sm:text-sm text-stone-600 mt-1">
-            Track administrative verification progress of problems you reported, or continue working on drafts.
+            {t("my_challenges.subtitle", "Track administrative verification progress of problems you reported, or continue working on drafts.")}
           </p>
         </div>
 
@@ -174,19 +176,19 @@ export default function MyChallengesPage() {
           href="/challenges/new"
           className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-800 shadow-sm self-start sm:self-auto transition"
         >
-          <PlusCircle className="h-4 w-4" /> Report New Problem
+          <PlusCircle className="h-4 w-4" /> {t("my_challenges.report_new", "Report a Problem")}
         </Link>
       </div>
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-2 border-b border-stone-200 pb-3 text-xs">
         {[
-          { key: "ALL", label: "All" },
-          { key: "DRAFT", label: "Drafts" },
-          { key: "SUBMITTED", label: "Submitted" },
-          { key: "UNDER_REVIEW", label: "Under Review" },
-          { key: "VALIDATED", label: "Validated" },
-          { key: "REJECTED", label: "Rejected" },
+          { key: "ALL", label: t("my_challenges.tab_all", "All") },
+          { key: "DRAFT", label: t("my_challenges.tab_drafts", "Drafts") },
+          { key: "SUBMITTED", label: t("my_challenges.tab_submitted", "Submitted") },
+          { key: "UNDER_REVIEW", label: t("challenges.under_review", "Under Review") },
+          { key: "VALIDATED", label: t("my_challenges.tab_validated", "Validated") },
+          { key: "REJECTED", label: t("my_challenges.tab_rejected", "Rejected") },
         ].map((tab) => {
           const count = challenges.filter((c) => (tab.key === "ALL" ? true : c.status === tab.key)).length;
           const isActive = filterTab === tab.key;
@@ -208,15 +210,15 @@ export default function MyChallengesPage() {
 
       {/* Content */}
       {loading ? (
-        <div className="text-center py-12 text-xs text-stone-500">Loading your challenges...</div>
+        <div className="text-center py-12 text-xs text-stone-500">{t("common.loading", "Loading your challenges...")}</div>
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-12 text-center space-y-3">
-          <p className="text-xs text-stone-500">No challenges found in this filter.</p>
+          <p className="text-xs text-stone-500">{t("my_challenges.no_submissions", "No challenges found in this filter.")}</p>
           <Link
             href="/challenges/new"
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
           >
-            Report your first problem <ArrowRight className="h-3.5 w-3.5" />
+            {t("my_challenges.report_new", "Report your first problem")} <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
       ) : (
@@ -230,7 +232,7 @@ export default function MyChallengesPage() {
                 <div className="flex items-center gap-2">
                   {getStatusBadge(item.status)}
                   <span className="text-[11px] text-stone-500">
-                    Created {formatDateSafe(item.created_at)}
+                    {t("common.created_on", "Created on {date}", { date: formatDateSafe(item.created_at) })}
                   </span>
                 </div>
 
@@ -238,7 +240,7 @@ export default function MyChallengesPage() {
                   {item.status !== "DRAFT" && (
                     <span className="flex items-center gap-1 text-xs text-stone-600 font-medium">
                       <HeartHandshake className="h-3.5 w-3.5 text-emerald-700" />
-                      {item.confirmationsCount} confirmation(s)
+                      {t("challenges.confirmed_count", "{count} confirmed", { count: item.confirmationsCount })}
                     </span>
                   )}
                 </div>
@@ -252,17 +254,17 @@ export default function MyChallengesPage() {
               </div>
 
               <div className="text-[11px] text-stone-500 break-words">
-                <span>Location: </span>
+                <span>{t("challenge.location", "Location")}: </span>
                 <span className="text-stone-800 font-medium">
                   {item.districtName}
-                  {item.blockName && ` · ${item.blockName} Block`}
+                  {item.blockName && ` · ${item.blockName} ${t("challenges.block", "Block")}`}
                   {item.village_locality && ` · ${item.village_locality}`}
                 </span>
               </div>
 
               {item.status === "REJECTED" && item.rejection_reason && (
                 <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-900 break-words">
-                  <span className="font-bold text-red-950">Rejection Reason:</span>{" "}
+                  <span className="font-bold text-red-950">{t("reviewer.rejection_reason", "Rejection Reason")}:</span>{" "}
                   {item.rejection_reason}
                 </div>
               )}
@@ -275,14 +277,14 @@ export default function MyChallengesPage() {
                       href={`/challenges/new?draftId=${item.id}`}
                       className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 shadow-sm transition flex-1 sm:flex-none text-center"
                     >
-                      <Edit3 className="h-3.5 w-3.5 shrink-0" /> Continue Editing
+                      <Edit3 className="h-3.5 w-3.5 shrink-0" /> {t("common.edit", "Edit")}
                     </Link>
                     <button
                       onClick={() => handleDeleteDraft(item.id)}
                       disabled={deletingId === item.id}
                       className="inline-flex items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 transition disabled:opacity-50 flex-1 sm:flex-none text-center"
                     >
-                      <Trash2 className="h-3.5 w-3.5 shrink-0" /> Delete Draft
+                      <Trash2 className="h-3.5 w-3.5 shrink-0" /> {t("my_challenges.delete_draft", "Delete Draft")}
                     </button>
                   </div>
                 ) : (
@@ -291,7 +293,7 @@ export default function MyChallengesPage() {
                       href={`/challenges/${item.id}`}
                       className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 py-1"
                     >
-                      <span>View Public Page</span>
+                      <span>{t("common.view", "View")}</span>
                       <ArrowRight className="h-3.5 w-3.5 shrink-0" />
                     </Link>
 
@@ -301,7 +303,7 @@ export default function MyChallengesPage() {
                         className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-200 px-2.5 py-1 text-xs font-semibold text-indigo-800 hover:bg-indigo-100 transition shadow-2xs"
                       >
                         <MessageSquare className="h-3.5 w-3.5 text-indigo-600" />
-                        <span>Communication Forum</span>
+                        <span>{t("forum.title", "Communication Forum")}</span>
                       </Link>
                     )}
                   </div>

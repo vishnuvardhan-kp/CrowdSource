@@ -4,10 +4,13 @@ import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
+import { useTranslation } from "../../../../lib/i18n";
+
 export default function ChallengeEoiRedirectPage() {
   const params = useParams();
   const router = useRouter();
   const id = params?.id as string;
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (id) {
@@ -21,7 +24,7 @@ export default function ChallengeEoiRedirectPage() {
     <div className="min-h-screen py-16 flex flex-col items-center justify-center text-stone-500 gap-3">
       <Loader2 className="h-8 w-8 animate-spin text-emerald-700" />
       <p className="text-sm font-medium">
-        Redirecting to Proposed Solution Workspace...
+        {t("common.redirecting", "Redirecting to Proposed Solution Workspace...")}
       </p>
     </div>
   );

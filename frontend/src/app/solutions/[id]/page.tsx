@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../../lib/auth-context";
+import { useTranslation } from "../../../lib/i18n";
 import {
   Lightbulb,
   Building2,
@@ -46,6 +47,7 @@ export default function SolutionDetailPage() {
   const router = useRouter();
   const solutionId = params?.id as string;
   const { user, token } = useAuth();
+  const { t } = useTranslation();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
   const [solution, setSolution] = useState<any | null>(null);
@@ -489,7 +491,7 @@ export default function SolutionDetailPage() {
                   disabled={actionLoading}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold shadow-xs transition"
                 >
-                  <Send className="h-3.5 w-3.5" /> Publish to Open Workspace
+                  <Send className="h-3.5 w-3.5" /> {t("solutions.publish_now_btn", "Publish to Open Workspace")}
                 </button>
               )}
 
@@ -498,7 +500,7 @@ export default function SolutionDetailPage() {
                   onClick={() => setShowConvertModal(true)}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition"
                 >
-                  <ShieldCheck className="h-3.5 w-3.5" /> Convert to Active Project
+                  <ShieldCheck className="h-3.5 w-3.5" /> {t("solutions.convert_project_btn", "Convert to Active Project")}
                 </button>
               )}
 
@@ -508,7 +510,7 @@ export default function SolutionDetailPage() {
                   onClick={() => setShowCollabModal(true)}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold shadow-xs transition"
                 >
-                  <Handshake className="h-3.5 w-3.5" /> Offer Collaboration
+                  <Handshake className="h-3.5 w-3.5" /> {t("solutions.offer_collab_btn", "Offer Collaboration")}
                 </button>
               )}
             </div>
@@ -517,7 +519,7 @@ export default function SolutionDetailPage() {
           {/* SECTION 1: ADDRESSED PROBLEM */}
           <div className="rounded-xl bg-stone-50 p-4 border border-stone-200/70 space-y-1.5">
             <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500">
-              Civic Challenge Addressed
+              {t("solutions.challenge_addressed", "Civic Challenge Addressed")}
             </span>
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-sm font-bold text-stone-900">
@@ -528,7 +530,7 @@ export default function SolutionDetailPage() {
                   href={`/challenges/${challenge.id}`}
                   className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline shrink-0"
                 >
-                  View Problem <ExternalLink className="h-3 w-3" />
+                  {t("solutions.view_challenge", "View Problem")} <ExternalLink className="h-3 w-3" />
                 </Link>
               )}
             </div>
@@ -571,7 +573,7 @@ export default function SolutionDetailPage() {
               <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-xs space-y-3">
                 <div className="flex items-center gap-2 border-b border-stone-100 pb-3">
                   <Target className="h-4 w-4 text-emerald-700" />
-                  <h3 className="text-sm font-bold text-stone-900">How It Helps - Approach Overview</h3>
+                  <h3 className="text-sm font-bold text-stone-900">{t("solutions.approach_overview", "How It Helps - Approach Overview")}</h3>
                 </div>
                 <p className="text-xs text-stone-700 leading-relaxed whitespace-pre-line">
                   {solution.proposed_approach}

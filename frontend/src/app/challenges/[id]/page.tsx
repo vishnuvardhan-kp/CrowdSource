@@ -394,45 +394,45 @@ export default function ChallengeDetailPage() {
       case "VALIDATED":
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-800">
-            <CheckCircle2 className="h-4 w-4 text-emerald-700" /> Validated by Reviewer
+            <CheckCircle2 className="h-4 w-4 text-emerald-700" /> {t("challenges.validated_by_reviewer", "Validated by Reviewer")}
           </span>
         );
       case "PROJECT_INITIATED":
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 border border-teal-200 px-3 py-1 text-xs font-semibold text-teal-800">
-            <CheckCircle2 className="h-4 w-4 text-teal-700" /> Collaboration Formed
+            <CheckCircle2 className="h-4 w-4 text-teal-700" /> {t("status.project_formed", "Collaboration Formed")}
           </span>
         );
       case "UNDER_REVIEW":
       case "SUBMITTED":
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-semibold text-blue-800">
-            <CheckCircle2 className="h-4 w-4 text-blue-700" /> Open for University Solutions
+            <CheckCircle2 className="h-4 w-4 text-blue-700" /> {t("challenges.open_for_solutions", "Open for University Solutions")}
           </span>
         );
       case "MATCHING":
       case "MATCHED":
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-200 px-3 py-1 text-xs font-semibold text-indigo-800">
-            <CheckCircle2 className="h-4 w-4 text-indigo-700" /> University Matched
+            <CheckCircle2 className="h-4 w-4 text-indigo-700" /> {t("challenges.university_matched", "University Matched")}
           </span>
         );
       case "REJECTED":
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 border border-red-200 px-3 py-1 text-xs font-semibold text-red-800">
-            <AlertTriangle className="h-4 w-4 text-red-600" /> Rejected
+            <AlertTriangle className="h-4 w-4 text-red-600" /> {t("status.rejected", "Rejected")}
           </span>
         );
       case "DRAFT":
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-100 border border-stone-200 px-3 py-1 text-xs font-semibold text-stone-700">
-            Draft (Not yet submitted)
+            {t("challenges.draft_status", "Draft (Not yet submitted)")}
           </span>
         );
       default:
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-semibold text-blue-800">
-            <CheckCircle2 className="h-4 w-4 text-blue-700" /> Open for University Solutions
+            <CheckCircle2 className="h-4 w-4 text-blue-700" /> {t("challenges.open_for_solutions", "Open for University Solutions")}
           </span>
         );
     }
@@ -502,7 +502,7 @@ export default function ChallengeDetailPage() {
             {getStatusBadge(challenge.status)}
             {challenge.citizen_severity && (
               <span className="rounded-md bg-stone-100 border border-stone-200 px-2.5 py-0.5 text-[11px] font-medium text-stone-700">
-                Severity: {challenge.citizen_severity.replace("_", " ").toLowerCase()}
+                {t("common.severity", "Severity:")} {t(`severity.${challenge.citizen_severity}`, challenge.citizen_severity.replace("_", " ").toLowerCase())}
               </span>
             )}
             {forumAccess.canAccess && (
@@ -511,7 +511,7 @@ export default function ChallengeDetailPage() {
                 className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-200 px-3 py-1 text-xs font-semibold text-indigo-800 hover:bg-indigo-100 transition shadow-2xs"
               >
                 <MessageSquare className="h-3.5 w-3.5 text-indigo-600" />
-                Communication Forum
+                {t("forum.title", "Communication Forum")}
               </Link>
             )}
           </div>
@@ -523,14 +523,14 @@ export default function ChallengeDetailPage() {
                 className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-700 hover:bg-indigo-800 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs transition"
               >
                 <MessageSquare className="h-3.5 w-3.5" />
-                Stakeholder Forum
+                {t("forum.title", "Stakeholder Forum")}
               </Link>
             )}
             <div className="text-right text-[11px] text-stone-500">
               {challenge.submitted_at ? (
-                <span>Submitted on {formatDateSafe(challenge.submitted_at)}</span>
+                <span>{t("common.submitted_on", { date: formatDateSafe(challenge.submitted_at) }, `Submitted on ${formatDateSafe(challenge.submitted_at)}`)}</span>
               ) : (
-                <span>Created on {formatDateSafe(challenge.created_at)}</span>
+                <span>{t("common.created_on", { date: formatDateSafe(challenge.created_at) }, `Created on ${formatDateSafe(challenge.created_at)}`)}</span>
               )}
             </div>
           </div>
@@ -540,7 +540,7 @@ export default function ChallengeDetailPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-stone-50 border border-stone-200">
           <div className="flex flex-wrap items-center gap-2">
             <Globe className="h-4 w-4 text-emerald-700 shrink-0" />
-            <span className="text-xs text-stone-600 font-medium">Original Language:</span>
+            <span className="text-xs text-stone-600 font-medium">{t("challenges.original_language", "Original Language:")}</span>
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
               {challenge.original_language
                 ? `${SUPPORTED_LANGUAGES[challenge.original_language]?.nativeName || challenge.original_language.toUpperCase()} (${SUPPORTED_LANGUAGES[challenge.original_language]?.name || challenge.original_language})`
@@ -562,7 +562,7 @@ export default function ChallengeDetailPage() {
                 }`}
               >
                 <Languages className="h-3.5 w-3.5" />
-                {onDemandTranslation?.target_language === "hi" ? "Original View" : "View in Hindi (हिन्दी)"}
+                {onDemandTranslation?.target_language === "hi" ? t("challenges.original_view", "Original View") : t("challenges.view_in_hindi", "View in Hindi (हिन्दी)")}
               </button>
             )}
 
@@ -578,7 +578,7 @@ export default function ChallengeDetailPage() {
                 }`}
               >
                 <Languages className="h-3.5 w-3.5" />
-                {onDemandTranslation?.target_language === "en" ? "Original View" : "View in English"}
+                {onDemandTranslation?.target_language === "en" ? t("challenges.original_view", "Original View") : t("challenges.view_in_english", "View in English")}
               </button>
             )}
 
@@ -604,7 +604,7 @@ export default function ChallengeDetailPage() {
           {challenge.professional_title && challenge.professional_title !== challenge.title && !onDemandTranslation && (
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 mb-2">
               <Sparkles className="h-3 w-3 text-indigo-600" />
-              AI-Refined Civic Problem Statement
+              {t("challenges.ai_refined_statement", "AI-Refined Civic Problem Statement")}
             </div>
           )}
           <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900 tracking-tight leading-tight break-words">
@@ -614,13 +614,13 @@ export default function ChallengeDetailPage() {
           </h1>
           {challenge.professional_title && challenge.professional_title !== challenge.title && !onDemandTranslation && (
             <p className="text-xs text-stone-500 mt-1">
-              Original Citizen Title: &ldquo;{challenge.title}&rdquo;
+              {t("challenges.original_citizen_title", "Original Citizen Title:")} &ldquo;{challenge.title}&rdquo;
             </p>
           )}
           <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500 mt-2">
             <span className="flex items-center gap-1.5">
               <UserIcon className="h-3.5 w-3.5 text-stone-400" />
-              Reported by: <span className="text-stone-800 font-semibold break-words">{challenge.submitter?.name || "Citizen"}</span>
+              {t("common.reported_by", "Reported by:")} <span className="text-stone-800 font-semibold break-words">{challenge.submitter?.name || t("roles.CITIZEN", "Citizen")}</span>
             </span>
             {challenge.verification_snapshot?.community_group_name && (
               <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-900 border border-blue-200 px-2.5 py-0.5 font-semibold text-[11px]">
@@ -640,7 +640,7 @@ export default function ChallengeDetailPage() {
         {/* Rejection notice if applicable */}
         {challenge.status === "REJECTED" && challenge.rejection_reason && (
           <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-xs text-red-900 space-y-1">
-            <span className="font-semibold text-red-700">Reviewer Rejection Reason:</span>
+            <span className="font-semibold text-red-700">{t("challenges.rejection_reason", "Reviewer Rejection Reason:")}</span>
             <p className="text-stone-700 leading-relaxed break-words">{challenge.rejection_reason}</p>
           </div>
         )}
@@ -678,19 +678,19 @@ export default function ChallengeDetailPage() {
         {/* Location Box */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 p-4 rounded-xl bg-stone-50 border border-stone-200 text-xs">
           <div className="min-w-0">
-            <span className="text-[11px] text-stone-500 block">District</span>
+            <span className="text-[11px] text-stone-500 block">{t("common.district", "District")}</span>
             <span className="font-semibold text-stone-900 break-words">{challenge.districtName}</span>
           </div>
           <div className="min-w-0">
-            <span className="text-[11px] text-stone-500 block">Block</span>
+            <span className="text-[11px] text-stone-500 block">{t("common.block", "Block")}</span>
             <span className="font-semibold text-stone-900 break-words">{challenge.blockName || "Not specified"}</span>
           </div>
           <div className="min-w-0">
-            <span className="text-[11px] text-stone-500 block">Village / Locality</span>
+            <span className="text-[11px] text-stone-500 block">{t("challenges.village_locality", "Village / Locality")}</span>
             <span className="font-semibold text-stone-900 break-words">{challenge.village_locality || "Not specified"}</span>
           </div>
           <div className="min-w-0">
-            <span className="text-[11px] text-stone-500 block">Affected Population</span>
+            <span className="text-[11px] text-stone-500 block">{t("challenges.affected_population", "Affected Population")}</span>
             <span className="font-semibold text-stone-900 break-words">{challenge.affected_population || "Unspecified"}</span>
           </div>
         </div>
@@ -764,12 +764,12 @@ export default function ChallengeDetailPage() {
                     <Sparkles className="h-4 w-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-stone-900">Problem Resolution Journey</h3>
-                    <p className="text-[11px] text-stone-500">Live operational lifecycle from citizen report to verified community impact.</p>
+                    <h3 className="text-sm font-bold text-stone-900">{t("challenges.resolution_journey", "Problem Resolution Journey")}</h3>
+                    <p className="text-[11px] text-stone-500">{t("challenges.resolution_journey_sub", "Live operational lifecycle from citizen report to verified community impact.")}</p>
                   </div>
                 </div>
                 <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 self-start sm:self-auto">
-                  {isGovVerified ? "Government Verified Need" : "Community Review Stage"}
+                  {isGovVerified ? t("challenges.gov_verified_need", "Government Verified Need") : t("challenges.community_review_stage", "Community Review Stage")}
                 </span>
               </div>
 
@@ -1536,10 +1536,10 @@ export default function ChallengeDetailPage() {
               <div>
                 <h4 className="text-sm font-bold text-stone-900 flex items-center gap-2">
                   <HeartHandshake className="h-4 w-4 text-emerald-700" />
-                  Community Confirmation
+                  {t("challenges.community_confirmation", "Community Confirmation")}
                 </h4>
                 <p className="text-xs text-stone-600 mt-0.5">
-                  Confirm if you or your family experience this exact issue in this locality.
+                  {t("challenges.confirm_issue_sub", "Confirm if you or your family experience this exact issue in this locality.")}
                 </p>
               </div>
 
@@ -1557,8 +1557,8 @@ export default function ChallengeDetailPage() {
                 <HeartHandshake className="h-4 w-4" />
                 <span>
                   {challenge.hasConfirmed
-                    ? "You confirmed this issue"
-                    : "I experience this problem too"}
+                    ? t("challenges.confirmed_by_you", "You confirmed this issue")
+                    : t("challenges.experience_too", "I experience this problem too")}
                 </span>
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-mono ${
                   challenge.hasConfirmed ? "bg-emerald-800 text-white" : "bg-stone-100 text-stone-700"

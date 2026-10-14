@@ -251,9 +251,9 @@ async function startBackend() {
   backendProc.stderr.on('data', (d) => process.stderr.write(`[BACKEND-ERR] ${d.toString()}`));
   spawnedProcesses.push({ name: 'Backend API', proc: backendProc });
 
-  const ready = await pollUrl('http://127.0.0.1:3001/api/health/ready', 45000, 1500);
+  const ready = await pollUrl('http://127.0.0.1:3001/api/health/ready', 90000, 1500);
   if (!ready) {
-    throw new Error('NestJS Backend API failed to reach ready status within 45 seconds on port 3001.');
+    throw new Error('NestJS Backend API failed to reach ready status within 90 seconds on port 3001.');
   }
   log('BACKEND', '✅ NestJS Backend API is ready at http://localhost:3001/api.');
 }

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "../../lib/auth-context";
+import { useTranslation } from "../../lib/i18n";
 import {
   Search,
   MapPin,
@@ -47,6 +48,7 @@ interface DistrictOption {
 
 export default function ChallengesPage() {
   const { user, token } = useAuth();
+  const { t } = useTranslation();
   const [challenges, setChallenges] = useState<ChallengeItem[]>([]);
   const [districts, setDistricts] = useState<DistrictOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,7 +111,7 @@ export default function ChallengesPage() {
   // Handle community confirmation toggle
   const handleToggleConfirm = async (challenge: ChallengeItem) => {
     if (!token) {
-      alert("Please log in to confirm that you also experience this problem.");
+      alert(t("challenges.login_to_confirm", "Please log in to confirm that you also experience this problem."));
       return;
     }
 
@@ -150,19 +152,19 @@ export default function ChallengesPage() {
       case "VALIDATED":
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800">
-            <CheckCircle2 className="h-3 w-3 text-emerald-700" /> Validated
+            <CheckCircle2 className="h-3 w-3 text-emerald-700" /> {t("status.validated", "Validated")}
           </span>
         );
       case "UNDER_REVIEW":
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">
-            <Clock className="h-3 w-3 text-amber-700" /> Under Review
+            <Clock className="h-3 w-3 text-amber-700" /> {t("status.under_review", "Under Review")}
           </span>
         );
       default:
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-[11px] font-semibold text-blue-800">
-            <FileCheck2 className="h-3 w-3 text-blue-700" /> Submitted
+            <FileCheck2 className="h-3 w-3 text-blue-700" /> {t("status.submitted", "Submitted")}
           </span>
         );
     }
@@ -174,19 +176,19 @@ export default function ChallengesPage() {
       case "SERIOUS":
         return (
           <span className="rounded-md bg-red-50 border border-red-200 px-2 py-0.5 text-[10px] font-semibold text-red-700">
-            High Severity
+            {t("common.high_severity", "High Severity")}
           </span>
         );
       case "MODERATE":
         return (
           <span className="rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
-            Moderate
+            {t("common.moderate_severity", "Moderate")}
           </span>
         );
       default:
         return (
           <span className="rounded-md bg-stone-100 border border-stone-200 px-2 py-0.5 text-[10px] font-medium text-stone-600">
-            Unspecified
+            {t("common.unspecified_severity", "Unspecified")}
           </span>
         );
     }
@@ -199,14 +201,14 @@ export default function ChallengesPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900">
-              Societal Challenges
+              {t("challenges.title", "Societal Challenges")}
             </h1>
             <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
-              Grassroots Directory
+              {t("challenges.subtitle", "Grassroots Directory")}
             </span>
           </div>
           <p className="mt-1 text-sm text-stone-600 max-w-2xl">
-            Real problems reported directly by citizens and communities across Jharkhand. Community confirmations help elevate shared regional concerns for institutional research.
+            {t("challenges.description", "Real problems reported directly by citizens and communities across Jharkhand. Community confirmations help elevate shared regional concerns for institutional research.")}
           </p>
         </div>
 
@@ -214,7 +216,7 @@ export default function ChallengesPage() {
           href="/challenges/new"
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-5 py-2.5 text-xs font-semibold text-white shadow-xs transition-all self-start md:self-auto"
         >
-          <span>Report a Problem</span>
+          <span>{t("challenges.report_problem_btn", "Report a Problem")}</span>
           <ArrowRight className="h-4 w-4" />
         </Link>
       </div>
@@ -226,7 +228,7 @@ export default function ChallengesPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
           <input
             type="text"
-            placeholder="Search problems, descriptions, or localities..."
+            placeholder={t("challenges.search_placeholder", "Search problems, descriptions, or localities...")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full rounded-xl border border-stone-300 bg-stone-50/50 pl-9 pr-3 py-2 text-xs text-stone-900 placeholder-stone-400 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-600/20"
@@ -238,9 +240,10 @@ export default function ChallengesPage() {
           <select
             value={selectedDistrict}
             onChange={(e) => setSelectedDistrict(e.target.value)}
+            aria-label={t("challenges.all_districts", "All Districts (Jharkhand)")}
             className="w-full rounded-xl border border-stone-300 bg-stone-50/50 px-3 py-2 text-xs text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-600/20"
           >
-            <option value="">All Districts (Jharkhand)</option>
+            <option value="">{t("challenges.all_districts", "All Districts (Jharkhand)")}</option>
             {districts.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.name}
@@ -254,12 +257,13 @@ export default function ChallengesPage() {
           <select
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
+            aria-label={t("challenges.all_statuses", "All Statuses")}
             className="w-full rounded-xl border border-stone-300 bg-stone-50/50 px-3 py-2 text-xs text-stone-900 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-600/20"
           >
-            <option value="">All Statuses</option>
-            <option value="VALIDATED">Validated Only</option>
-            <option value="UNDER_REVIEW">Under Review</option>
-            <option value="SUBMITTED">Submitted</option>
+            <option value="">{t("challenges.all_statuses", "All Statuses")}</option>
+            <option value="VALIDATED">{t("challenges.validated_only", "Validated Only")}</option>
+            <option value="UNDER_REVIEW">{t("challenges.under_review", "Under Review")}</option>
+            <option value="SUBMITTED">{t("challenges.submitted", "Submitted")}</option>
           </select>
         </div>
       </div>
@@ -281,9 +285,9 @@ export default function ChallengesPage() {
       ) : challenges.length === 0 ? (
         <div className="text-center py-16 px-4 rounded-2xl border border-dashed border-stone-300 bg-white space-y-4 shadow-xs">
           <AlertCircle className="mx-auto h-10 w-10 text-stone-400" />
-          <h3 className="text-base font-semibold text-stone-900">No challenges found</h3>
+          <h3 className="text-base font-semibold text-stone-900">{t("challenges.no_challenges_found", "No challenges found")}</h3>
           <p className="text-xs text-stone-600 max-w-sm mx-auto">
-            No societal challenges match your current search and filter criteria. Try adjusting your filters or report a new problem.
+            {t("challenges.no_challenges_desc", "No societal challenges match your current search and filter criteria. Try adjusting your filters or report a new problem.")}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
             <button
@@ -294,13 +298,13 @@ export default function ChallengesPage() {
               }}
               className="inline-flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 px-4 py-2 text-xs font-semibold text-stone-700 shadow-2xs transition"
             >
-              Clear Filters
+              {t("challenges.clear_filters", "Clear Filters")}
             </button>
             <Link
               href="/challenges/new"
               className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-800 shadow-xs transition"
             >
-              Report Problem
+              {t("challenges.report_problem", "Report Problem")}
             </Link>
           </div>
         </div>
@@ -322,7 +326,7 @@ export default function ChallengesPage() {
                 <div>
                   {challenge.professional_title && challenge.professional_title !== challenge.title && (
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded mb-1.5">
-                      <Sparkles className="h-2.5 w-2.5 text-indigo-600" /> Refined Problem
+                      <Sparkles className="h-2.5 w-2.5 text-indigo-600" /> {t("challenges.refined_problem", "Refined Problem")}
                     </span>
                   )}
                   <Link href={`/challenges/${challenge.id}`}>
@@ -346,7 +350,7 @@ export default function ChallengesPage() {
                   {challenge.blockName && (
                     <>
                       <span>·</span>
-                      <span className="break-words">{challenge.blockName} Block</span>
+                      <span className="break-words">{challenge.blockName} {t("challenges.block", "Block")}</span>
                     </>
                   )}
                   {challenge.village_locality && (
@@ -367,7 +371,7 @@ export default function ChallengesPage() {
                   <button
                     onClick={() => handleToggleConfirm(challenge)}
                     disabled={confirmingId === challenge.id}
-                    title="I experience this problem too"
+                    title={t("challenges.confirm_experience", "I experience this problem too")}
                     className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors ${
                       challenge.hasConfirmed
                         ? "bg-emerald-700 text-white border border-emerald-700 shadow-xs"
@@ -382,7 +386,7 @@ export default function ChallengesPage() {
                   {challenge.evidenceCount > 0 && (
                     <span className="inline-flex items-center gap-1 rounded-md bg-stone-100 px-2 py-1 text-[11px] text-stone-600 border border-stone-200 font-medium">
                       <ImageIcon className="h-3 w-3 text-stone-500" />
-                      {challenge.evidenceCount}
+                      <span>{challenge.evidenceCount}</span>
                     </span>
                   )}
                 </div>
@@ -392,7 +396,7 @@ export default function ChallengesPage() {
                   href={`/challenges/${challenge.id}`}
                   className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 group/link shrink-0"
                 >
-                  <span>Details</span>
+                  <span>{t("challenges.view_details", "Details")}</span>
                   <ArrowRight className="h-3.5 w-3.5 group-hover/link:translate-x-0.5 transition-transform" />
                 </Link>
               </div>

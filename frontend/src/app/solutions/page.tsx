@@ -25,6 +25,7 @@ import {
   PlusCircle,
 } from "lucide-react";
 import { formatDateSafe } from "../../lib/utils";
+import { useTranslation } from "../../lib/i18n";
 
 interface ProposedSolutionItem {
   id: string;
@@ -68,6 +69,7 @@ interface ProposedSolutionItem {
 
 export default function OpenSolutionWorkspacePage() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
   const [solutions, setSolutions] = useState<ProposedSolutionItem[]>([]);
@@ -110,20 +112,20 @@ export default function OpenSolutionWorkspacePage() {
       case "COLLABORATION_OPEN":
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200">
-            <Handshake className="h-3 w-3" /> Collaboration Open
+            <Handshake className="h-3 w-3" /> {t("solutions.collab_open", "Collaboration Open")}
           </span>
         );
       case "CONVERTED_TO_PROJECT":
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-800 border border-blue-200">
-            <ShieldCheck className="h-3 w-3" /> Converted to Active Project
+            <ShieldCheck className="h-3 w-3" /> {t("solutions.converted_project", "Converted to Active Project")}
           </span>
         );
       case "SUBMITTED":
       case "UNDER_REVIEW":
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 border border-amber-200">
-            <Clock className="h-3 w-3" /> Under Review
+            <Clock className="h-3 w-3" /> {t("status.under_review", "Under Review")}
           </span>
         );
       default:
@@ -182,15 +184,13 @@ export default function OpenSolutionWorkspacePage() {
             <div className="space-y-2 max-w-3xl">
               <div className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 border border-emerald-200">
                 <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
-                Ecosystem Co-Innovation Platform
+                {t("solutions.platform_badge", "Ecosystem Co-Innovation Platform")}
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight">
-                Open Solution Workspace
+                {t("solutions.title", "Open Solution Workspace")}
               </h1>
               <p className="text-sm text-stone-600 leading-relaxed">
-                Discover university-proposed solutions addressing validated civic challenges.
-                Universities, industries, startups, MSMEs, and CSR foundations can collaborate,
-                fund, co-develop, and transition innovative ideas into verified field projects.
+                {t("solutions.subtitle", "Discover university-proposed solutions addressing validated civic challenges. Universities, industries, startups, MSMEs, and CSR foundations can collaborate, fund, co-develop, and transition innovative ideas into verified field projects.")}
               </p>
             </div>
 
@@ -199,14 +199,14 @@ export default function OpenSolutionWorkspacePage() {
                 href="/challenges"
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-stone-100 hover:bg-stone-200 px-4 py-2.5 text-xs font-semibold text-stone-800 transition"
               >
-                Browse Problems <ArrowRight className="h-3.5 w-3.5" />
+                {t("nav.challenges", "Browse Problems")} <ArrowRight className="h-3.5 w-3.5" />
               </Link>
               {user?.role === "UNIVERSITY_ADMIN" || user?.role === "FACULTY" ? (
                 <Link
                   href="/solutions/new"
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition"
                 >
-                  <PlusCircle className="h-4 w-4" /> Propose Solution
+                  <PlusCircle className="h-4 w-4" /> {t("solutions.propose_solution", "Propose Solution")}
                 </Link>
               ) : null}
             </div>
@@ -215,25 +215,25 @@ export default function OpenSolutionWorkspacePage() {
           {/* Quick Metrics Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6 mt-6 border-t border-stone-100 text-xs">
             <div className="p-3 bg-stone-50 rounded-xl border border-stone-200/60">
-              <span className="text-stone-500 block">Published Solutions</span>
+              <span className="text-stone-500 block">{t("solutions.published_solutions", "Published Solutions")}</span>
               <span className="text-lg font-bold text-stone-900 mt-0.5 block">
                 {solutions.length}
               </span>
             </div>
             <div className="p-3 bg-stone-50 rounded-xl border border-stone-200/60">
-              <span className="text-stone-500 block">Seeking Collaboration</span>
+              <span className="text-stone-500 block">{t("solutions.seeking_collab", "Seeking Collaboration")}</span>
               <span className="text-lg font-bold text-emerald-700 mt-0.5 block">
                 {solutions.filter((s) => s.status === "COLLABORATION_OPEN" || s.status === "PUBLISHED").length}
               </span>
             </div>
             <div className="p-3 bg-stone-50 rounded-xl border border-stone-200/60">
-              <span className="text-stone-500 block">Converted to Projects</span>
+              <span className="text-stone-500 block">{t("solutions.converted_projects", "Converted to Projects")}</span>
               <span className="text-lg font-bold text-blue-700 mt-0.5 block">
                 {solutions.filter((s) => s.status === "CONVERTED_TO_PROJECT").length}
               </span>
             </div>
             <div className="p-3 bg-stone-50 rounded-xl border border-stone-200/60">
-              <span className="text-stone-500 block">Partner Contributions</span>
+              <span className="text-stone-500 block">{t("solutions.partner_contributions", "Partner Contributions")}</span>
               <span className="text-lg font-bold text-purple-700 mt-0.5 block">
                 {solutions.reduce((acc, s) => acc + (s.collaborations?.length || 0), 0)}
               </span>
@@ -250,7 +250,7 @@ export default function OpenSolutionWorkspacePage() {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search solutions by keyword, technology, university, or problem domain..."
+                placeholder={t("solutions.search_placeholder", "Search solutions by keyword, technology, university, or problem domain...")}
                 className="w-full rounded-xl border border-stone-200 bg-stone-50/50 pl-10 pr-4 py-2.5 text-xs text-stone-900 focus:bg-white focus:border-emerald-600 focus:outline-none"
               />
             </div>
@@ -263,7 +263,7 @@ export default function OpenSolutionWorkspacePage() {
               >
                 {domains.map((d) => (
                   <option key={d} value={d}>
-                    {d === "ALL" ? "All Domains" : d}
+                    {d === "ALL" ? t("solutions.all_domains", "All Domains") : d}
                   </option>
                 ))}
               </select>
@@ -275,7 +275,7 @@ export default function OpenSolutionWorkspacePage() {
               >
                 {districts.map((dst) => (
                   <option key={dst} value={dst}>
-                    {dst === "ALL" ? "All Districts" : dst}
+                    {dst === "ALL" ? t("solutions.all_districts", "All Districts") : dst}
                   </option>
                 ))}
               </select>
@@ -287,7 +287,7 @@ export default function OpenSolutionWorkspacePage() {
               >
                 {collabTypes.map((c) => (
                   <option key={c.value} value={c.value}>
-                    {c.label}
+                    {c.value === "ALL" ? t("solutions.all_collab_types", c.label) : c.label}
                   </option>
                 ))}
               </select>
@@ -297,9 +297,9 @@ export default function OpenSolutionWorkspacePage() {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="rounded-xl border border-stone-200 bg-stone-50/50 px-3 py-2.5 text-xs text-stone-700 focus:bg-white focus:outline-none"
               >
-                <option value="ALL">All Statuses</option>
-                <option value="COLLABORATION_OPEN">Open for Collaboration</option>
-                <option value="CONVERTED_TO_PROJECT">Active Projects</option>
+                <option value="ALL">{t("solutions.all_statuses", "All Statuses")}</option>
+                <option value="COLLABORATION_OPEN">{t("solutions.collab_open", "Open for Collaboration")}</option>
+                <option value="CONVERTED_TO_PROJECT">{t("solutions.converted_project", "Active Projects")}</option>
               </select>
             </div>
           </div>
@@ -309,14 +309,14 @@ export default function OpenSolutionWorkspacePage() {
         {loading ? (
           <div className="py-20 text-center space-y-3">
             <Loader2 className="h-8 w-8 animate-spin text-emerald-700 mx-auto" />
-            <p className="text-xs text-stone-500 font-medium">Loading Open Solution Workspace...</p>
+            <p className="text-xs text-stone-500 font-medium">{t("common.loading", "Loading Open Solution Workspace...")}</p>
           </div>
         ) : solutions.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-12 text-center space-y-3">
             <Lightbulb className="h-10 w-10 text-stone-400 mx-auto" />
-            <h3 className="text-sm font-bold text-stone-900">No Proposed Solutions Found</h3>
+            <h3 className="text-sm font-bold text-stone-900">{t("solutions.no_solutions", "No Proposed Solutions Found")}</h3>
             <p className="text-xs text-stone-500 max-w-md mx-auto">
-              There are no published solutions matching your selected search criteria.
+              {t("solutions.no_solutions_desc", "There are no published solutions matching your selected search criteria.")}
             </p>
           </div>
         ) : (
@@ -351,7 +351,7 @@ export default function OpenSolutionWorkspacePage() {
                       {/* Addressed Challenge */}
                       {sol.challenge && (
                         <p className="text-[11px] text-stone-500 mt-1 line-clamp-1">
-                          Problem: <strong className="text-stone-700">{sol.challenge.title}</strong>
+                          {t("solutions.problem", "Problem:")} <strong className="text-stone-700">{sol.challenge.title}</strong>
                         </p>
                       )}
                     </div>
@@ -361,7 +361,7 @@ export default function OpenSolutionWorkspacePage() {
                       <GraduationCap className="h-4 w-4 text-emerald-700 shrink-0" />
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-stone-800 truncate">
-                          {sol.proposingOrganization?.name || "University"}
+                          {sol.proposingOrganization?.name || t("roles.INSTITUTION", "University")}
                         </p>
                         <p className="text-[10px] text-stone-500">
                           {sol.proposingOrganization?.district || "Jharkhand"}
@@ -399,11 +399,11 @@ export default function OpenSolutionWorkspacePage() {
                     <div className="flex items-center justify-between text-[11px] text-stone-500">
                       <span className="flex items-center gap-1">
                         <Users className="h-3.5 w-3.5 text-stone-400" />
-                        {teamCount} Team Member{teamCount === 1 ? "" : "s"}
+                        {teamCount} {t("solutions.team_members", "Team Members")}
                       </span>
                       <span className="flex items-center gap-1">
                         <Handshake className="h-3.5 w-3.5 text-emerald-600" />
-                        {activeOffers.length} Collaboration{activeOffers.length === 1 ? "" : "s"}
+                        {activeOffers.length} {t("solutions.collaborations", "Collaborations")}
                       </span>
                     </div>
 
@@ -413,14 +413,14 @@ export default function OpenSolutionWorkspacePage() {
                           ₹{Number(sol.estimated_budget).toLocaleString()}
                         </span>
                       ) : (
-                        <span className="text-[11px] text-stone-400 font-medium">Budget in proposal</span>
+                        <span className="text-[11px] text-stone-400 font-medium">{t("solutions.budget_in_proposal", "Budget in proposal")}</span>
                       )}
 
                       <Link
                         href={`/solutions/${sol.id}`}
                         className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 transition"
                       >
-                        Explore Solution <ChevronRight className="h-3.5 w-3.5" />
+                        {t("solutions.view_solution", "Explore Solution")} <ChevronRight className="h-3.5 w-3.5" />
                       </Link>
                     </div>
                   </div>
